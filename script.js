@@ -37,8 +37,6 @@ function resize() {
 }
 resize();
 
-import { C, ROOM_SCRIPTS, EDEFS, SPS_LADDER, DECAY_BASE, M, UPGRADES, getDefaultUpgrades } from './gameData.js';
-
 // ── PLAYER UPGRADES ───────────────────────────────────────────────────────────
 let UPG = getDefaultUpgrades();
 function resetUpgrades() {
