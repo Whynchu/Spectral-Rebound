@@ -1,3 +1,5 @@
+import { C, ROOM_SCRIPTS, EDEFS, SPS_LADDER, DECAY_BASE, M, UPGRADES, getDefaultUpgrades } from './gameData.js';
+
 const cv  = document.getElementById('cv');
 const ctx = cv.getContext('2d');
 
