@@ -21,12 +21,21 @@ function fixSafariViewport() {
   }
 }
 
-window.addEventListener('resize', fixSafariViewport);
+window.addEventListener('resize', () => {
+  fixSafariViewport();
+  resize();
+});
 window.addEventListener('orientationchange', () => {
-  setTimeout(fixSafariViewport, 100);
+  setTimeout(() => {
+    fixSafariViewport();
+    resize();
+  }, 100);
 });
 if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', fixSafariViewport);
+  window.visualViewport.addEventListener('resize', () => {
+    fixSafariViewport();
+    resize();
+  });
 }
 fixSafariViewport(); // Initial call
 
@@ -34,6 +43,8 @@ function resize() {
   const w = Math.min(400, window.innerWidth * 0.95);
   cv.width  = Math.floor(w);
   cv.height = Math.floor(w * 1.18);
+  cv.style.width = `${cv.width}px`;
+  cv.style.height = `${cv.height}px`;
 }
 resize();
 
@@ -185,52 +196,7 @@ function sparks(x,y,col,n=6,spd=80) {
 }
 
 // ── UPGRADE POOL ─────────────────────────────────────────────────────────────
-// Full Archero-style kit
-const UPGRADES = [
-  // OFFENSE
-  {name:'Rapid Fire',      tag:'OFFENSE', icon:'⚡', desc:'Unlock next fire rate tier. Shoot faster.',
-    apply(){ if(UPG.spsTier<SPS_LADDER.length-1){UPG.spsTier++;UPG.sps=SPS_LADDER[UPG.spsTier];} }},
-  {name:'Triple Shot',     tag:'OFFENSE', icon:'🔱', desc:'Fire 3 bullets in a spread instead of 1.',
-    apply(){ UPG.shapeTier=Math.max(UPG.shapeTier,1); }},
-  {name:'Penta Shot',      tag:'OFFENSE', icon:'✦',  desc:'Five bullets in a wide fan. Requires Triple.',
-    apply(){ UPG.shapeTier=Math.max(UPG.shapeTier,2); }},
-  {name:'Ring Blast',      tag:'OFFENSE', icon:'◎',  desc:'Fire 8 bullets in all directions.',
-    apply(){ UPG.shapeTier=Math.max(UPG.shapeTier,3); }},
-  {name:'Front+Back',      tag:'OFFENSE', icon:'↕',  desc:'Fire forward AND backward simultaneously.',
-    apply(){ UPG.shapeTier=Math.max(UPG.shapeTier,4); }},
-  {name:'Snipe Shot',      tag:'OFFENSE', icon:'🎯', desc:'Single oversized bullet at 1.6× speed & size.',
-    apply(){ UPG.shapeTier=5; }},
-  {name:'Bigger Bullets',  tag:'OFFENSE', icon:'🔵', desc:'Output bullets are 35% larger.',
-    apply(){ UPG.shotSize*=1.35; }},
-  {name:'Faster Bullets',  tag:'OFFENSE', icon:'💨', desc:'Output bullets travel 25% faster.',
-    apply(){ UPG.shotSpd*=1.25; }},
-  {name:'Critical Hit',    tag:'OFFENSE', icon:'💥', desc:'+20% chance each shot deals double damage.',
-    apply(){ UPG.critChance=Math.min(0.8,UPG.critChance+0.2); }},
-  // UTILITY
-  {name:'Ricochet',        tag:'UTILITY', icon:'↯',  desc:'Your output bullets bounce off walls up to 2 times.',
-    apply(){ UPG.bounceTier=Math.max(1,UPG.bounceTier); }},
-  {name:'Homing',          tag:'UTILITY', icon:'🌀', desc:'Output bullets curve toward the nearest enemy.',
-    apply(){ UPG.homingTier=1; }},
-  {name:'Pierce',          tag:'UTILITY', icon:'→',  desc:'Output bullets pass through the first enemy hit.',
-    apply(){ UPG.pierceTier=1; }},
-  {name:'Quick Harvest',   tag:'UTILITY', icon:'⬇',  desc:'Grey bullets vanish 2s sooner — harvest window tighter but score faster.',
-    apply(){ UPG.decayBonus-=2000; }},
-  {name:'Decay Extension', tag:'UTILITY', icon:'⏳', desc:'Grey bullets linger 1.5s longer for easier harvest.',
-    apply(){ UPG.decayBonus+=1500; }},
-  {name:'Charge Cap +5',   tag:'UTILITY', icon:'▣',  desc:'Store 5 more absorbed bullets.',
-    apply(){ UPG.maxCharge+=5; }},
-  {name:'Charge Cap +10',  tag:'UTILITY', icon:'◆',  desc:'Store 10 more absorbed bullets.',
-    apply(){ UPG.maxCharge+=10; }},
-  {name:'Wider Absorb',    tag:'UTILITY', icon:'🧲', desc:'Pull grey bullets from 20% farther away.',
-    apply(){ UPG.absorbRange+=12; }},
-  // SURVIVABILITY
-  {name:'Extra Life',      tag:'SURVIVE', icon:'◉',  desc:'Gain 25 max HP and restore it.',
-    apply(){ maxHp+=25; hp=Math.min(hp+25,maxHp); }},
-  {name:'Ghost Velocity',  tag:'SURVIVE', icon:'👻', desc:'Move 18% faster through the arena.',
-    apply(){ UPG.speedMult*=1.18; }},
-  {name:'Room Regen',      tag:'SURVIVE', icon:'💚', desc:'Restore 20 HP whenever you clear a room.',
-    apply(){ UPG.regenTick+=20; }},
-];
+// UPGRADE list is imported from gameData.js
 
 function showUpgrades() {
   gstate='upgrade'; cancelAnimationFrame(raf);
