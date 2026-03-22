@@ -1,6 +1,26 @@
 const cv  = document.getElementById('cv');
 const ctx = cv.getContext('2d');
 
+// ── SAFARI MOBILE VIEWPORT FIX ───────────────────────────────────────────────
+// Safari mobile has issues with 100vh including the address bar
+function fixSafariViewport() {
+  const vh = window.innerHeight * 0.01;
+  document.documentElement.style.setProperty('--vh', `${vh}px`);
+
+  // Also set height directly for Safari
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  if (isSafari && /Mobile/.test(navigator.userAgent)) {
+    document.body.style.height = `${window.innerHeight}px`;
+    document.body.style.minHeight = `${window.innerHeight}px`;
+  }
+}
+
+window.addEventListener('resize', fixSafariViewport);
+window.addEventListener('orientationchange', () => {
+  setTimeout(fixSafariViewport, 100);
+});
+fixSafariViewport(); // Initial call
+
 function resize() {
   const w = Math.min(400, window.innerWidth * 0.95);
   cv.width  = Math.floor(w);
