@@ -1,0 +1,157 @@
+:root {
+  --bg:      #161616;
+  --bg2:     #1e1e1e;
+  --bg3:     #252525;
+  --border:  rgba(255,255,255,0.06);
+  --border2: rgba(255,255,255,0.12);
+  --text:    #d8d8d8;
+  --muted:   #707070;
+  --dim:     #444444;
+  --accent:  #4ade80;
+  --accent2: #22c55e;
+  --ghost:   #b8ffcc;
+  --siphon:  #a78bfa;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: #000;
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  user-select: none;
+}
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background: repeating-linear-gradient(0deg,rgba(0,0,0,0.055) 0px,rgba(0,0,0,0.055) 1px,transparent 1px,transparent 3px);
+  pointer-events:none; z-index:100;
+}
+#wrap {
+  position: relative;
+  width: min(400px, 95vw);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* TOP HUD */
+#top-hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--dim);
+}
+#health-dots { display:none; }
+#score-txt { font-family:'Syne',sans-serif; font-weight:800; font-size:16px; color:var(--accent); }
+/* TOP HUD room counter */
+#room-counter { font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.18em; color:var(--muted); }
+/* CANVAS */
+#cv { display:block; border-radius:5px; border:1px solid var(--border2); cursor:none; touch-action:none; }
+/* BOTTOM HUD */
+#bot-hud {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+#charge-section { flex:1; }
+#charge-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+#charge-lbl { font-size:9px; letter-spacing:.15em; color:var(--dim); text-transform:uppercase; }
+#charge-badge { font-size:10px; font-weight:700; color:var(--accent); background:rgba(74,222,128,0.07); border:1px solid rgba(74,222,128,0.18); padding:2px 8px; border-radius:3px; }
+#charge-track { background:var(--bg3); border:1px solid var(--border); border-radius:2px; height:8px; overflow:hidden; }
+#charge-fill  { background:linear-gradient(90deg,var(--accent2),var(--accent)); width:0%; height:100%; box-shadow:0 0 6px rgba(74,222,128,0.3); transition:width .08s; }
+#sps-box { text-align:center; min-width:52px; }
+#sps-num { font-family:'Syne',sans-serif; font-weight:800; font-size:22px; color:var(--accent); line-height:1; }
+#sps-lbl { font-size:8px; letter-spacing:.2em; color:var(--dim); text-transform:uppercase; margin-top:2px; }
+/* ROOM BADGE */
+#room-badge {
+  font-family:'IBM Plex Mono',monospace;
+  font-size:9px; letter-spacing:.18em; color:var(--muted);
+  text-align:center; opacity:.6;
+}
+/* LEGEND */
+#legend { display:flex; justify-content:center; gap:16px; font-size:9px; letter-spacing:.1em; color:var(--dim); text-transform:uppercase; }
+.leg { display:flex; align-items:center; gap:5px; }
+.leg-dot { width:7px; height:7px; border-radius:50%; }
+/* SCREENS */
+.screen {
+  position:absolute; inset:0;
+  background:rgba(22,22,22,0.96);
+  border-radius:5px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:14px; padding:28px;
+  z-index:10;
+  backdrop-filter:blur(6px);
+}
+.screen.off { display:none; }
+.eyebrow { font-size:9px; letter-spacing:.25em; text-transform:uppercase; color:var(--dim); }
+.big-title {
+  font-family:'Syne',sans-serif; font-weight:800; font-size:48px;
+  letter-spacing:-.02em; line-height:.92; text-align:center; color:#fff;
+}
+.big-title span {
+  display:block;
+  background:linear-gradient(135deg,var(--accent),var(--ghost));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+}
+.screen-body {
+  font-size:12px; line-height:1.85; color:var(--muted); text-align:center;
+  max-width:280px; letter-spacing:.02em;
+}
+.hi { color:#60a5fa; }
+.gr { color:#888; }
+.gn { color:var(--accent); }
+.rule-line { width:100%; height:1px; background:linear-gradient(90deg,transparent,var(--border2),transparent); }
+.btn {
+  background:rgba(74,222,128,0.06); border:1px solid rgba(74,222,128,0.22);
+  color:var(--accent); font-family:'IBM Plex Mono',monospace;
+  font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase;
+  padding:12px 32px; border-radius:4px; cursor:pointer; transition:all .18s;
+}
+.btn:hover { background:rgba(74,222,128,0.14); box-shadow:0 0 24px rgba(74,222,128,0.15); }
+/* UPGRADE SCREEN — horizontal 3 cards */
+#up-title { font-size:9px; letter-spacing:.25em; text-transform:uppercase; color:var(--accent); margin-bottom:4px; }
+#up-cards {
+  display:flex; flex-direction:row; gap:10px; width:100%;
+}
+.up-card {
+  flex:1; min-width:0;
+  background:var(--bg3); border:1px solid var(--border); border-radius:8px;
+  padding:16px 10px 14px; cursor:pointer; transition:all .15s;
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  text-align:center;
+}
+.up-card:hover { border-color:var(--accent2); background:rgba(74,222,128,0.06); box-shadow:0 0 20px rgba(74,222,128,0.12); transform:translateY(-3px); }
+.up-icon { font-size:26px; }
+.up-name { font-family:'Syne',sans-serif; font-weight:700; font-size:12px; color:#fff; letter-spacing:-.01em; line-height:1.2; }
+.up-desc { font-size:9px; color:var(--muted); line-height:1.45; }
+.up-tag  { font-size:7px; letter-spacing:.14em; text-transform:uppercase; margin-top:2px; }
+/* GAME OVER */
+#go-score { font-family:'Syne',sans-serif; font-weight:800; font-size:54px; color:var(--accent); line-height:1; }
+#go-sub   { font-size:9px; letter-spacing:.18em; color:var(--dim); text-transform:uppercase; }
+#go-note  { font-size:11px; color:var(--muted); text-align:center; max-width:250px; line-height:1.7; }
+/* ROOM CLEAR FLASH */
+#room-clear {
+  position:absolute; inset:0; pointer-events:none;
+  display:flex; align-items:center; justify-content:center;
+  z-index:5; opacity:0; transition:opacity .3s;
+}
+#room-clear.show { opacity:1; }
+#room-clear-txt {
+  font-family:'Syne',sans-serif; font-weight:800; font-size:28px;
+  color:#4ade80; letter-spacing:.15em; text-shadow:0 0 20px rgba(74,222,128,0.6);
+  text-transform:uppercase;
+}
