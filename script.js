@@ -147,7 +147,7 @@ function spawnEnemy(type) {
   else if(edge===2){x=M+Math.random()*(W-2*M);y=H-M-d.r;}
   else{x=M+d.r;y=M+Math.random()*(H-2*M);}
   // Scale HP with room index
-  const hpScale = 1 + roomIndex * 0.10;
+  const hpScale = 1 + roomIndex * 0.05;
   enemies.push({
     ...d,
     eid: enemyIdSeq++,
@@ -167,7 +167,7 @@ function bulletSpeedScale() {
 
 function spawnEB(ex,ey) {
   const a=Math.atan2(player.y-ey,player.x-ex)+(Math.random()-.5)*.22;
-  const spd=(140+Math.random()*40) * bulletSpeedScale();
+  const spd=(145+Math.random()*40) * bulletSpeedScale();
   bullets.push({x:ex,y:ey,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,state:'danger',r:4.5,decayStart:null,bounces:0});
 }
 
@@ -198,8 +198,8 @@ function firePlayer(tx,ty) {
   }
 
   const snipeScale = 1 + UPG.snipePower * 0.18;
-  const bspd = 230 * UPG.shotSpd * snipeScale;
-  const br   = 4.5 * UPG.shotSize * (1 + UPG.snipePower * 0.15);
+  const bspd = 230 * Math.min(2.0, UPG.shotSpd) * snipeScale;
+  const br   = 4.5 * Math.min(2.5, UPG.shotSize) * (1 + UPG.snipePower * 0.15);
   const baseDmg = 1 + UPG.snipePower * 0.35;
 
   for(const a of angs) {
@@ -354,7 +354,7 @@ function loop(ts){
 // ── UPDATE ────────────────────────────────────────────────────────────────────
 function update(dt,ts){
   const W=cv.width,H=cv.height;
-  const BASE_SPD=165*UPG.speedMult;
+  const BASE_SPD=165*Math.min(2.5,UPG.speedMult);
 
   // ── Player movement — virtual joystick
   if(joy.active && joy.mag > JOY_DEADZONE){
@@ -503,7 +503,7 @@ function update(dt,ts){
         const dx=tgt.e.x-b.x,dy=tgt.e.y-b.y,d=Math.hypot(dx,dy);
         b.vx+=(dx/d)*400*dt; b.vy+=(dy/d)*400*dt;
         const sp=Math.hypot(b.vx,b.vy);
-        const maxSp=230*UPG.shotSpd*1.2;
+        const maxSp=230*Math.min(2.0,UPG.shotSpd)*1.2;
         if(sp>maxSp){b.vx=b.vx/sp*maxSp;b.vy=b.vy/sp*maxSp;}
       }
     }
