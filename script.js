@@ -1,4 +1,9 @@
-import { C, ROOM_SCRIPTS, EDEFS, SPS_LADDER, DECAY_BASE, M, UPGRADES, getDefaultUpgrades } from './gameData.js?v=20260323a';
+import { C, ROOM_SCRIPTS, EDEFS, SPS_LADDER, DECAY_BASE, M, UPGRADES, getDefaultUpgrades, VERSION } from './gameData.js?v=20260323a';
+
+// Set version display
+if (document.getElementById('version-tag')) {
+  document.getElementById('version-tag').textContent = `// prototype v${VERSION.num} — ${VERSION.label}`;
+}
 
 const cv  = document.getElementById('cv');
 const ctx = cv.getContext('2d');
