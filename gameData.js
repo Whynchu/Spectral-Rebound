@@ -2,6 +2,8 @@
  * Static game data definitions separated for easier iteration and content updates.
  */
 
+const VERSION = { num: '0.41', label: 'Hyperbolic Scaling' };
+
 const C = {
   bg:'#161616', grid:'rgba(255,255,255,0.025)', border:'rgba(255,255,255,0.1)',
   danger:'#60a5fa', dangerCore:'rgba(200,230,255,0.9)',
@@ -100,4 +102,4 @@ const UPGRADES = [
   {name:'Orbit Spheres',tag:'UTILITY',icon:'🔮',desc:'3 passive spheres orbit you constantly once unlocked.',apply(upg){upg.orbitSpheres=true;}},
 ];
 
-export { C, ROOM_SCRIPTS, EDEFS, SPS_LADDER, DECAY_BASE, M, UPGRADES, getDefaultUpgrades, MAX_SHIELD_TIER, getHyperbolicScale };
+export { C, ROOM_SCRIPTS, EDEFS, SPS_LADDER, DECAY_BASE, M, UPGRADES, getDefaultUpgrades, MAX_SHIELD_TIER, getHyperbolicScale, VERSION };
