@@ -56,6 +56,13 @@ function getDefaultUpgrades() {
     critChance:  0,
     absorbRange: 0,
     regenTick:   0,
+
+    // Orbit shields
+    shieldOrbs:       0,
+    shieldCooldownMs: 3200,
+    shieldOrbitRadius: 18,
+    shieldOrbRadius:   6,
+    shieldSpin:        2.1,
   };
 }
 
@@ -76,7 +83,13 @@ const UPGRADES = [
   {name:'Decay Extension',tag:'UTILITY',icon:'⏳',desc:'Grey bullets linger 1.5s longer for easier harvest.',apply(upg){upg.decayBonus+=1500;}},
   {name:'Charge Cap +5',tag:'UTILITY',icon:'▣',desc:'Store 5 more absorbed bullets.',apply(upg){upg.maxCharge+=5;}},
   {name:'Charge Cap +10',tag:'UTILITY',icon:'◆',desc:'Store 10 more absorbed bullets.',apply(upg){upg.maxCharge+=10;}},
-  {name:'Wider Absorb',tag:'UTILITY',icon:'🧲',desc:'Pull grey bullets from 20% farther away.',apply(upg){upg.absorbRange+=12;}},
+  {name:'Wider Absorb',tag:'UTILITY',icon:'🧲',desc:'Pull grey bullets from 20% farther away.',apply(upg){upg.absorbRange+=12;},
+
+  {name:'Orbit Shield',tag:'SURVIVE',icon:'🛡️',desc:'Summon an orbiting shield orb that blocks one hit (per orb).',apply(upg){
+    upg.shieldOrbs = Math.min(4, (upg.shieldOrbs||0) + 1);
+    upg.shieldSpin = Math.min(4.0, (upg.shieldSpin||2.1) + 0.25);
+  }},
+
   {name:'Extra Life',tag:'SURVIVE',icon:'◉',desc:'Gain 25 max HP and restore it.',apply(upg, state){state.maxHp+=25;state.hp=Math.min(state.hp+25,state.maxHp);}},
   {name:'Ghost Velocity',tag:'SURVIVE',icon:'👻',desc:'Move 18% faster through the arena.',apply(upg){upg.speedMult*=1.18;}},
   {name:'Room Regen',tag:'SURVIVE',icon:'💚',desc:'Restore 20 HP whenever you clear a room.',apply(upg){upg.regenTick+=20;}},
