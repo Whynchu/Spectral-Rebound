@@ -1,9 +1,8 @@
-import { C, ROOM_SCRIPTS, EDEFS, SPS_LADDER, DECAY_BASE, M, UPGRADES, getDefaultUpgrades, VERSION } from './gameData.js?v=20260323a';
+import { C, ROOM_SCRIPTS, EDEFS, SPS_LADDER, DECAY_BASE, M, UPGRADES, getDefaultUpgrades, VERSION } from './src/data/gameData.js';
+import { bindResponsiveViewport } from './src/platform/viewport.js';
+import { renderVersionTag } from './src/ui/versionTag.js';
 
-// Set version display
-if (document.getElementById('version-tag')) {
-  document.getElementById('version-tag').textContent = `// prototype v${VERSION.num} — ${VERSION.label}`;
-}
+renderVersionTag(VERSION);
 
 const cv  = document.getElementById('cv');
 const ctx = cv.getContext('2d');
@@ -14,42 +13,6 @@ const nameInputGo = document.getElementById('name-input-go');
 const lbCurrent = document.getElementById('lb-current');
 const lbList = document.getElementById('leaderboard-list');
 
-// ── SAFARI MOBILE VIEWPORT FIX ───────────────────────────────────────────────
-// Safari mobile has issues with 100vh including the address bar
-function fixSafariViewport() {
-  const viewportHeight = window.visualViewport?.height || window.innerHeight;
-  const vh = viewportHeight * 0.01;
-  document.documentElement.style.setProperty('--vh', `${vh}px`);
-
-  // Set fallback heights for iOS Safari hot-address-bar resizing
-  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-  if (isSafari && /Mobile/.test(navigator.userAgent)) {
-    document.documentElement.style.height = `${viewportHeight}px`;
-    document.documentElement.style.minHeight = `${viewportHeight}px`;
-    document.body.style.height = `${viewportHeight}px`;
-    document.body.style.minHeight = `${viewportHeight}px`;
-    document.body.style.position = 'relative';
-  }
-}
-
-window.addEventListener('resize', () => {
-  fixSafariViewport();
-  resize();
-});
-window.addEventListener('orientationchange', () => {
-  setTimeout(() => {
-    fixSafariViewport();
-    resize();
-  }, 100);
-});
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', () => {
-    fixSafariViewport();
-    resize();
-  });
-}
-fixSafariViewport(); // Initial call
-
 function resize() {
   const w = Math.min(400, window.innerWidth * 0.95);
   cv.width  = Math.floor(w);
@@ -57,7 +20,7 @@ function resize() {
   cv.style.width = `${cv.width}px`;
   cv.style.height = `${cv.height}px`;
 }
-resize();
+bindResponsiveViewport(resize);
 
 // ── PLAYER UPGRADES ───────────────────────────────────────────────────────────
 let UPG = getDefaultUpgrades();
