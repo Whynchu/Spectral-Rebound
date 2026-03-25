@@ -97,6 +97,23 @@ body::before {
 #charge-row { display:flex; justify-content:space-between; align-items:center; }
 #charge-lbl { font-size:9px; letter-spacing:.15em; color:var(--dim); text-transform:uppercase; }
 #charge-badge { font-size:10px; font-weight:700; color:var(--accent); background:rgba(74,222,128,0.07); border:1px solid rgba(74,222,128,0.18); padding:2px 8px; border-radius:3px; }
+#charge-track {
+  width: 100%;
+  height: 7px;
+  margin-top: 7px;
+  background: #121212;
+  border: 1px solid var(--border2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+#charge-fill {
+  width: 0%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(74,222,128,0.5), rgba(184,255,204,0.95));
+  box-shadow: 0 0 14px rgba(74,222,128,0.28);
+  transition: width .08s linear;
+}
 #sps-box { text-align:center; min-width:52px; }
 #sps-num { font-family:'Syne',sans-serif; font-weight:800; font-size:22px; color:var(--accent); line-height:1; }
 #sps-lbl { font-size:8px; letter-spacing:.2em; color:var(--dim); text-transform:uppercase; margin-top:2px; }

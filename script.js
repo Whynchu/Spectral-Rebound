@@ -748,20 +748,20 @@ function draw(ts){
         ctx.globalAlpha=0.25+0.15*frac;
         ctx.strokeStyle='#67e8f9';
         ctx.lineWidth=1.5;
-        ctx.beginPath();ctx.arc(sx,sy,8,0,Math.PI*2);ctx.stroke();
+        ctx.strokeRect(sx-8,sy-5,16,10);
         // Partial fill showing regeneration progress
         ctx.globalAlpha=0.12*(1-frac);
         ctx.fillStyle='#67e8f9';
-        ctx.beginPath();ctx.arc(sx,sy,8,0,Math.PI*2);ctx.fill();
+        ctx.fillRect(sx-8,sy-5,16,10);
       } else {
         ctx.shadowColor='#67e8f9';ctx.shadowBlur=14;
         ctx.strokeStyle='#67e8f9';
         ctx.lineWidth=2;
         ctx.globalAlpha=0.9;
-        ctx.beginPath();ctx.arc(sx,sy,8,0,Math.PI*2);ctx.stroke();
+        ctx.strokeRect(sx-8,sy-5,16,10);
         ctx.shadowBlur=0;
         ctx.fillStyle='rgba(103,232,249,0.18)';
-        ctx.beginPath();ctx.arc(sx,sy,8,0,Math.PI*2);ctx.fill();
+        ctx.fillRect(sx-8,sy-5,16,10);
       }
       ctx.restore();
     }
@@ -804,6 +804,8 @@ function drawGhost(ts){
   if(!p||!p.x) return;
   const t=ts/1000;
   const chargeFrac=Math.min(1,charge/Math.max(1,UPG.maxCharge||10));
+  const shotInterval = 1 / (UPG.sps * 2);
+  const fireFrac = charge >= 1 ? Math.max(0, Math.min(1, fireT / shotInterval)) : 0;
   const overload=chargeFrac>=0.95;
   const overloadPulse=overload?Math.sin(t*12)*.3+.7:1;
   const lean=Math.max(-.3,Math.min(.3,player.vx/300));
@@ -866,6 +868,23 @@ function drawGhost(ts){
     ctx.beginPath();ctx.arc(0,-size*.1,4.5,.2,Math.PI-.2);ctx.stroke();
   }
 
+  // Shot cooldown ring mirrors the enemy tell ring and shows when auto-fire is primed.
+  const ringRadius = size + 8;
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, 0, ringRadius, 0, Math.PI * 2);
+  ctx.stroke();
+  if(charge >= 1){
+    ctx.strokeStyle = C.green;
+    ctx.shadowColor = C.green;
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(0, 0, ringRadius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * fireFrac);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
   // ── HP bar above ghost (drawn in local space, above dome)
   const barW=size*2.8, barH=4;
   const barX=-barW/2, barY=-size*1.55;
@@ -887,6 +906,7 @@ function drawGhost(ts){
 function hudUpdate(){
   document.getElementById('room-counter').textContent=`ROOM ${roomIndex+1}`;
   document.getElementById('score-txt').textContent=score;
+  document.getElementById('charge-fill').style.width=`${Math.max(0, Math.min(100, (charge / UPG.maxCharge) * 100))}%`;
   document.getElementById('charge-badge').textContent=`${Math.floor(charge)} / ${UPG.maxCharge}`;
   document.getElementById('sps-num').textContent=UPG.sps.toFixed(1);
 }
