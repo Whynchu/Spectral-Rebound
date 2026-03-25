@@ -43,6 +43,8 @@ body {
   text-align: center;
   touch-action: none;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 body::before {
   content:'';
@@ -80,7 +82,7 @@ body::before {
 /* TOP HUD room counter */
 #room-counter { font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.18em; color:var(--muted); }
 /* CANVAS */
-#cv { display:block; border-radius:5px; border:1px solid var(--border2); cursor:none; touch-action:none; }
+#cv { display:block; border-radius:5px; border:1px solid var(--border2); cursor:none; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
 /* BOTTOM HUD */
 #bot-hud {
   display: flex;
