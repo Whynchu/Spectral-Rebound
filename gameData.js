@@ -2,7 +2,7 @@
  * Static game data definitions separated for easier iteration and content updates.
  */
 
-const VERSION = { num: '0.43', label: 'Scaling & Shot Balance' };
+const VERSION = { num: '0.44', label: 'Purple Threshold' };
 
 const C = {
   bg:'#161616', grid:'rgba(255,255,255,0.025)', border:'rgba(255,255,255,0.1)',
