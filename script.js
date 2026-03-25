@@ -1,5 +1,9 @@
-import { C, ROOM_SCRIPTS, EDEFS, SPS_LADDER, DECAY_BASE, M, UPGRADES, getDefaultUpgrades, VERSION } from './src/data/gameData.js';
+import { C, ROOM_SCRIPTS, DECAY_BASE, M, VERSION } from './src/data/gameData.js';
+import { getDefaultUpgrades } from './src/data/boons.js';
+import { createEnemy, canEnemyUsePurpleShots } from './src/entities/enemyTypes.js';
+import { JOY_DEADZONE, JOY_MAX, createJoystickState, resetJoystickState, bindJoystickControls } from './src/input/joystick.js';
 import { bindResponsiveViewport } from './src/platform/viewport.js';
+import { showBoonSelection } from './src/ui/boonSelection.js';
 import { renderVersionTag } from './src/ui/versionTag.js';
 
 renderVersionTag(VERSION);
@@ -35,9 +39,7 @@ let bullets = [], enemies = [], particles = [];
 let score=0, kills=0;
 let charge=0, fireT=0, stillTimer=0, prevStill=false;
 let hp=100, maxHp=100;
-let joy = { active:false, ax:0, ay:0, dx:0, dy:0, mag:0 };
-const JOY_DEADZONE = 3;
-const JOY_MAX = 40;
+const joy = createJoystickState();
 const SHIELD_ORBIT_R    = 35;   // orbital radius of shield orbs from player center (px)
 const SHIELD_COOLDOWN   = 1.5;  // seconds a shield is inactive after absorbing a bullet
 const SHIELD_ROTATION_SPD  = 0.001; // radians per millisecond (≈1 rev / 6.3 s)
@@ -47,7 +49,6 @@ let enemyIdSeq = 1;
 let playerName = 'RUNNER';
 let leaderboard = [];
 let raf=0, lastT=0;
-const PURPLE_BULLET_ROOM_THRESHOLD = 9; // zero-based room index; room 10+ uses purple shots
 
 // Room system
 let roomIndex = 0;
@@ -107,26 +108,13 @@ function updateRoomBadge(def) {
 }
 
 function spawnEnemy(type) {
-  const d = EDEFS[type];
-  const W=cv.width, H=cv.height;
-  const edge=Math.floor(Math.random()*4);
-  let x,y;
-  if(edge===0){x=M+Math.random()*(W-2*M);y=M+d.r;}
-  else if(edge===1){x=W-M-d.r;y=M+Math.random()*(H-2*M);}
-  else if(edge===2){x=M+Math.random()*(W-2*M);y=H-M-d.r;}
-  else{x=M+d.r;y=M+Math.random()*(H-2*M);}
-  // Scale HP logarithmically with room index for more manageable progression
-  const hpScale = 1 + Math.log(roomIndex + 1) * 0.5;
-  enemies.push({
-    ...d,
-    eid: enemyIdSeq++,
-    x,
-    y,
-    type,
-    hp:Math.ceil(d.hp*hpScale),
-    maxHp:Math.ceil(d.hp*hpScale),
-    fT:Math.random()*d.fRate,
-  });
+  enemies.push(createEnemy(type, {
+    width: cv.width,
+    height: cv.height,
+    margin: M,
+    roomIndex,
+    nextEnemyId: enemyIdSeq++,
+  }));
 }
 
 // Bullet speed scales with room — slow at room 1, ramps up
@@ -202,59 +190,23 @@ function sparks(x,y,col,n=6,spd=80) {
   }
 }
 
-// ── UPGRADE POOL ─────────────────────────────────────────────────────────────
-// UPGRADE list is imported from gameData.js
-
 function showUpgrades() {
   gstate='upgrade'; cancelAnimationFrame(raf);
-  const RARE_NAMES = new Set(['Triple Shot', 'Penta Shot']);
-  const useful = UPGRADES.filter((u)=>{
-    if(RARE_NAMES.has(u.name) && UPG.spreadTierObtained) return false;
-    const before = JSON.stringify(UPG);
-    const probe = JSON.parse(before);
-    const hpState = { hp, maxHp };
-    u.apply(probe, hpState);
-    return JSON.stringify(probe) !== before || hpState.hp !== hp || hpState.maxHp !== maxHp;
-  });
-  const fallback = UPGRADES.filter(u => !(RARE_NAMES.has(u.name) && UPG.spreadTierObtained));
-  const source = useful.length >= 3 ? useful : fallback;
-  // Separate rare (once-per-run) and common upgrades for pool construction
-  const commons = [...source].filter(u => !RARE_NAMES.has(u.name)).sort(()=>Math.random()-.5);
-  const availRares = [...source].filter(u => RARE_NAMES.has(u.name)).sort(()=>Math.random()-.5);
-  const pool = commons.slice(0, 3);
-  // Fill any remaining slots with rares if the common pool was too small
-  for(const r of availRares) {
-    if(pool.length >= 3) break;
-    pool.push(r);
-  }
-  // Rare upgrades have only a ~15% chance to replace one common slot
-  if(availRares.length > 0 && pool.length === 3 && Math.random() < 0.15) {
-    pool[Math.floor(Math.random() * 3)] = availRares[0];
-  }
-  const c=document.getElementById('up-cards');
-  c.innerHTML='';
-  for(const u of pool){
-    const el=document.createElement('div');
-    el.className='up-card';
-    const tagColor = u.tag==='OFFENSE'?'#f87171':u.tag==='UTILITY'?'#38bdf8':'#4ade80';
-    el.innerHTML=`
-      <div class="up-icon">${u.icon}</div>
-      <div class="up-name">${u.name}</div>
-      <div class="up-desc">${u.desc}</div>
-      <div class="up-tag" style="color:${tagColor}">${u.tag}</div>`;
-    el.onclick=()=>{
+  showBoonSelection({
+    upg: UPG,
+    hp,
+    maxHp,
+    onSelect: (boon) => {
       const state = { hp, maxHp };
-      u.apply(UPG, state);
+      boon.apply(UPG, state);
       hp = state.hp;
       maxHp = state.maxHp;
       document.getElementById('s-up').classList.add('off');
       startRoom(roomIndex+1);
       gstate='playing'; lastT=performance.now();
       raf=requestAnimationFrame(loop);
-    };
-    c.appendChild(el);
-  }
-  document.getElementById('s-up').classList.remove('off');
+    },
+  });
 }
 
 function sanitizeName(v) {
@@ -327,7 +279,7 @@ function init() {
   player={x:cv.width/2,y:cv.height/2,r:10,vx:0,vy:0,invincible:0,distort:0};
   player.shields=[];
   bullets=[];enemies=[];particles=[];
-  joy={active:false,ax:0,ay:0,dx:0,dy:0,mag:0};
+  resetJoystickState(joy);
   resetUpgrades();
   startRoom(0);
   hudUpdate();
@@ -476,7 +428,7 @@ function update(dt,ts){
         if(e.type==='zoner'){
           for(let i=0;i<e.burst;i++) spawnZB(e.x,e.y,i,e.burst);
         } else {
-          const canShootPurple = e.doubleBounce && roomIndex >= PURPLE_BULLET_ROOM_THRESHOLD;
+          const canShootPurple = canEnemyUsePurpleShots(e, roomIndex);
           for(let i=0;i<e.burst;i++){
             if(canShootPurple) spawnDBB(e.x,e.y);
             else spawnEB(e.x,e.y);
@@ -897,45 +849,14 @@ function hudUpdate(){
   document.getElementById('sps-num').textContent=UPG.sps.toFixed(1);
 }
 
-// ── INPUT — pointer follow control scheme ────────────────────────────────────
-function canvasPos(clientX, clientY){
-  const r=cv.getBoundingClientRect();
-  return {
-    x:(clientX-r.left)*(cv.width/r.width),
-    y:(clientY-r.top)*(cv.height/r.height)
-  };
-}
-
-function joyStart(clientX, clientY){
-  if(gstate!=='playing') return;
-  const p=canvasPos(clientX,clientY);
-  joy.active=true; joy.ax=p.x; joy.ay=p.y; joy.dx=0; joy.dy=0; joy.mag=0;
-  fireT = 1/(UPG.sps*2);
-}
-
-function joyMove(clientX, clientY){
-  if(!joy.active) return;
-  const p=canvasPos(clientX,clientY);
-  const dx=p.x-joy.ax, dy=p.y-joy.ay;
-  joy.mag=Math.hypot(dx,dy);
-  if(joy.mag>JOY_DEADZONE){ joy.dx=dx/joy.mag; joy.dy=dy/joy.mag; }
-  else { joy.dx=0; joy.dy=0; }
-}
-
-function joyEnd(){
-  joy.active=false; joy.dx=0; joy.dy=0; joy.mag=0;
-  fireT = 1/(UPG.sps*2);
-}
-
-// Global joystick listeners — work anywhere on screen
-document.addEventListener('mousedown',  e=>{ joyStart(e.clientX,e.clientY); });
-document.addEventListener('mousemove',  e=>{ joyMove(e.clientX,e.clientY); });
-document.addEventListener('mouseup',    ()=>joyEnd());
-
-document.addEventListener('touchstart', e=>{ const t=e.touches[0]; joyStart(t.clientX,t.clientY); },{passive:true});
-document.addEventListener('touchmove',  e=>{ const t=e.touches[0]; joyMove(t.clientX,t.clientY); },{passive:true});
-document.addEventListener('touchend',   ()=>joyEnd(),{passive:true});
-document.addEventListener('touchcancel',()=>joyEnd(),{passive:true});
+bindJoystickControls({
+  canvas: cv,
+  joy,
+  getGameState: () => gstate,
+  primeAutoFire: () => {
+    fireT = 1 / (UPG.sps * 2);
+  },
+});
 
 function setPlayerName(v){
   playerName = sanitizeName(v);
