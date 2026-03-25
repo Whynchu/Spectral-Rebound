@@ -14,7 +14,7 @@ function resetJoystickState(joy) {
   joy.mag = 0;
 }
 
-function bindJoystickControls({ canvas, joy, getGameState, primeAutoFire }) {
+function bindJoystickControls({ canvas, joy, getGameState }) {
   function canvasPos(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
     return {
@@ -32,7 +32,6 @@ function bindJoystickControls({ canvas, joy, getGameState, primeAutoFire }) {
     joy.dx = 0;
     joy.dy = 0;
     joy.mag = 0;
-    primeAutoFire();
   }
 
   function joyMove(clientX, clientY) {
@@ -52,7 +51,6 @@ function bindJoystickControls({ canvas, joy, getGameState, primeAutoFire }) {
 
   function joyEnd() {
     resetJoystickState(joy);
-    primeAutoFire();
   }
 
   document.addEventListener('mousedown', (event) => { joyStart(event.clientX, event.clientY); });

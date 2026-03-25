@@ -349,7 +349,7 @@ function update(dt,ts){
 
   // 'reward' and 'between' phases are handled by showUpgrades / card click callbacks
 
-  // ── Auto-fire: fires when joystick released (player stopped)
+  // ── Auto-fire: only while still, and always gated by SPS interval
   const isStill = !joy.active || joy.mag <= JOY_DEADZONE;
 
   if(!isStill){
@@ -861,9 +861,6 @@ bindJoystickControls({
   canvas: cv,
   joy,
   getGameState: () => gstate,
-  primeAutoFire: () => {
-    fireT = 1 / (UPG.sps * 2);
-  },
 });
 
 function setPlayerName(v){

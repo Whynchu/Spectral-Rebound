@@ -18,3 +18,4 @@ Purpose: document the AI helpers that will coordinate aspects of *Phantom Reboun
 - Cloud-synced state + lightweight serialization for quick sessions.
 - Use incremental builds: prioritize hot-reload friendly scripts (look into `src/` layout).
 - Bump the in-game version identifier (and any release metadata) on every push so mobile stores and QA always get a fresh build signal.
+- Treat version bump as a hard gate: do not push if `src/data/version.js` and `index.html` fallback banner are not updated for that push.
