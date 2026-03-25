@@ -1,2 +1,2 @@
-# Spectral-Rebound
+# Phantom-Rebound
 ghost themed reverse bullet hell
