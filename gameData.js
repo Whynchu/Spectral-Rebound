@@ -26,10 +26,10 @@ const ROOM_SCRIPTS = [
 ];
 
 const EDEFS = {
-  chaser:    {col:'#3b82f6', glowCol:'rgba(59,130,246,0.7)',  r:12,hp:3, spd:55, fRate:1800,burst:1,spread:.22,pts:50,  flee:true,  fleeRange:110, strafeSpd:0.6},
+  chaser:    {col:'#3b82f6', glowCol:'rgba(59,130,246,0.7)',  r:12,hp:3, spd:55, fRate:1800,burst:1,spread:.22,pts:50,  flee:true,  fleeRange:110, strafeSpd:0.6, doubleBounce:true},
   zoner:     {col:'#2563eb', glowCol:'rgba(37,99,235,0.7)',   r:15,hp:5, spd:24, fRate:2200,burst:8,spread:6.28,pts:80, flee:true,  fleeRange:130, strafeSpd:0.5},
   sniper:    {col:'#93c5fd', glowCol:'rgba(147,197,253,0.7)', r:9, hp:2, spd:30, fRate:2800,burst:1,spread:0,  pts:100, flee:true,  fleeRange:150, strafeSpd:0.8},
-  disruptor: {col:'#1d4ed8', glowCol:'rgba(29,78,216,0.7)',   r:11,hp:4, spd:46, fRate:750, burst:1,spread:.9, pts:60,  flee:true,  fleeRange:100, strafeSpd:0.7},
+  disruptor: {col:'#1d4ed8', glowCol:'rgba(29,78,216,0.7)',   r:11,hp:4, spd:46, fRate:750, burst:1,spread:.9, pts:60,  flee:true,  fleeRange:100, strafeSpd:0.7, doubleBounce:true},
   siphon:    {col:'#a78bfa', glowCol:'rgba(167,139,250,0.7)', r:13,hp:3, spd:28, fRate:9999,burst:0,spread:0,  pts:120, isSiphon:true},
   rusher:    {col:'#f472b6', glowCol:'rgba(244,114,182,0.8)', r:13,hp:4, spd:90, fRate:9999,burst:0,spread:0,  pts:70,  isRusher:true},
 };
@@ -67,7 +67,7 @@ function getDefaultUpgrades() {
     absorbRange:      0,
     regenTick:        0,
     shieldTier:       0,
-    orbitSpheres:     false,
+    orbitSphereTier:  0,
     biggerBulletsTier: 0,
     fasterBulletsTier: 0,
     speedTier:        0,
@@ -99,7 +99,7 @@ const UPGRADES = [
   {name:'Ghost Velocity',tag:'SURVIVE',icon:'👻',desc:'Move faster through the arena (diminishing returns).',apply(upg){upg.speedTier++;upg.speedMult=getHyperbolicScale(upg.speedTier);}},
   {name:'Room Regen',tag:'SURVIVE',icon:'💚',desc:'Restore HP whenever you clear a room (max 30 HP/room).',apply(upg){upg.regenTick=Math.min(30,upg.regenTick+10);}},
   {name:'Protective Shield',tag:'SURVIVE',icon:'🛡️',desc:`Orbiting shield absorbs one danger bullet then regenerates. Each upgrade adds another shield (max ${MAX_SHIELD_TIER}).`,apply(upg){upg.shieldTier=Math.min(MAX_SHIELD_TIER,upg.shieldTier+1);}},
-  {name:'Orbit Spheres',tag:'UTILITY',icon:'🔮',desc:'3 passive spheres orbit you constantly once unlocked.',apply(upg){upg.orbitSpheres=true;}},
+  {name:'Orbit Spheres',tag:'UTILITY',icon:'🔮',desc:'Add one orbiting sphere (up to 5). Each pick adds another.',apply(upg){upg.orbitSphereTier=Math.min(5,upg.orbitSphereTier+1);}},
 ];
 
 export { C, ROOM_SCRIPTS, EDEFS, SPS_LADDER, DECAY_BASE, M, UPGRADES, getDefaultUpgrades, MAX_SHIELD_TIER, getHyperbolicScale, VERSION };
