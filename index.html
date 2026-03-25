@@ -21,7 +21,7 @@
     <div id="room-clear"><div id="room-clear-txt">ROOM CLEAR</div></div>
 
     <div class="screen" id="s-start">
-      <div class="eyebrow" id="version-tag">// prototype v0.48 - SPS Cooldown Guard</div>
+      <div class="eyebrow" id="version-tag">// prototype v0.49 - Leaderboard Overlay</div>
       <div class="big-title">Phantom<span>Rebound</span></div>
       <div class="rule-line"></div>
       <div class="name-row">
@@ -62,12 +62,12 @@
         <span id="charge-lbl">Stored Charge</span>
         <span id="charge-badge">0 / 10</span>
       </div>
-      <div id="charge-track"><div id="charge-fill"></div></div>
     </div>
     <div id="sps-box">
       <div id="sps-num">0.5</div>
       <div id="sps-lbl">SPS</div>
     </div>
+    <button id="btn-lb-open" type="button">Leaderboard</button>
   </div>
 
   <div id="room-badge">ROOM 1 — ARRIVAL</div>
@@ -79,12 +79,23 @@
     <div class="leg"><div class="leg-dot" style="background:#b8ffcc"></div>You</div>
   </div>
 
-  <div id="leaderboard-panel">
-    <div id="lb-head">
-      <span id="lb-title">Leaderboard</span>
-      <span id="lb-current"></span>
+  <div id="lb-overlay" class="off">
+    <div id="lb-modal">
+      <div id="lb-head">
+        <span id="lb-title">Leaderboard</span>
+        <button id="btn-lb-close" type="button">Close</button>
+      </div>
+      <div id="lb-current"></div>
+      <div class="lb-toggle-row">
+        <button class="lb-toggle active" data-lb-period="daily" type="button">Daily</button>
+        <button class="lb-toggle" data-lb-period="all" type="button">All Time</button>
+      </div>
+      <div class="lb-toggle-row">
+        <button class="lb-toggle active" data-lb-scope="everyone" type="button">Everyone</button>
+        <button class="lb-toggle" data-lb-scope="personal" type="button">Personal</button>
+      </div>
+      <ol id="leaderboard-list"></ol>
     </div>
-    <ol id="leaderboard-list"></ol>
   </div>
 </div>
 

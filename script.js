@@ -14,8 +14,13 @@ const LB_KEY = 'phantom-rebound-leaderboard-v1';
 
 const nameInputStart = document.getElementById('name-input-start');
 const nameInputGo = document.getElementById('name-input-go');
+const lbOverlay = document.getElementById('lb-overlay');
+const lbOpenBtn = document.getElementById('btn-lb-open');
+const lbCloseBtn = document.getElementById('btn-lb-close');
 const lbCurrent = document.getElementById('lb-current');
 const lbList = document.getElementById('leaderboard-list');
+const lbPeriodBtns = document.querySelectorAll('[data-lb-period]');
+const lbScopeBtns = document.querySelectorAll('[data-lb-scope]');
 
 function resize() {
   const w = Math.min(400, window.innerWidth * 0.95);
@@ -48,6 +53,8 @@ const ORBIT_ROTATION_SPD   = 0.003; // radians per millisecond (≈1 rev / 2.1 s
 let enemyIdSeq = 1;
 let playerName = 'RUNNER';
 let leaderboard = [];
+let lbPeriod = 'daily';
+let lbScope = 'everyone';
 let raf=0, lastT=0;
 
 // Room system
@@ -220,9 +227,9 @@ function loadLeaderboard() {
     const parsed = raw ? JSON.parse(raw) : [];
     if(Array.isArray(parsed)) {
       leaderboard = parsed
-        .filter((x)=>x && typeof x.name==='string' && Number.isFinite(x.score))
-        .slice(0, 20);
-      leaderboard.sort((a,b)=>b.score-a.score);
+        .filter((x)=>x && typeof x.name==='string' && Number.isFinite(x.score) && Number.isFinite(x.ts))
+        .slice(0, 500);
+      leaderboard.sort((a,b)=>b.score-a.score || b.ts-a.ts);
     }
   } catch {
     leaderboard = [];
@@ -230,25 +237,49 @@ function loadLeaderboard() {
 }
 
 function saveLeaderboard() {
-  localStorage.setItem(LB_KEY, JSON.stringify(leaderboard.slice(0, 20)));
+  localStorage.setItem(LB_KEY, JSON.stringify(leaderboard.slice(0, 500)));
+}
+
+function isSameLocalDay(ts, nowTs = Date.now()) {
+  const a = new Date(ts);
+  const b = new Date(nowTs);
+  return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+}
+
+function getVisibleLeaderboardRows() {
+  let rows = leaderboard.slice();
+  if(lbPeriod === 'daily') rows = rows.filter((row)=>isSameLocalDay(row.ts));
+  if(lbScope === 'personal') rows = rows.filter((row)=>row.name === playerName);
+  rows.sort((a,b)=>b.score-a.score || b.ts-a.ts);
+  return rows.slice(0, 10);
+}
+
+function updateLeaderboardToggleStates() {
+  lbPeriodBtns.forEach((btn)=>btn.classList.toggle('active', btn.dataset.lbPeriod === lbPeriod));
+  lbScopeBtns.forEach((btn)=>btn.classList.toggle('active', btn.dataset.lbScope === lbScope));
 }
 
 function renderLeaderboard() {
-  lbCurrent.textContent = `RUNNER: ${playerName}`;
+  const periodLabel = lbPeriod === 'daily' ? 'DAILY' : 'ALL TIME';
+  const scopeLabel = lbScope === 'personal' ? 'PERSONAL' : 'EVERYONE';
+  lbCurrent.textContent = `RUNNER: ${playerName} · ${periodLabel} · ${scopeLabel}`;
   lbList.innerHTML = '';
-  if(leaderboard.length===0){
+  const rows = getVisibleLeaderboardRows();
+  if(rows.length===0){
     const li = document.createElement('li');
     li.className = 'lb-empty';
-    li.textContent = 'No runs saved yet.';
+    li.textContent = 'No runs match this view yet.';
     lbList.appendChild(li);
+    updateLeaderboardToggleStates();
     return;
   }
-  for(let i=0;i<Math.min(10, leaderboard.length);i++){
-    const row = leaderboard[i];
+  for(let i=0;i<rows.length;i++){
+    const row = rows[i];
     const li = document.createElement('li');
     li.textContent = `${row.name} — ${row.score} pts (R${row.room})`;
     lbList.appendChild(li);
   }
+  updateLeaderboardToggleStates();
 }
 
 function pushLeaderboardEntry() {
@@ -259,7 +290,7 @@ function pushLeaderboardEntry() {
     ts: Date.now(),
   });
   leaderboard.sort((a,b)=>b.score-a.score || b.ts-a.ts);
-  leaderboard = leaderboard.slice(0, 20);
+  leaderboard = leaderboard.slice(0, 500);
   saveLeaderboard();
   renderLeaderboard();
 }
@@ -852,7 +883,6 @@ function drawGhost(ts){
 function hudUpdate(){
   document.getElementById('room-counter').textContent=`ROOM ${roomIndex+1}`;
   document.getElementById('score-txt').textContent=score;
-  document.getElementById('charge-fill').style.width=(charge/UPG.maxCharge*100)+'%';
   document.getElementById('charge-badge').textContent=`${Math.floor(charge)} / ${UPG.maxCharge}`;
   document.getElementById('sps-num').textContent=UPG.sps.toFixed(1);
 }
@@ -861,6 +891,27 @@ bindJoystickControls({
   canvas: cv,
   joy,
   getGameState: () => gstate,
+});
+
+lbOpenBtn.addEventListener('click', () => {
+  lbOverlay.classList.remove('off');
+  renderLeaderboard();
+});
+lbCloseBtn.addEventListener('click', () => lbOverlay.classList.add('off'));
+lbOverlay.addEventListener('click', (e) => {
+  if(e.target === lbOverlay) lbOverlay.classList.add('off');
+});
+lbPeriodBtns.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    lbPeriod = btn.dataset.lbPeriod;
+    renderLeaderboard();
+  });
+});
+lbScopeBtns.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    lbScope = btn.dataset.lbScope;
+    renderLeaderboard();
+  });
 });
 
 function setPlayerName(v){

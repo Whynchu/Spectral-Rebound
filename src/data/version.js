@@ -1,4 +1,4 @@
-const VERSION = { num: '0.48', label: 'SPS Cooldown Guard' };
+const VERSION = { num: '0.49', label: 'Leaderboard Overlay' };
 
 function formatVersionTag(version = VERSION) {
   return `// prototype v${version.num} - ${version.label}`;
