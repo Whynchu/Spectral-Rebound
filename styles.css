@@ -140,8 +140,13 @@ body.app-ready #wrap { opacity: 1; }
   gap:14px; padding:28px;
   z-index:10;
   backdrop-filter:blur(6px);
+  opacity:1;
+  transform:translateY(0);
+  transition:opacity .18s ease, transform .18s ease;
 }
 .screen.off { display:none; }
+.screen.screen-entering { opacity:0; transform:translateY(10px); }
+.screen.screen-leaving { opacity:0; transform:translateY(10px); pointer-events:none; }
 .eyebrow { font-size:9px; letter-spacing:.25em; text-transform:uppercase; color:var(--dim); }
 .big-title {
   font-family:'Syne',sans-serif; font-weight:800; font-size:48px;

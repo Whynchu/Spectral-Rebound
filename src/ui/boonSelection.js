@@ -1,5 +1,7 @@
 import { pickBoonChoices } from '../data/boons.js';
 
+const BOON_FADE_MS = 180;
+
 function showBoonSelection({ upg, hp, maxHp, onSelect, cardsContainer = document.getElementById('up-cards'), panel = document.getElementById('s-up') }) {
   const pool = pickBoonChoices(upg, hp, maxHp);
   cardsContainer.innerHTML = '';
@@ -13,11 +15,21 @@ function showBoonSelection({ upg, hp, maxHp, onSelect, cardsContainer = document
       <div class="up-name">${boon.name}</div>
       <div class="up-desc">${boon.desc}</div>
       <div class="up-tag" style="color:${tagColor}">${boon.tag}</div>`;
-    card.onclick = () => onSelect(boon);
+    card.onclick = () => {
+      if(panel.classList.contains('screen-leaving')) return;
+      panel.classList.add('screen-leaving');
+      window.setTimeout(() => {
+        panel.classList.add('off');
+        panel.classList.remove('screen-entering', 'screen-leaving');
+        onSelect(boon);
+      }, BOON_FADE_MS);
+    };
     cardsContainer.appendChild(card);
   }
 
-  panel.classList.remove('off');
+  panel.classList.remove('off', 'screen-leaving');
+  panel.classList.add('screen-entering');
+  window.setTimeout(() => panel.classList.remove('screen-entering'), BOON_FADE_MS);
 }
 
 export { showBoonSelection };

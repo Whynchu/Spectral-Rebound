@@ -52,6 +52,7 @@ let score=0, kills=0;
 let charge=0, fireT=0, stillTimer=0, prevStill=false;
 let hp=100, maxHp=100;
 const joy = createJoystickState();
+const GAME_OVER_ANIM_MS = 850;
 const SHIELD_ORBIT_R    = 35;   // orbital radius of shield orbs from player center (px)
 const SHIELD_COOLDOWN   = 1.5;  // seconds a shield is inactive after absorbing a bullet
 const SHIELD_ROTATION_SPD  = 0.001; // radians per millisecond (≈1 rev / 6.3 s)
@@ -63,6 +64,7 @@ let leaderboard = [];
 let lbPeriod = 'daily';
 let lbScope = 'everyone';
 let raf=0, lastT=0;
+let gameOverShown = false;
 
 // Room system
 let roomIndex = 0;
@@ -204,6 +206,23 @@ function sparks(x,y,col,n=6,spd=80) {
   }
 }
 
+function burstBlueDissipate(x, y) {
+  for(let i=0;i<12;i++){
+    const a = Math.random() * Math.PI * 2;
+    const s = 45 + Math.random() * 70;
+    particles.push({
+      x,
+      y,
+      vx: Math.cos(a) * s,
+      vy: Math.sin(a) * s,
+      col: `rgba(96,165,250,${0.35 + Math.random() * 0.4})`,
+      life: 0.9 + Math.random() * 0.35,
+      decay: 2.2 + Math.random() * 0.9,
+      grow: 0.8 + Math.random() * 1.2,
+    });
+  }
+}
+
 function showUpgrades() {
   gstate='upgrade'; cancelAnimationFrame(raf);
   showBoonSelection({
@@ -307,18 +326,22 @@ function pushLeaderboardEntry() {
 }
 
 function gameOver(){
-  gstate='gameover'; cancelAnimationFrame(raf);
+  if(gameOverShown) return;
+  gameOverShown = true;
+  gstate='dying';
+  player.deadAt = performance.now();
+  player.popAt = player.deadAt + GAME_OVER_ANIM_MS * 0.72;
+  player.deadPulse = 0;
+  player.deadPop = false;
   pushLeaderboardEntry();
-  document.getElementById('go-score').textContent=score;
-  document.getElementById('go-note').textContent=`Room ${roomIndex+1} · ${kills} enemies eliminated`;
-  document.getElementById('s-go').classList.remove('off');
 }
 
 function init() {
   score=0; kills=0;
   charge=0; fireT=0; stillTimer=0; prevStill=false; hp=100; maxHp=100;
+  gameOverShown = false;
   enemyIdSeq = 1;
-  player={x:cv.width/2,y:cv.height/2,r:10,vx:0,vy:0,invincible:0,distort:0};
+  player={x:cv.width/2,y:cv.height/2,r:10,vx:0,vy:0,invincible:0,distort:0,deadAt:0,popAt:0,deadPop:false,deadPulse:0};
   player.shields=[];
   bullets=[];enemies=[];particles=[];
   resetJoystickState(joy);
@@ -329,7 +352,7 @@ function init() {
 
 // ── MAIN LOOP ─────────────────────────────────────────────────────────────────
 function loop(ts){
-  if(gstate!=='playing') return;
+  if(gstate!=='playing' && gstate!=='dying') return;
   const dt=Math.min((ts-lastT)/1000,.05); lastT=ts;
   update(dt,ts); draw(ts); hudUpdate();
   raf=requestAnimationFrame(loop);
@@ -337,6 +360,29 @@ function loop(ts){
 
 // ── UPDATE ────────────────────────────────────────────────────────────────────
 function update(dt,ts){
+  if(gstate === 'dying'){
+    if(!player.deadPop && ts >= player.popAt){
+      player.deadPop = true;
+      sparks(player.x, player.y, '#f8b4c7', 10, 85);
+      burstBlueDissipate(player.x, player.y);
+    }
+    for(let i=particles.length-1;i>=0;i--){
+      const p=particles[i];
+      p.x+=p.vx*dt;p.y+=p.vy*dt;
+      p.vx*=Math.pow(.84,dt*60);p.vy*=Math.pow(.84,dt*60);
+      p.life-=p.decay*dt;
+      if(p.life<=0)particles.splice(i,1);
+    }
+    if(ts - player.deadAt >= GAME_OVER_ANIM_MS){
+      gstate='gameover';
+      cancelAnimationFrame(raf);
+      document.getElementById('go-score').textContent=score;
+      document.getElementById('go-note').textContent=`Room ${roomIndex+1} · ${kills} enemies eliminated`;
+      document.getElementById('s-go').classList.remove('off');
+    }
+    return;
+  }
+
   const W=cv.width,H=cv.height;
   const BASE_SPD=165*Math.min(2.5,UPG.speedMult);
 
@@ -511,6 +557,7 @@ function update(dt,ts){
 
     if(bounced){
       if(b.state==='danger'){
+        burstBlueDissipate(b.x, b.y);
         if(b.doubleBounce){
           b.bounceCount++;
           if(b.bounceCount>=2){b.state='grey';b.decayStart=ts;sparks(b.x,b.y,C.grey,4,35);}
@@ -651,7 +698,8 @@ function draw(ts){
   for(const p of particles){
     ctx.globalAlpha=Math.max(0,p.life*.85);
     ctx.fillStyle=p.col;
-    ctx.beginPath();ctx.arc(p.x,p.y,3*p.life,0,Math.PI*2);ctx.fill();
+    const particleR = (3 + (p.grow || 0) * (1 - p.life)) * Math.max(0.18, p.life);
+    ctx.beginPath();ctx.arc(p.x,p.y,particleR,0,Math.PI*2);ctx.fill();
   }
   ctx.globalAlpha=1;ctx.restore();
 
@@ -817,12 +865,15 @@ function drawGhost(ts){
   const overloadPulse=overload?Math.sin(t*12)*.3+.7:1;
   const lean=Math.max(-.3,Math.min(.3,player.vx/300));
   const wobble=Math.sin(t*3)*2;
-  const size=13+chargeFrac*6;
+  const deathFrac = gstate === 'dying' ? Math.max(0, Math.min(1, (ts - player.deadAt) / GAME_OVER_ANIM_MS)) : 0;
+  const popFrac = gstate === 'dying' ? Math.max(0, Math.min(1, (ts - player.popAt) / (GAME_OVER_ANIM_MS * 0.28))) : 0;
+  const size=12+chargeFrac*5.5 - deathFrac*1.2;
 
   ctx.save();
-  if(player.distort>0){
+  if(player.distort>0 || gstate === 'dying'){
     ctx.translate(p.x,p.y+wobble);
-    ctx.scale(1+.12*Math.sin(ts*.06),1+.12*Math.cos(ts*.07));
+    const deathScale = gstate === 'dying' ? 1 + deathFrac * 0.22 - popFrac * 1.1 : 1;
+    ctx.scale((1+.12*Math.sin(ts*.06)) * deathScale,(1+.12*Math.cos(ts*.07)) * deathScale);
     ctx.rotate(lean);
   } else {
     ctx.translate(p.x,p.y+wobble);
@@ -832,17 +883,21 @@ function drawGhost(ts){
   // Ambient glow
   const pulse=.55+.45*Math.sin(ts*.0025);
   const ga=ctx.createRadialGradient(0,0,0,0,0,size*3);
-  ga.addColorStop(0,overload?`rgba(248,113,113,${0.18*pulse})`:`rgba(184,255,204,${0.18*pulse})`);
+  ga.addColorStop(0,gstate === 'dying' ? `rgba(248,180,199,${0.14 + deathFrac * 0.16})` : overload?`rgba(248,113,113,${0.18*pulse})`:`rgba(184,255,204,${0.18*pulse})`);
   ga.addColorStop(1,'rgba(184,255,204,0)');
   ctx.fillStyle=ga;
   ctx.beginPath();ctx.arc(0,0,size*3,0,Math.PI*2);ctx.fill();
 
   ctx.shadowBlur=22+chargeFrac*14;
-  ctx.shadowColor=overload?'#f87171':C.ghost;
+  ctx.shadowColor=gstate === 'dying' ? '#f8b4c7' : overload?'#f87171':C.ghost;
 
   const inv=player.invincible>0?Math.min(1,player.invincible/.4):0;
   let bodyR,bodyG,bodyB;
-  if(overload){
+  if(gstate === 'dying'){
+    bodyR = 208;
+    bodyG = 244 - Math.round(deathFrac * 36);
+    bodyB = 224 + Math.round(deathFrac * 12);
+  } else if(overload){
     bodyR=Math.round(184+overloadPulse*64);
     bodyG=Math.round(220-overloadPulse*107);
     bodyB=Math.round(170-overloadPulse*57);
@@ -866,11 +921,19 @@ function drawGhost(ts){
   ctx.fillStyle='#080f0a';
   ctx.beginPath();ctx.arc(-5,-size*.25,3,0,Math.PI*2);ctx.fill();
   ctx.beginPath();ctx.arc(5, -size*.25,3,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='rgba(74,222,128,0.9)';
-  ctx.beginPath();ctx.arc(-4,-size*.3,1.3,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.arc(6, -size*.3,1.3,0,Math.PI*2);ctx.fill();
+  if(gstate === 'dying'){
+    ctx.strokeStyle='rgba(12,20,16,0.85)';
+    ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(-5,-size*.25,1.5,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.arc(5,-size*.25,1.5,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.arc(0,size*.08,4.6,Math.PI+.25,Math.PI*2-.25);ctx.stroke();
+  } else {
+    ctx.fillStyle='rgba(74,222,128,0.9)';
+    ctx.beginPath();ctx.arc(-4,-size*.3,1.3,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(6, -size*.3,1.3,0,Math.PI*2);ctx.fill();
+  }
 
-  if(chargeFrac>0.3){
+  if(chargeFrac>0.3 && gstate !== 'dying'){
     ctx.strokeStyle='rgba(0,0,0,0.55)';ctx.lineWidth=1.5;
     ctx.beginPath();ctx.arc(0,-size*.1,4.5,.2,Math.PI-.2);ctx.stroke();
   }
