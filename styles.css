@@ -100,18 +100,6 @@ body::before {
 #sps-box { text-align:center; min-width:52px; }
 #sps-num { font-family:'Syne',sans-serif; font-weight:800; font-size:22px; color:var(--accent); line-height:1; }
 #sps-lbl { font-size:8px; letter-spacing:.2em; color:var(--dim); text-transform:uppercase; margin-top:2px; }
-#btn-lb-open {
-  border:1px solid var(--border2);
-  background:var(--bg3);
-  color:var(--text);
-  border-radius:4px;
-  padding:8px 10px;
-  font-size:9px;
-  letter-spacing:.14em;
-  text-transform:uppercase;
-  cursor:pointer;
-}
-#btn-lb-open:hover { border-color:var(--accent2); color:var(--accent); }
 /* ROOM BADGE */
 #room-badge {
   font-family:'IBM Plex Mono',monospace;
@@ -188,6 +176,7 @@ body::before {
   padding:12px 32px; border-radius:4px; cursor:pointer; transition:all .18s;
 }
 .btn:hover { background:rgba(74,222,128,0.14); box-shadow:0 0 24px rgba(74,222,128,0.15); }
+.btn-mini { padding:10px 14px; font-size:9px; letter-spacing:.14em; }
 /* UPGRADE SCREEN — horizontal 3 cards */
 #up-title { font-size:9px; letter-spacing:.25em; text-transform:uppercase; color:var(--accent); margin-bottom:4px; }
 #up-cards {
@@ -210,92 +199,89 @@ body::before {
 #go-sub   { font-size:9px; letter-spacing:.18em; color:var(--dim); text-transform:uppercase; }
 #go-note  { font-size:11px; color:var(--muted); text-align:center; max-width:250px; line-height:1.7; }
 
-/* LEADERBOARD OVERLAY */
-#lb-overlay {
-  position:absolute; inset:0;
-  background:rgba(0,0,0,0.62);
-  z-index:11;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-#lb-overlay.off { display:none; }
-#lb-modal {
-  width:min(340px,92%);
-  max-height:88%;
-  overflow:auto;
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  border-radius: 8px;
-  padding: 12px;
-  text-align: left;
-}
-#lb-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-#lb-title {
-  font-size: 9px;
-  letter-spacing: .2em;
+/* LEADERBOARD SCREEN */
+#s-lb { z-index: 12; }
+.lb-big-title { font-size: 34px; }
+.lb-current {
+  max-width: 100%;
+  font-size: 10px;
+  letter-spacing: .14em;
   text-transform: uppercase;
-  color: var(--dim);
-}
-#btn-lb-close {
-  border:1px solid var(--border2);
-  background:var(--bg3);
-  color:var(--text);
-  border-radius:4px;
-  padding:6px 9px;
-  font-size:8px;
-  letter-spacing:.16em;
-  text-transform:uppercase;
-  cursor:pointer;
-}
-#lb-current {
-  font-size: 9px;
-  letter-spacing: .06em;
   color: var(--accent);
-  margin-bottom: 8px;
 }
 .lb-toggle-row {
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:6px;
-  margin-bottom:8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
 }
 .lb-toggle {
-  border:1px solid var(--border2);
-  background:var(--bg3);
-  color:var(--muted);
-  border-radius:4px;
-  padding:7px 9px;
-  font-size:8px;
-  letter-spacing:.14em;
-  text-transform:uppercase;
-  cursor:pointer;
+  width: 100%;
+  padding: 10px 12px;
+  color: var(--muted);
 }
 .lb-toggle.active {
+  background: rgba(74,222,128,0.08);
   border-color: rgba(74,222,128,0.32);
   color: var(--accent);
-  background: rgba(74,222,128,0.08);
+  box-shadow: 0 0 24px rgba(74,222,128,0.12);
+}
+#lb-list-shell {
+  width: 100%;
+  max-height: 220px;
+  overflow: auto;
+  padding: 4px 2px 0;
+}
+#lb-list-shell::-webkit-scrollbar { width: 6px; }
+#lb-list-shell::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.08);
+  border-radius: 999px;
 }
 #leaderboard-list {
+  list-style: none;
+  width: 100%;
   margin: 0;
-  padding-left: 18px;
+  padding: 0;
   display: grid;
-  gap: 4px;
+  gap: 8px;
 }
 #leaderboard-list li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
   font-size: 10px;
-  letter-spacing: .04em;
+  letter-spacing: .06em;
   color: var(--text);
+  text-transform: uppercase;
+}
+.lb-rank {
+  color: var(--accent);
+  font-weight: 700;
+}
+.lb-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.lb-score {
+  color: #fff;
+  font-family:'Syne',sans-serif;
+  font-size: 14px;
+  letter-spacing: -.01em;
 }
 #leaderboard-list .lb-empty {
-  list-style: none;
-  margin-left: -20px;
+  display: block;
+  padding: 0;
+  background: transparent;
+  border: 0;
   color: var(--muted);
+  text-align: center;
 }
 
 /* ROOM CLEAR FLASH */

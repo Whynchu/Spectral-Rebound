@@ -14,7 +14,7 @@ const LB_KEY = 'phantom-rebound-leaderboard-v1';
 
 const nameInputStart = document.getElementById('name-input-start');
 const nameInputGo = document.getElementById('name-input-go');
-const lbOverlay = document.getElementById('lb-overlay');
+const lbScreen = document.getElementById('s-lb');
 const lbOpenBtn = document.getElementById('btn-lb-open');
 const lbCloseBtn = document.getElementById('btn-lb-close');
 const lbCurrent = document.getElementById('lb-current');
@@ -276,7 +276,11 @@ function renderLeaderboard() {
   for(let i=0;i<rows.length;i++){
     const row = rows[i];
     const li = document.createElement('li');
-    li.textContent = `${row.name} — ${row.score} pts (R${row.room})`;
+    li.innerHTML = `
+      <span class="lb-rank">#${i + 1}</span>
+      <span class="lb-name">${row.name} · R${row.room}</span>
+      <span class="lb-score">${row.score}</span>
+    `;
     lbList.appendChild(li);
   }
   updateLeaderboardToggleStates();
@@ -894,13 +898,10 @@ bindJoystickControls({
 });
 
 lbOpenBtn.addEventListener('click', () => {
-  lbOverlay.classList.remove('off');
+  lbScreen.classList.remove('off');
   renderLeaderboard();
 });
-lbCloseBtn.addEventListener('click', () => lbOverlay.classList.add('off'));
-lbOverlay.addEventListener('click', (e) => {
-  if(e.target === lbOverlay) lbOverlay.classList.add('off');
-});
+lbCloseBtn.addEventListener('click', () => lbScreen.classList.add('off'));
 lbPeriodBtns.forEach((btn) => {
   btn.addEventListener('click', () => {
     lbPeriod = btn.dataset.lbPeriod;
