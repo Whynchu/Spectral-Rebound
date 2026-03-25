@@ -84,6 +84,7 @@ let enemyIdSeq = 1;
 let playerName = 'RUNNER';
 let leaderboard = [];
 let raf=0, lastT=0;
+const PURPLE_BULLET_ROOM_THRESHOLD = 9; // zero-based room index; room 10+ uses purple shots
 
 // Room system
 let roomIndex = 0;
@@ -509,8 +510,15 @@ function update(dt,ts){
       // Fire when timer expires
       if(e.fT >= e.fRate){
         e.fT = 0;
-        if(e.type==='zoner'){for(let i=0;i<e.burst;i++)spawnZB(e.x,e.y,i,e.burst);}
-        else{for(let i=0;i<e.burst;i++){if(e.doubleBounce)spawnDBB(e.x,e.y);else spawnEB(e.x,e.y);}}
+        if(e.type==='zoner'){
+          for(let i=0;i<e.burst;i++) spawnZB(e.x,e.y,i,e.burst);
+        } else {
+          const canShootPurple = e.doubleBounce && roomIndex >= PURPLE_BULLET_ROOM_THRESHOLD;
+          for(let i=0;i<e.burst;i++){
+            if(canShootPurple) spawnDBB(e.x,e.y);
+            else spawnEB(e.x,e.y);
+          }
+        }
       }
     }
   }
