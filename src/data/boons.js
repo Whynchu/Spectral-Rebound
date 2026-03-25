@@ -37,6 +37,12 @@ function getDefaultUpgrades() {
     absorbTier:       0,
     chargeCapTier:    0,
     extraLifeTier:    0,
+    moveChargeRate:   0,
+    hitChargeGain:    0,
+    damageTakenMult:  1,
+    armorTier:        0,
+    capacitorTier:    0,
+    kineticTier:      0,
   };
 }
 
@@ -55,16 +61,33 @@ const BOONS = [
   {name:'Decay Extension',tag:'UTILITY',icon:'⏳',desc:'Grey bullets linger 1s longer for easier harvest (max 3s bonus).',apply(upg){upg.decayBonus=Math.min(3000,upg.decayBonus+1000);}},
   {name:'Charge Cap Up',tag:'UTILITY',icon:'◆',desc:'Expand your charge capacity (diminishing returns).',apply(upg){upg.chargeCapTier++;const bonus=Math.round(8*getHyperbolicScale(upg.chargeCapTier));upg.maxCharge+=bonus;}},
   {name:'Wider Absorb',tag:'UTILITY',icon:'🧲',desc:'Pull grey bullets from farther away (max +50).',apply(upg){upg.absorbRange=Math.min(50,upg.absorbRange+12);}},
+  {name:'Kinetic Harvest',tag:'UTILITY',icon:'🌀',desc:'Gain charge while moving (diminishing per pick).',apply(upg){upg.kineticTier++;upg.moveChargeRate=Math.min(1.8,upg.moveChargeRate+0.35);}},
   {name:'Extra Life',tag:'SURVIVE',icon:'◉',desc:'Gain max HP and restore it (diminishing bonus per pick).',apply(upg, state){upg.extraLifeTier++;const heal=Math.max(3,15-(upg.extraLifeTier-1)*2);state.maxHp+=heal;state.hp=Math.min(state.hp+heal,state.maxHp);}},
   {name:'Ghost Velocity',tag:'SURVIVE',icon:'👻',desc:'Move faster through the arena (diminishing returns).',apply(upg){upg.speedTier++;upg.speedMult=getHyperbolicScale(upg.speedTier);}},
   {name:'Room Regen',tag:'SURVIVE',icon:'💚',desc:'Restore HP whenever you clear a room (max 30 HP/room).',apply(upg){upg.regenTick=Math.min(30,upg.regenTick+10);}},
+  {name:'Armor Weave',tag:'SURVIVE',icon:'🧱',desc:'Reduce incoming danger-bullet damage (max 3 picks).',apply(upg){upg.armorTier=Math.min(3,upg.armorTier+1);upg.damageTakenMult=Math.max(0.72,1-upg.armorTier*0.09);}},
+  {name:'Emergency Capacitor',tag:'SURVIVE',icon:'⚕️',desc:'Taking damage grants instant charge (max 3 picks).',apply(upg){upg.capacitorTier=Math.min(3,upg.capacitorTier+1);upg.hitChargeGain=Math.min(4.5,upg.hitChargeGain+1.5);}},
   {name:'Protective Shield',tag:'SURVIVE',icon:'🛡️',desc:`Orbiting shield absorbs one danger bullet then regenerates. Each upgrade adds another shield (max ${MAX_SHIELD_TIER}).`,apply(upg){upg.shieldTier=Math.min(MAX_SHIELD_TIER,upg.shieldTier+1);}},
   {name:'Orbit Spheres',tag:'UTILITY',icon:'🔮',desc:'Add one orbiting sphere (up to 5). Each pick adds another.',apply(upg){upg.orbitSphereTier=Math.min(5,upg.orbitSphereTier+1);}},
 ];
 
 function pickBoonChoices(upg, hp, maxHp, choiceCount = 3) {
-  const source = [...BOONS].sort(() => Math.random() - 0.5);
-  return source.slice(0, choiceCount);
+  const byTag = {
+    OFFENSE: BOONS.filter((boon) => boon.tag === 'OFFENSE').sort(() => Math.random() - 0.5),
+    UTILITY: BOONS.filter((boon) => boon.tag === 'UTILITY').sort(() => Math.random() - 0.5),
+    SURVIVE: BOONS.filter((boon) => boon.tag === 'SURVIVE').sort(() => Math.random() - 0.5),
+  };
+  const picks = [];
+  for(const tag of ['OFFENSE', 'UTILITY', 'SURVIVE']) {
+    if(byTag[tag].length > 0 && picks.length < choiceCount) picks.push(byTag[tag].shift());
+  }
+  if(picks.length < choiceCount) {
+    const remaining = [...BOONS]
+      .filter((boon) => !picks.includes(boon))
+      .sort(() => Math.random() - 0.5);
+    while(picks.length < choiceCount && remaining.length > 0) picks.push(remaining.shift());
+  }
+  return picks;
 }
 
 export { BOONS, SPS_LADDER, getHyperbolicScale, getDefaultUpgrades, pickBoonChoices };

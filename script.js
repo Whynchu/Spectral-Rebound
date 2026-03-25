@@ -354,6 +354,9 @@ function update(dt,ts){
 
   if(!isStill){
     stillTimer = 0;
+    if(UPG.moveChargeRate > 0){
+      charge = Math.min(UPG.maxCharge, charge + UPG.moveChargeRate * dt);
+    }
   } else {
     stillTimer += dt;
   }
@@ -515,7 +518,12 @@ function update(dt,ts){
     if(b.state==='danger'&&player.invincible<=0){
       if(Math.hypot(b.x-player.x,b.y-player.y)<player.r+b.r-2){
         const dmgScale = 1 + Math.log(roomIndex + 1) * 0.5;
-        hp-=Math.ceil(22*dmgScale); player.invincible=1.2; player.distort=.45;
+        const rawDamage = Math.ceil(22 * dmgScale);
+        const finalDamage = Math.max(1, Math.ceil(rawDamage * (UPG.damageTakenMult || 1)));
+        hp-=finalDamage; player.invincible=1.2; player.distort=.45;
+        if(UPG.hitChargeGain > 0){
+          charge = Math.min(UPG.maxCharge, charge + UPG.hitChargeGain);
+        }
         sparks(player.x,player.y,C.danger,10,85);
         bullets.splice(i,1);
         if(hp<=0){gameOver();return;}
