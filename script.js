@@ -182,6 +182,12 @@ function spawnZB(ex,ey,idx,total) {
   bullets.push({x:ex,y:ey,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,state:'danger',r:4.5,decayStart:null,bounces:0});
 }
 
+function spawnDBB(ex,ey) {
+  const a=Math.atan2(player.y-ey,player.x-ex)+(Math.random()-.5)*.22;
+  const spd=(145+Math.random()*40) * bulletSpeedScale();
+  bullets.push({x:ex,y:ey,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,state:'danger',r:4.5,decayStart:null,bounces:0,doubleBounce:true,bounceCount:0});
+}
+
 function firePlayer(tx,ty) {
   if(charge<1) return;
   const base=Math.atan2(ty-player.y,tx-player.x);
@@ -489,7 +495,7 @@ function update(dt,ts){
       if(e.fT >= e.fRate){
         e.fT = 0;
         if(e.type==='zoner'){for(let i=0;i<e.burst;i++)spawnZB(e.x,e.y,i,e.burst);}
-        else{for(let i=0;i<e.burst;i++)spawnEB(e.x,e.y);}
+        else{for(let i=0;i<e.burst;i++){if(e.doubleBounce)spawnDBB(e.x,e.y);else spawnEB(e.x,e.y);}}
       }
     }
   }
@@ -522,8 +528,13 @@ function update(dt,ts){
 
     if(bounced){
       if(b.state==='danger'){
-        b.state='grey';b.decayStart=ts;
-        sparks(b.x,b.y,C.grey,4,35);
+        if(b.doubleBounce){
+          b.bounceCount++;
+          if(b.bounceCount>=2){b.state='grey';b.decayStart=ts;sparks(b.x,b.y,C.grey,4,35);}
+        } else {
+          b.state='grey';b.decayStart=ts;
+          sparks(b.x,b.y,C.grey,4,35);
+        }
       } else if(b.state==='output'){
         if(b.bounceLeft>0){ b.bounceLeft--; }
         else { bullets.splice(i,1); continue; }
@@ -659,10 +670,12 @@ function draw(ts){
   for(const b of bullets){
     if(b.state==='danger'){
       const pulse=.75+.25*Math.sin(ts*.014);
-      ctx.shadowColor=C.danger;ctx.shadowBlur=16*pulse;
-      ctx.fillStyle=C.danger;
+      const bCol=b.doubleBounce&&b.bounceCount===0?'#c084fc':C.danger;
+      const bCore=b.doubleBounce&&b.bounceCount===0?'rgba(230,200,255,0.9)':C.dangerCore;
+      ctx.shadowColor=bCol;ctx.shadowBlur=16*pulse;
+      ctx.fillStyle=bCol;
       ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
-      ctx.shadowBlur=0;ctx.fillStyle=C.dangerCore;
+      ctx.shadowBlur=0;ctx.fillStyle=bCore;
       ctx.beginPath();ctx.arc(b.x,b.y,b.r*.42,0,Math.PI*2);ctx.fill();
 
     } else if(b.state==='grey'){
@@ -773,9 +786,9 @@ function draw(ts){
   }
 
   // Orbit Spheres
-  if(UPG.orbitSpheres){
-    for(let si=0;si<3;si++){
-      const sAngle=Math.PI*2/3*si+ts*ORBIT_ROTATION_SPD;
+  if(UPG.orbitSphereTier>0){
+    for(let si=0;si<UPG.orbitSphereTier;si++){
+      const sAngle=Math.PI*2/UPG.orbitSphereTier*si+ts*ORBIT_ROTATION_SPD;
       const sx=player.x+Math.cos(sAngle)*ORBIT_SPHERE_R;
       const sy=player.y+Math.sin(sAngle)*ORBIT_SPHERE_R;
       ctx.save();
