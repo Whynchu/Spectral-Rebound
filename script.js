@@ -648,6 +648,30 @@ function update(dt,ts){
         }
       }
     }
+
+    if(UPG.orbitSphereTier > 0){
+      if(!e.orbitHitAt) e.orbitHitAt = {};
+      for(let si=0;si<UPG.orbitSphereTier;si++){
+        const sAngle=Math.PI*2/UPG.orbitSphereTier*si+ts*ORBIT_ROTATION_SPD;
+        const sx=player.x+Math.cos(sAngle)*ORBIT_SPHERE_R;
+        const sy=player.y+Math.sin(sAngle)*ORBIT_SPHERE_R;
+        const lastHitAt = e.orbitHitAt[si] || -99999;
+        if(ts - lastHitAt < 220) continue;
+        if(Math.hypot(e.x-sx,e.y-sy) < e.r + 6){
+          e.orbitHitAt[si] = ts;
+          e.hp -= 1;
+          sparks(sx,sy,C.green,4,45);
+          if(e.hp<=0){
+            score+=e.pts;kills++;
+            sparks(e.x,e.y,e.col,14,95);
+            const a=Math.random()*Math.PI*2,s=50+Math.random()*50;
+            bullets.push({x:e.x,y:e.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,state:'grey',r:4.5,decayStart:ts,bounces:0});
+            enemies.splice(ei,1);
+            break;
+          }
+        }
+      }
+    }
   }
 
   // ── Bullets
@@ -954,12 +978,12 @@ function draw(ts){
       const sx=player.x+Math.cos(sAngle)*ORBIT_SPHERE_R;
       const sy=player.y+Math.sin(sAngle)*ORBIT_SPHERE_R;
       ctx.save();
-      ctx.shadowColor='#a78bfa';ctx.shadowBlur=12;
-      ctx.fillStyle='#a78bfa';
+      ctx.shadowColor=C.green;ctx.shadowBlur=12;
+      ctx.fillStyle=C.green;
       ctx.globalAlpha=0.85;
       ctx.beginPath();ctx.arc(sx,sy,5,0,Math.PI*2);ctx.fill();
       ctx.shadowBlur=0;
-      ctx.fillStyle='rgba(220,200,255,0.9)';
+      ctx.fillStyle='rgba(200,255,220,0.92)';
       ctx.beginPath();ctx.arc(sx,sy,2,0,Math.PI*2);ctx.fill();
       ctx.restore();
     }
