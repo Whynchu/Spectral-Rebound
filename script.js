@@ -46,6 +46,11 @@ function resetUpgrades() {
   UPG = getDefaultUpgrades();
 }
 
+function syncPlayerScale() {
+  if(!player) return;
+  player.r = 9 * (UPG.playerSizeMult || 1);
+}
+
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let gstate = 'start';
 let player = {};
@@ -192,7 +197,7 @@ function circleIntersectsShieldPlate(cx, cy, radius, sx, sy, angle) {
 
 // Bullet speed scales with room — slow at room 1, ramps up
 function bulletSpeedScale() {
-  return 0.55 + Math.min(roomIndex, 10) * 0.065;
+  return 0.52 + Math.min(roomIndex, 10) * 0.042;
 }
 
 function spawnEB(ex,ey) {
@@ -291,6 +296,7 @@ function showUpgrades() {
       boon.apply(UPG, state);
       hp = state.hp;
       maxHp = state.maxHp;
+      syncPlayerScale();
       document.getElementById('s-up').classList.add('off');
       startRoom(roomIndex+1);
       gstate='playing'; lastT=performance.now();
@@ -456,6 +462,7 @@ function init() {
   bullets=[];enemies=[];particles=[];
   resetJoystickState(joy);
   resetUpgrades();
+  syncPlayerScale();
   startRoom(0);
   hudUpdate();
 }
@@ -721,8 +728,8 @@ function update(dt,ts){
 
     if(b.state==='danger'&&player.invincible<=0){
       if(Math.hypot(b.x-player.x,b.y-player.y)<player.r+b.r-2){
-        const dmgScale = 1 + Math.log(roomIndex + 1) * 0.5;
-        const rawDamage = Math.ceil(22 * dmgScale);
+        const dmgScale = 1 + Math.log(roomIndex + 1) * 0.24;
+        const rawDamage = Math.ceil(18 * dmgScale);
         const finalDamage = Math.max(1, Math.ceil(rawDamage * (UPG.damageTakenMult || 1)));
         hp-=finalDamage; player.invincible=1.2; player.distort=.45;
         if(UPG.hitChargeGain > 0){
@@ -985,7 +992,7 @@ function drawGhost(ts){
   const wobble=Math.sin(t*3)*2;
   const deathFrac = gstate === 'dying' ? Math.max(0, Math.min(1, (ts - player.deadAt) / GAME_OVER_ANIM_MS)) : 0;
   const popFrac = gstate === 'dying' ? Math.max(0, Math.min(1, (ts - player.popAt) / (GAME_OVER_ANIM_MS * 0.28))) : 0;
-  const size=10.8+chargeFrac*5.1 - deathFrac*1.2;
+  const size=player.r*1.18+chargeFrac*3.9 - deathFrac*1.2;
 
   ctx.save();
   if(player.distort>0 || gstate === 'dying'){
