@@ -145,8 +145,11 @@ function spawnEnemy(type) {
     nextEnemyId: enemyIdSeq++,
   });
   if(enemy.doubleBounce && roomIndex >= 9){
-    const purpleTargetCount = Math.min(3, 1 + Math.floor((roomIndex - 9) / 2));
-    if(!roomPurpleShooterAssigned || enemies.filter((entry) => entry.forcePurpleShots).length < purpleTargetCount) {
+    const existingPurpleCount = enemies.filter((entry) => entry.forcePurpleShots).length;
+    const purpleTargetCount = roomIndex === 9
+      ? 1
+      : Math.min(3, 1 + Math.floor((roomIndex - 9) / 2));
+    if(existingPurpleCount < purpleTargetCount) {
       enemy.forcePurpleShots = true;
       roomPurpleShooterAssigned = true;
       enemy.col = '#a855f7';
