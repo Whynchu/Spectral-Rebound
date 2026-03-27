@@ -209,11 +209,13 @@ body.app-ready #wrap { opacity: 1; }
 /* UPGRADE SCREEN — horizontal 3 cards */
 #up-title { font-size:9px; letter-spacing:.25em; text-transform:uppercase; color:var(--accent); margin-bottom:4px; }
 #up-cards {
+  display:flex; flex-direction:column; gap:10px; width:100%;
+}
+.up-cards-main {
   display:flex; flex-direction:row; gap:10px; width:100%;
 }
-#up-cards[data-card-count="4"] {
-  display:grid;
-  grid-template-columns:1fr 1fr;
+.up-heal-row {
+  display:flex; justify-content:center; width:100%;
 }
 .up-card {
   flex:1; min-width:0;
@@ -225,6 +227,16 @@ body.app-ready #wrap { opacity: 1; }
 .up-card:hover { border-color:var(--accent2); background:rgba(74,222,128,0.06); box-shadow:0 0 20px rgba(74,222,128,0.12); transform:translateY(-3px); }
 .up-card.heal-card { border-color: rgba(248,113,113,0.24); }
 .up-card.heal-card:hover { border-color: #f87171; background: rgba(248,113,113,0.08); }
+.heal-card-small {
+  flex:0 0 auto;
+  width:min(150px, 52%);
+  padding:12px 10px;
+  gap:6px;
+}
+.heal-card-small .up-icon { font-size:22px; }
+.heal-card-small .up-name { font-size:11px; }
+.heal-card-small .up-desc { font-size:8px; line-height:1.35; }
+.heal-card-small .up-tag { font-size:6px; }
 .up-icon { font-size:26px; }
 .up-name { font-family:'Syne',sans-serif; font-weight:700; font-size:12px; color:#fff; letter-spacing:-.01em; line-height:1.2; }
 .up-desc { font-size:9px; color:var(--muted); line-height:1.45; }
