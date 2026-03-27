@@ -38,7 +38,7 @@ function createEnemy(type, { width, height, margin, roomIndex, nextEnemyId }) {
 }
 
 function canEnemyUsePurpleShots(enemy, roomIndex) {
-  return enemy.forcePurpleShots || (enemy.doubleBounce && roomIndex > PURPLE_BULLET_ROOM_THRESHOLD);
+  return enemy.forcePurpleShots;
 }
 
 export { ENEMY_TYPES, PURPLE_BULLET_ROOM_THRESHOLD, createEnemy, canEnemyUsePurpleShots };

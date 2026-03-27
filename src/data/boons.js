@@ -1,6 +1,7 @@
 const SPS_LADDER = [0.5,1.0,1.8,3.0,5.0,8.0];
 const MAX_SHIELD_TIER = 4;
-const TITAN_HP_PCT = [0.25, 0.20, 0.15, 0.10, 0.05];
+const TITAN_HP_PCT = [1.00, 0.50, 0.25, 0.10, 0.05];
+const HEAL_PCT = [1.00, 0.50, 0.25, 0.10, 0.05];
 
 // Returns a multiplier with diminishing returns approaching ~1.45x ceiling.
 // tier 1: ~1.18x, tier 2: ~1.26x, tier 5: ~1.35x, tier 10: ~1.39x
@@ -46,6 +47,8 @@ function getDefaultUpgrades() {
     kineticTier:      0,
     titanTier:        0,
     playerSizeMult:   1,
+    playerDamageMult: 1,
+    healTier:         0,
   };
 }
 
@@ -70,7 +73,7 @@ const BOONS = [
   {name:'Room Regen',tag:'SURVIVE',icon:'💚',desc:'Restore HP whenever you clear a room (max 30 HP/room).',apply(upg){upg.regenTick=Math.min(30,upg.regenTick+10);}},
   {name:'Armor Weave',tag:'SURVIVE',icon:'🧱',desc:'Reduce incoming danger-bullet damage (max 3 picks).',apply(upg){upg.armorTier=Math.min(3,upg.armorTier+1);upg.damageTakenMult=Math.max(0.72,1-upg.armorTier*0.09);}},
   {name:'Emergency Capacitor',tag:'SURVIVE',icon:'⚕️',desc:'Taking damage grants instant charge (max 3 picks).',apply(upg){upg.capacitorTier=Math.min(3,upg.capacitorTier+1);upg.hitChargeGain=Math.min(4.5,upg.hitChargeGain+1.5);}},
-  {name:'Titan Heart',tag:'SURVIVE',icon:'⬢',desc:'Grow 25% larger and gain diminishing max HP: +25%, +20%, +15%, +10%, then +5%. Removed after the final tier.',apply(upg, state){if(upg.titanTier >= TITAN_HP_PCT.length) return; const hpPct = TITAN_HP_PCT[upg.titanTier]; upg.titanTier++; upg.playerSizeMult = 1 + upg.titanTier * 0.25; const gain = Math.max(1, Math.round(state.maxHp * hpPct)); state.maxHp += gain; state.hp = Math.min(state.maxHp, state.hp + gain);}},
+  {name:'Titan Heart',tag:'SURVIVE',icon:'⬢',desc:'Grow 25% larger each time, gain max HP at +100%, +50%, +25%, +10%, then +5%, and add +5% damage per pick.',apply(upg, state){if(upg.titanTier >= TITAN_HP_PCT.length) return; const hpPct = TITAN_HP_PCT[upg.titanTier]; upg.titanTier++; upg.playerSizeMult = 1 + upg.titanTier * 0.25; upg.playerDamageMult = 1 + upg.titanTier * 0.05; const gain = Math.max(1, Math.round(state.maxHp * hpPct)); state.maxHp += gain; state.hp = Math.min(state.maxHp, state.hp + gain);}},
   {name:'Protective Shield',tag:'SURVIVE',icon:'🛡️',desc:`Orbiting shield absorbs one danger bullet then regenerates. Each upgrade adds another shield (max ${MAX_SHIELD_TIER}).`,apply(upg){upg.shieldTier=Math.min(MAX_SHIELD_TIER,upg.shieldTier+1);}},
   {name:'Orbit Spheres',tag:'UTILITY',icon:'🔮',desc:'Add one orbiting sphere (up to 5). Each pick adds another.',apply(upg){upg.orbitSphereTier=Math.min(5,upg.orbitSphereTier+1);}},
 ];
@@ -82,6 +85,21 @@ function boonHasEffect(boon, upg, hp, maxHp) {
   boon.apply(probe, state);
   const afterState = JSON.stringify({ upg: probe, hp: state.hp, maxHp: state.maxHp });
   return beforeState !== afterState;
+}
+
+function createHealBoon(upg) {
+  const healPct = HEAL_PCT[Math.min(upg.healTier, HEAL_PCT.length - 1)];
+  return {
+    name: 'Recover',
+    tag: 'HEAL',
+    icon: '♥',
+    desc: `Heal ${Math.round(healPct * 100)}% of max HP. Permanent fourth option.`,
+    apply(_, state) {
+      const healAmount = Math.max(1, Math.round(state.maxHp * healPct));
+      state.hp = Math.min(state.maxHp, state.hp + healAmount);
+      upg.healTier++;
+    },
+  };
 }
 
 function pickBoonChoices(upg, hp, maxHp, choiceCount = 3) {
@@ -104,4 +122,4 @@ function pickBoonChoices(upg, hp, maxHp, choiceCount = 3) {
   return picks;
 }
 
-export { BOONS, SPS_LADDER, getHyperbolicScale, getDefaultUpgrades, pickBoonChoices };
+export { BOONS, SPS_LADDER, getHyperbolicScale, getDefaultUpgrades, pickBoonChoices, createHealBoon };

@@ -1,4 +1,4 @@
-const VERSION = { num: '0.62', label: 'Name Memory' };
+const VERSION = { num: '0.63', label: 'Intro Heal Pass' };
 
 function formatVersionTag(version = VERSION) {
   return `// prototype v${version.num} - ${version.label}`;

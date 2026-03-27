@@ -1,15 +1,16 @@
-import { pickBoonChoices } from '../data/boons.js';
+import { pickBoonChoices, createHealBoon } from '../data/boons.js';
 
 const BOON_FADE_MS = 180;
 
 function showBoonSelection({ upg, hp, maxHp, onSelect, cardsContainer = document.getElementById('up-cards'), panel = document.getElementById('s-up') }) {
-  const pool = pickBoonChoices(upg, hp, maxHp);
+  const pool = [...pickBoonChoices(upg, hp, maxHp), createHealBoon(upg)];
   cardsContainer.innerHTML = '';
+  cardsContainer.dataset.cardCount = String(pool.length);
 
   for(const boon of pool){
     const card = document.createElement('div');
-    const tagColor = boon.tag === 'OFFENSE' ? '#f87171' : boon.tag === 'UTILITY' ? '#38bdf8' : '#4ade80';
-    card.className = 'up-card';
+    const tagColor = boon.tag === 'OFFENSE' ? '#f87171' : boon.tag === 'UTILITY' ? '#38bdf8' : boon.tag === 'HEAL' ? '#f87171' : '#4ade80';
+    card.className = boon.tag === 'HEAL' ? 'up-card heal-card' : 'up-card';
     card.innerHTML = `
       <div class="up-icon">${boon.icon}</div>
       <div class="up-name">${boon.name}</div>

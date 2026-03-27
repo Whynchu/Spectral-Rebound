@@ -85,11 +85,12 @@ let lastStallSpawnAt = -99999;
 
 // Room system
 let roomIndex = 0;
-let roomPhase = 'spawning';
+let roomPhase = 'intro';
 let roomTimer = 0;
 let spawnQueue = [];
 let roomClearTimer = 0;
 let roomPurpleShooterAssigned = false;
+let roomIntroTimer = 0;
 
 function getRoomDef(idx) {
   if(idx < ROOM_SCRIPTS.length) return ROOM_SCRIPTS[idx];
@@ -131,9 +132,15 @@ function startRoom(idx) {
   const def = getRoomDef(idx);
   spawnQueue = buildSpawnQueue(def);
   roomTimer = 0;
-  roomPhase = 'spawning';
+  roomIntroTimer = 0;
+  roomPhase = 'intro';
   enemies = [];
   bullets = [];
+  player.x = cv.width / 2;
+  player.y = cv.height / 2;
+  player.vx = 0;
+  player.vy = 0;
+  showRoomIntro('READY?', false);
   updateRoomBadge(def);
 }
 
@@ -242,7 +249,7 @@ function firePlayer(tx,ty) {
   const snipeScale = 1 + UPG.snipePower * 0.18;
   const bspd = 230 * Math.min(2.0, UPG.shotSpd) * snipeScale;
   const br   = 4.5 * Math.min(2.5, UPG.shotSize) * (1 + UPG.snipePower * 0.15);
-  const baseDmg = 1 + UPG.snipePower * 0.35;
+  const baseDmg = (1 + UPG.snipePower * 0.35) * (UPG.playerDamageMult || 1);
 
   for(const a of angs) {
     bullets.push({
@@ -513,10 +520,11 @@ function update(dt,ts){
 
   const W=cv.width,H=cv.height;
   const BASE_SPD=165*Math.min(2.5,UPG.speedMult);
+  const joyMax = joy.max || JOY_MAX;
 
   // ── Player movement — virtual joystick
-  if(joy.active && joy.mag > JOY_DEADZONE){
-    const t = Math.min((joy.mag - JOY_DEADZONE) / (JOY_MAX - JOY_DEADZONE), 1);
+  if(roomPhase !== 'intro' && joy.active && joy.mag > JOY_DEADZONE){
+    const t = Math.min((joy.mag - JOY_DEADZONE) / (joyMax - JOY_DEADZONE), 1);
     player.vx = joy.dx * BASE_SPD * t;
     player.vy = joy.dy * BASE_SPD * t;
   } else {
@@ -534,6 +542,16 @@ function update(dt,ts){
 
   // ── Room state machine
   roomTimer += dt*1000;
+
+  if(roomPhase==='intro'){
+    roomIntroTimer += dt * 1000;
+    if(roomIntroTimer >= 1000 && roomIntroTimer < 1600){
+      showRoomIntro('GO!', true);
+    } else if(roomIntroTimer >= 1600){
+      hideRoomIntro();
+      roomPhase = 'spawning';
+    }
+  }
 
   if(roomPhase==='spawning'){
     // Drain spawn queue
@@ -825,6 +843,19 @@ function showRoomClear(){
   setTimeout(()=>el.classList.remove('show'),1400);
 }
 
+function showRoomIntro(text, isGo) {
+  const el = document.getElementById('room-intro');
+  const txt = document.getElementById('room-intro-txt');
+  txt.textContent = text;
+  el.classList.toggle('go', Boolean(isGo));
+  el.classList.add('show');
+}
+
+function hideRoomIntro() {
+  const el = document.getElementById('room-intro');
+  el.classList.remove('show', 'go');
+}
+
 // ── DRAW ──────────────────────────────────────────────────────────────────────
 function draw(ts){
   const W=cv.width,H=cv.height;
@@ -1005,7 +1036,7 @@ function draw(ts){
     ctx.globalAlpha=0.18;
     ctx.strokeStyle='#fff';
     ctx.lineWidth=1;
-    ctx.beginPath();ctx.arc(joy.ax,joy.ay,JOY_MAX,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.arc(joy.ax,joy.ay,joy.max || JOY_MAX,0,Math.PI*2);ctx.stroke();
     ctx.globalAlpha=0.35;
     ctx.fillStyle='#fff';
     ctx.beginPath();ctx.arc(joy.ax,joy.ay,3,0,Math.PI*2);ctx.fill();
