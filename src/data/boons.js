@@ -3,8 +3,6 @@ const MAX_SHIELD_TIER = 4;
 const TITAN_HP_PCT = [1.00, 0.50, 0.25, 0.10, 0.05];
 const HEAL_PCT = [1.00, 0.50, 0.25, 0.10, 0.05];
 
-// Returns a multiplier with diminishing returns approaching ~1.45x ceiling.
-// tier 1: ~1.18x, tier 2: ~1.26x, tier 5: ~1.35x, tier 10: ~1.39x
 function getHyperbolicScale(tier) {
   return 1 + (tier * 0.45) / (tier + 1.5);
 }
@@ -49,6 +47,7 @@ function getDefaultUpgrades() {
     playerSizeMult:   1,
     playerDamageMult: 1,
     healTier:         0,
+    forwardShotTier:  0,
   };
 }
 
@@ -57,6 +56,7 @@ const BOONS = [
   {name:'Ring Blast',tag:'OFFENSE',icon:'◎',desc:'Add one radial bullet per cycle (max 8 total).',apply(upg){upg.ringShots=Math.min(8,upg.ringShots+1);}},
   {name:'Front+Back',tag:'OFFENSE',icon:'↕',desc:'Add a reverse shot behind you.',apply(upg){upg.dualShot=1;}},
   {name:'Snipe Shot',tag:'OFFENSE',icon:'🎯',desc:'All output bullets gain size, speed, and damage.',apply(upg){upg.snipePower=Math.min(3,upg.snipePower+1);}},
+  {name:'Twin Lance',tag:'OFFENSE',icon:'≫',desc:'Add one extra forward-facing shot. Can repeat with reduced rarity each time.',apply(upg){upg.forwardShotTier++;}},
   {name:'Bigger Bullets',tag:'OFFENSE',icon:'🔵',desc:'Output bullets grow larger (diminishing returns).',apply(upg){upg.biggerBulletsTier++;upg.shotSize=getHyperbolicScale(upg.biggerBulletsTier);}},
   {name:'Faster Bullets',tag:'OFFENSE',icon:'💨',desc:'Output bullets travel faster (diminishing returns).',apply(upg){upg.fasterBulletsTier++;upg.shotSpd=getHyperbolicScale(upg.fasterBulletsTier);}},
   {name:'Critical Hit',tag:'OFFENSE',icon:'💥',desc:'+20% crit chance each shot deals double damage (max 2 picks).',apply(upg){upg.critTier=Math.min(2,upg.critTier+1);upg.critChance=Math.min(0.6,0.2*upg.critTier);}},
@@ -87,6 +87,21 @@ function boonHasEffect(boon, upg, hp, maxHp) {
   return beforeState !== afterState;
 }
 
+function getBoonWeight(boon, upg) {
+  if(boon.name === 'Twin Lance') return 1 / (1 + upg.forwardShotTier * 1.35);
+  return 1;
+}
+
+function weightedPickBoon(pool, upg) {
+  const totalWeight = pool.reduce((sum, boon) => sum + getBoonWeight(boon, upg), 0);
+  let roll = Math.random() * totalWeight;
+  for(const boon of pool) {
+    roll -= getBoonWeight(boon, upg);
+    if(roll <= 0) return boon;
+  }
+  return pool[pool.length - 1];
+}
+
 function createHealBoon(upg) {
   const healPct = HEAL_PCT[Math.min(upg.healTier, HEAL_PCT.length - 1)];
   return {
@@ -111,7 +126,11 @@ function pickBoonChoices(upg, hp, maxHp, choiceCount = 3) {
   };
   const picks = [];
   for(const tag of ['OFFENSE', 'UTILITY', 'SURVIVE']) {
-    if(byTag[tag].length > 0 && picks.length < choiceCount) picks.push(byTag[tag].shift());
+    if(byTag[tag].length > 0 && picks.length < choiceCount) {
+      const boon = weightedPickBoon(byTag[tag], upg);
+      picks.push(boon);
+      byTag[tag] = byTag[tag].filter((entry) => entry !== boon);
+    }
   }
   if(picks.length < choiceCount) {
     const remaining = [...available]

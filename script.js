@@ -1,6 +1,6 @@
 import { C, ROOM_SCRIPTS, DECAY_BASE, M, VERSION } from './src/data/gameData.js';
 import { getDefaultUpgrades } from './src/data/boons.js';
-import { createEnemy, canEnemyUsePurpleShots } from './src/entities/enemyTypes.js';
+import { ENEMY_TYPES, createEnemy, canEnemyUsePurpleShots } from './src/entities/enemyTypes.js';
 import { JOY_DEADZONE, JOY_MAX, createJoystickState, resetJoystickState, bindJoystickControls } from './src/input/joystick.js';
 import { fetchRemoteLeaderboard, submitRemoteScore } from './src/platform/leaderboardService.js';
 import { bindResponsiveViewport } from './src/platform/viewport.js';
@@ -91,27 +91,69 @@ let spawnQueue = [];
 let roomClearTimer = 0;
 let roomPurpleShooterAssigned = false;
 let roomIntroTimer = 0;
+const ROOM_NAMES = ROOM_SCRIPTS.map((room) => room.name);
 
 function getRoomDef(idx) {
-  if(idx < ROOM_SCRIPTS.length) return ROOM_SCRIPTS[idx];
-  // Endless — slow ramp, cap chaos at 0.7
-  const over = idx - ROOM_SCRIPTS.length; // how many rooms past scripted
-  const chaosLevel = Math.min(0.7, 0.35 + over * 0.03);
-  const names = ['FRENZY','OVERRUN','DELUGE','STORM','NIGHTMARE','ABYSS','INFERNO','CHAOS'];
-  const chasers    = 2 + Math.floor(over * 0.25);
-  const rushers    = Math.floor(over * 0.2);
-  const snipers    = 1 + Math.floor(over * 0.15);
-  const disruptors = Math.floor(over * 0.18);
-  const siphons    = over >= 4 ? 1 : 0;
-  // Always at least 1 shooter so rushers/siphons are never alone
-  const entries = [
-    {t:'chaser',    n: Math.max(1, chasers),   d:0},
-    {t:'sniper',    n: Math.max(1, snipers),   d:0},
-  ];
-  if(disruptors>0) entries.push({t:'disruptor', n:disruptors, d:0});
-  if(rushers>0)    entries.push({t:'rusher',    n:rushers,    d:0});
-  if(siphons>0)    entries.push({t:'siphon',    n:siphons,    d:0});
-  return { name: names[over % names.length], chaos: chaosLevel, waves:[entries] };
+  const name = idx < ROOM_NAMES.length
+    ? ROOM_NAMES[idx]
+    : ['FRENZY','OVERRUN','DELUGE','STORM','NIGHTMARE','ABYSS','INFERNO','CHAOS'][(idx - ROOM_NAMES.length) % 8];
+  const chaos = Math.min(0.65, idx * 0.035);
+  return { name, chaos, waves:[generateWeightedWave(idx)] };
+}
+
+function getUnlockedEnemyTypes(roomIdx) {
+  return Object.entries(ENEMY_TYPES)
+    .filter(([, def]) => roomIdx >= def.unlockRoom)
+    .map(([type]) => type);
+}
+
+function weightedPick(candidates) {
+  const total = candidates.reduce((sum, candidate) => sum + candidate.weight, 0);
+  let roll = Math.random() * total;
+  for(const candidate of candidates) {
+    roll -= candidate.weight;
+    if(roll <= 0) return candidate.type;
+  }
+  return candidates[candidates.length - 1].type;
+}
+
+function generateWeightedWave(roomIdx) {
+  const unlocked = getUnlockedEnemyTypes(roomIdx);
+  const entries = new Map();
+  const budgetBase = 3.2 + roomIdx * 1.45;
+  let budget = budgetBase;
+  let shooterCount = 0;
+
+  if(roomIdx === 9) {
+    entries.set('purple_chaser', 1);
+    budget -= ENEMY_TYPES.purple_chaser.spawnValue;
+    shooterCount += 1;
+  }
+
+  while(budget >= 2) {
+    const candidates = unlocked
+      .filter((type) => roomIdx > 9 || (type !== 'purple_chaser' && type !== 'purple_disruptor'))
+      .filter((type) => type !== 'purple_disruptor' || roomIdx >= 11)
+      .filter((type) => ENEMY_TYPES[type].spawnValue <= budget + 0.5)
+      .map((type) => {
+        const def = ENEMY_TYPES[type];
+        const pressureBias = def.ammoPressure > 0 ? 0.9 : 0.75;
+        const affordability = 1 / def.spawnValue;
+        const roomBias = 1 + Math.min(1.2, Math.max(0, roomIdx - def.unlockRoom) * 0.08);
+        return { type, weight: pressureBias * affordability * roomBias };
+      });
+    if(candidates.length === 0) break;
+    const type = weightedPick(candidates);
+    entries.set(type, (entries.get(type) || 0) + 1);
+    budget -= ENEMY_TYPES[type].spawnValue;
+    if(ENEMY_TYPES[type].ammoPressure > 0) shooterCount++;
+  }
+
+  if(shooterCount === 0) {
+    entries.set('chaser', (entries.get('chaser') || 0) + 1);
+  }
+
+  return [...entries.entries()].map(([t, n]) => ({ t, n, d:0 }));
 }
 
 function buildSpawnQueue(roomDef) {
@@ -157,18 +199,7 @@ function spawnEnemy(type) {
     roomIndex,
     nextEnemyId: enemyIdSeq++,
   });
-  if(enemy.doubleBounce && roomIndex >= 9){
-    const existingPurpleCount = enemies.filter((entry) => entry.forcePurpleShots).length;
-    const purpleTargetCount = roomIndex === 9
-      ? 1
-      : Math.min(3, 1 + Math.floor((roomIndex - 9) / 2));
-    if(existingPurpleCount < purpleTargetCount) {
-      enemy.forcePurpleShots = true;
-      roomPurpleShooterAssigned = true;
-      enemy.col = '#a855f7';
-      enemy.glowCol = 'rgba(168,85,247,0.78)';
-    }
-  }
+  if(enemy.forcePurpleShots) roomPurpleShooterAssigned = true;
   enemies.push(enemy);
 }
 
@@ -226,41 +257,51 @@ function spawnDBB(ex,ey) {
   bullets.push({x:ex,y:ey,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,state:'danger',r:4.5,decayStart:null,bounces:0,doubleBounce:true,bounceCount:0});
 }
 
+function createLaneOffsets(count, spacing) {
+  return Array.from({ length: count }, (_, idx) => (idx - (count - 1) / 2) * spacing);
+}
+
 function firePlayer(tx,ty) {
   if(charge<1) return;
   const base=Math.atan2(ty-player.y,tx-player.x);
-  const angs=[base];
+  const angs=[];
+  const forwardOffsets = createLaneOffsets(1 + UPG.forwardShotTier, 7 * Math.min(1.6, UPG.shotSize));
 
+  for(const laneOffset of forwardOffsets) angs.push({ angle: base, offset: laneOffset });
   if(UPG.spreadTier>=1){
-    angs.push(base-0.28, base+0.28);
+    angs.push({ angle: base-0.28, offset: 0 }, { angle: base+0.28, offset: 0 });
   }
   if(UPG.spreadTier>=2){
-    angs.push(base-0.45, base-0.22, base+0.22, base+0.45);
+    angs.push({ angle: base-0.45, offset: 0 }, { angle: base-0.22, offset: 0 }, { angle: base+0.22, offset: 0 }, { angle: base+0.45, offset: 0 });
   }
   if(UPG.dualShot>0){
-    angs.push(base + Math.PI);
+    angs.push({ angle: base + Math.PI, offset: 0 });
   }
   if(UPG.ringShots>0){
     for(let i=0;i<UPG.ringShots;i++){
-      angs.push((Math.PI*2/UPG.ringShots)*i);
+      angs.push({ angle: (Math.PI*2/UPG.ringShots)*i, offset: 0 });
     }
   }
 
   const snipeScale = 1 + UPG.snipePower * 0.18;
   const bspd = 230 * Math.min(2.0, UPG.shotSpd) * snipeScale;
-  const br   = 4.5 * Math.min(2.5, UPG.shotSize) * (1 + UPG.snipePower * 0.15);
+  const baseRadius = 4.5 * Math.min(2.5, UPG.shotSize) * (1 + UPG.snipePower * 0.15);
   const baseDmg = (1 + UPG.snipePower * 0.35) * (UPG.playerDamageMult || 1);
 
-  for(const a of angs) {
+  for(const shot of angs) {
+    const a = shot.angle;
+    const sideX = Math.cos(a + Math.PI / 2) * shot.offset;
+    const sideY = Math.sin(a + Math.PI / 2) * shot.offset;
+    const crit = Math.random()<UPG.critChance;
     bullets.push({
-      x:player.x, y:player.y,
+      x:player.x + sideX, y:player.y + sideY,
       vx:Math.cos(a)*bspd,
       vy:Math.sin(a)*bspd,
-      state:'output', r:br, decayStart:null,
+      state:'output', r:crit ? baseRadius * 1.28 : baseRadius, decayStart:null,
       bounceLeft: UPG.bounceTier>0?2:0,
       pierceLeft: UPG.pierceTier,
       homing: UPG.homingTier>0,
-      crit: Math.random()<UPG.critChance,
+      crit,
       dmg: baseDmg,
       hitIds: new Set(),
     });
@@ -804,7 +845,7 @@ function update(dt,ts){
           b.hitIds.add(e.eid);
           const dmg = (b.crit ? 2 : 1) * b.dmg;
           e.hp-=dmg;
-          sparks(b.x,b.y,b.crit?'#fbbf24':C.green,b.crit?8:5,b.crit?70:55);
+          sparks(b.x,b.y,b.crit?'#7dff9b':C.green,b.crit?8:5,b.crit?70:55);
           if(e.hp<=0){
             score+=e.pts*(b.crit?2:1);kills++;
             sparks(e.x,e.y,e.col,14,95);
@@ -912,12 +953,12 @@ function draw(ts){
       ctx.globalAlpha=1;ctx.shadowBlur=0;
 
     } else if(b.state==='output'){
-      const col = b.crit?'#fbbf24':C.green;
-      ctx.shadowColor=col;ctx.shadowBlur=b.crit?24:18;
+      const col = b.crit?'#7dff9b':C.green;
+      ctx.shadowColor=col;ctx.shadowBlur=b.crit?28:18;
       ctx.fillStyle=col;
       ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
-      ctx.shadowBlur=0;ctx.fillStyle='rgba(200,255,220,0.95)';
-      ctx.beginPath();ctx.arc(b.x,b.y,b.r*.38,0,Math.PI*2);ctx.fill();
+      ctx.shadowBlur=0;ctx.fillStyle=b.crit ? 'rgba(232,255,238,0.98)' : 'rgba(200,255,220,0.95)';
+      ctx.beginPath();ctx.arc(b.x,b.y,b.crit ? b.r*.44 : b.r*.38,0,Math.PI*2);ctx.fill();
     }
     ctx.shadowBlur=0;
   }
@@ -1074,13 +1115,13 @@ function drawGhost(ts){
   // Ambient glow
   const pulse=.55+.45*Math.sin(ts*.0025);
   const ga=ctx.createRadialGradient(0,0,0,0,0,size*3);
-  ga.addColorStop(0,gstate === 'dying' ? `rgba(248,180,199,${0.14 + deathFrac * 0.16})` : overload?`rgba(248,113,113,${0.18*pulse})`:`rgba(184,255,204,${0.18*pulse})`);
+  ga.addColorStop(0,gstate === 'dying' ? `rgba(248,180,199,${0.14 + deathFrac * 0.16})` : overload?`rgba(120,255,160,${0.20 + 0.08 * pulse})`:`rgba(184,255,204,${0.18*pulse})`);
   ga.addColorStop(1,'rgba(184,255,204,0)');
   ctx.fillStyle=ga;
   ctx.beginPath();ctx.arc(0,0,size*3,0,Math.PI*2);ctx.fill();
 
   ctx.shadowBlur=22+chargeFrac*14;
-  ctx.shadowColor=gstate === 'dying' ? '#f8b4c7' : overload?'#f87171':C.ghost;
+  ctx.shadowColor=gstate === 'dying' ? '#f8b4c7' : overload?'#7dff9b':C.ghost;
 
   const inv=player.invincible>0?Math.min(1,player.invincible/.4):0;
   let bodyR,bodyG,bodyB;
@@ -1089,9 +1130,9 @@ function drawGhost(ts){
     bodyG = 244 - Math.round(deathFrac * 36);
     bodyB = 224 + Math.round(deathFrac * 12);
   } else if(overload){
-    bodyR=Math.round(184+overloadPulse*64);
-    bodyG=Math.round(220-overloadPulse*107);
-    bodyB=Math.round(170-overloadPulse*57);
+    bodyR=Math.round(176 + overloadPulse * 40);
+    bodyG=Math.round(244 + overloadPulse * 10);
+    bodyB=Math.round(196 + overloadPulse * 32);
   } else {
     bodyR=Math.round(184+inv*71);bodyG=255;bodyB=Math.round(220+inv*35);
   }
