@@ -262,6 +262,28 @@ function createLaneOffsets(count, spacing) {
   return Array.from({ length: count }, (_, idx) => (idx - (count - 1) / 2) * spacing);
 }
 
+function drawGooBall(x, y, radius, fillColor, coreColor, wobbleSeed, alpha = 1) {
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  ctx.fillStyle = fillColor;
+  ctx.beginPath();
+  for(let i=0;i<8;i++){
+    const angle = (Math.PI * 2 / 8) * i;
+    const wobble = 0.86 + 0.22 * Math.sin(wobbleSeed + i * 1.37);
+    const px = x + Math.cos(angle) * radius * wobble;
+    const py = y + Math.sin(angle) * radius * wobble;
+    if(i===0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = coreColor;
+  ctx.beginPath();
+  ctx.arc(x + Math.sin(wobbleSeed) * radius * 0.08, y + Math.cos(wobbleSeed * 1.2) * radius * 0.08, radius * 0.42, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 function firePlayer(tx,ty) {
   if(charge<1) return;
   const base=Math.atan2(ty-player.y,tx-player.x);
@@ -939,15 +961,17 @@ function draw(ts){
       const pulse=.75+.25*Math.sin(ts*.014);
       const bCol=b.doubleBounce&&b.bounceCount===0?'#c084fc':C.danger;
       const bCore=b.doubleBounce&&b.bounceCount===0?'rgba(230,200,255,0.9)':C.dangerCore;
+      ctx.globalAlpha = 0.88;
       ctx.shadowColor=bCol;ctx.shadowBlur=16*pulse;
       ctx.fillStyle=bCol;
       ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
       ctx.shadowBlur=0;ctx.fillStyle=bCore;
       ctx.beginPath();ctx.arc(b.x,b.y,b.r*.42,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha = 1;
 
     } else if(b.state==='grey'){
       const age=(ts-b.decayStart)/(DECAY_BASE+UPG.decayBonus);
-      ctx.globalAlpha=Math.max(.10,1-age*.9);
+      ctx.globalAlpha=Math.max(.10,0.82-age*.72);
       ctx.shadowColor=C.grey;ctx.shadowBlur=5;
       ctx.fillStyle=C.grey;
       ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
@@ -956,10 +980,16 @@ function draw(ts){
     } else if(b.state==='output'){
       const col = b.crit?'#7dff9b':C.green;
       ctx.shadowColor=col;ctx.shadowBlur=b.crit?28:18;
-      ctx.fillStyle=col;
-      ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
-      ctx.shadowBlur=0;ctx.fillStyle=b.crit ? 'rgba(232,255,238,0.98)' : 'rgba(200,255,220,0.95)';
-      ctx.beginPath();ctx.arc(b.x,b.y,b.crit ? b.r*.44 : b.r*.38,0,Math.PI*2);ctx.fill();
+      drawGooBall(
+        b.x,
+        b.y,
+        b.r,
+        b.crit ? 'rgba(125,255,155,0.74)' : 'rgba(74,222,128,0.72)',
+        b.crit ? 'rgba(232,255,238,0.9)' : 'rgba(200,255,220,0.82)',
+        ts * 0.013 + b.x * 0.09 + b.y * 0.07,
+        0.92
+      );
+      ctx.shadowBlur=0;
     }
     ctx.shadowBlur=0;
   }
