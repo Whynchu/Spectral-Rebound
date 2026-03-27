@@ -25,6 +25,7 @@ const nameInputStart = document.getElementById('name-input-start');
 const nameInputGo = document.getElementById('name-input-go');
 const lbScreen = document.getElementById('s-lb');
 const lbOpenBtn = document.getElementById('btn-lb-open');
+const lbOpenBtnGo = document.getElementById('btn-lb-open-go');
 const lbCloseBtn = document.getElementById('btn-lb-close');
 const lbCurrent = document.getElementById('lb-current');
 const lbStatus = document.getElementById('lb-status');
@@ -1219,11 +1220,16 @@ bindJoystickControls({
   getGameState: () => gstate,
 });
 
+function openLeaderboardScreen() {
+  lbScreen.classList.remove('off');
+  refreshLeaderboardView();
+}
+
 if(lbOpenBtn){
-  lbOpenBtn.addEventListener('click', () => {
-    lbScreen.classList.remove('off');
-    refreshLeaderboardView();
-  });
+  lbOpenBtn.addEventListener('click', openLeaderboardScreen);
+}
+if(lbOpenBtnGo){
+  lbOpenBtnGo.addEventListener('click', openLeaderboardScreen);
 }
 lbCloseBtn.addEventListener('click', () => lbScreen.classList.add('off'));
 lbPeriodBtns.forEach((btn) => {

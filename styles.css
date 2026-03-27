@@ -205,6 +205,16 @@ body.app-ready #wrap { opacity: 1; }
   padding:12px 32px; border-radius:4px; cursor:pointer; transition:all .18s;
 }
 .btn:hover { background:rgba(74,222,128,0.14); box-shadow:0 0 24px rgba(74,222,128,0.15); }
+.btn-secondary {
+  background:rgba(255,255,255,0.03);
+  border-color:var(--border2);
+  color:var(--text);
+}
+.btn-secondary:hover {
+  background:rgba(255,255,255,0.07);
+  border-color:rgba(74,222,128,0.22);
+  color:var(--accent);
+}
 .btn-mini { padding:10px 14px; font-size:9px; letter-spacing:.14em; }
 /* UPGRADE SCREEN — horizontal 3 cards */
 #up-title { font-size:9px; letter-spacing:.25em; text-transform:uppercase; color:var(--accent); margin-bottom:4px; }
