@@ -18,7 +18,7 @@ function getDefaultUpgrades() {
     ringShots:        0,
     dualShot:         0,
     snipePower:       0,
-    maxCharge:        10,
+    maxCharge:        5,
     decayBonus:       0,
     absorbValue:      1,
     pierceTier:       0,
@@ -26,6 +26,8 @@ function getDefaultUpgrades() {
     homingTier:       0,
     shotSize:         1,
     shotSpd:          1,
+    shotLifeTier:     0,
+    shotLifeMult:     1,
     critChance:       0,
     absorbRange:      0,
     regenTick:        0,
@@ -69,6 +71,7 @@ const BOONS = [
   {name:'Decay Extension',tag:'UTILITY',icon:'⏳',desc:'Grey bullets linger 1s longer for easier harvest (max 3s bonus).',apply(upg){upg.decayBonus=Math.min(3000,upg.decayBonus+1000);}},
   {name:'Charge Cap Up',tag:'UTILITY',icon:'◆',desc:'Expand your charge capacity (diminishing returns).',apply(upg){upg.chargeCapTier++;const bonus=Math.round(8*getHyperbolicScale(upg.chargeCapTier));upg.maxCharge+=bonus;}},
   {name:'Wider Absorb',tag:'UTILITY',icon:'🧲',desc:'Pull grey bullets from farther away (max +50).',apply(upg){upg.absorbRange=Math.min(50,upg.absorbRange+12);}},
+  {name:'Long Reach',tag:'UTILITY',icon:'➶',desc:'Your output shots last longer and travel farther.',apply(upg){upg.shotLifeTier++;upg.shotLifeMult=1+upg.shotLifeTier*0.3;}},
   {name:'Kinetic Harvest',tag:'UTILITY',icon:'🌀',desc:'Gain charge while moving (diminishing per pick).',apply(upg){upg.kineticTier++;upg.moveChargeRate=Math.min(1.8,upg.moveChargeRate+0.35);}},
   {name:'Extra Life',tag:'SURVIVE',icon:'◉',desc:'Gain max HP and restore it (diminishing bonus per pick).',apply(upg, state){upg.extraLifeTier++;const heal=Math.max(3,15-(upg.extraLifeTier-1)*2);state.maxHp+=heal;state.hp=Math.min(state.hp+heal,state.maxHp);}},
   {name:'Ghost Velocity',tag:'SURVIVE',icon:'👻',desc:'Move faster through the arena (diminishing returns).',apply(upg){upg.speedTier++;upg.speedMult=getHyperbolicScale(upg.speedTier);}},
@@ -142,6 +145,7 @@ function getActiveBoonEntries(upg) {
   if(upg.chargeCapTier > 0) entries.push({ icon:'◆', name:'Charge Cap Up', detail:`Max charge ${upg.maxCharge}` });
   if(upg.absorbRange > 0) entries.push({ icon:'🧲', name:'Wider Absorb', detail:`+${upg.absorbRange} absorb range` });
   if(upg.kineticTier > 0) entries.push({ icon:'🌀', name:'Kinetic Harvest', detail:`${upg.moveChargeRate.toFixed(2)} charge/sec while moving` });
+  if(upg.shotLifeTier > 0) entries.push({ icon:'➶', name:'Long Reach', detail:`+${Math.round((upg.shotLifeMult - 1) * 100)}% shot lifespan` });
   if(upg.extraLifeTier > 0) entries.push({ icon:'◉', name:'Extra Life', detail:`Tier ${upg.extraLifeTier}` });
   if(upg.speedTier > 0) entries.push({ icon:'👻', name:'Ghost Velocity', detail:`+${Math.round((upg.speedMult - 1) * 100)}% move speed` });
   if(upg.regenTick > 0) entries.push({ icon:'💚', name:'Room Regen', detail:`${upg.regenTick} HP per room clear` });

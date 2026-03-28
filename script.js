@@ -70,6 +70,7 @@ const SHIELD_COOLDOWN   = 1.5;  // seconds a shield is inactive after absorbing 
 const SHIELD_ROTATION_SPD  = 0.001; // radians per millisecond (≈1 rev / 6.3 s)
 const ORBIT_SPHERE_R    = 40;   // orbital radius of passive orbit spheres (px)
 const ORBIT_ROTATION_SPD   = 0.003; // radians per millisecond (≈1 rev / 2.1 s)
+const PLAYER_SHOT_LIFE_MS = 820;
 let enemyIdSeq = 1;
 let playerName = 'RUNNER';
 let leaderboard = [];
@@ -285,7 +286,7 @@ function drawGooBall(x, y, radius, fillColor, coreColor, wobbleSeed, alpha = 1) 
 }
 
 function firePlayer(tx,ty) {
-  if(charge<1) return;
+  if(charge < 1) return;
   const base=Math.atan2(ty-player.y,tx-player.x);
   const angs=[];
   const forwardOffsets = createLaneOffsets(1 + UPG.forwardShotTier, 7 * Math.min(1.6, UPG.shotSize));
@@ -306,12 +307,17 @@ function firePlayer(tx,ty) {
     }
   }
 
+  const availableShots = Math.min(Math.floor(charge), angs.length);
+  if(availableShots <= 0) return;
+
   const snipeScale = 1 + UPG.snipePower * 0.18;
   const bspd = 230 * Math.min(2.0, UPG.shotSpd) * snipeScale;
   const baseRadius = 4.5 * Math.min(2.5, UPG.shotSize) * (1 + UPG.snipePower * 0.15);
   const baseDmg = (1 + UPG.snipePower * 0.35) * (UPG.playerDamageMult || 1);
+  const lifeMs = PLAYER_SHOT_LIFE_MS * (UPG.shotLifeMult || 1);
+  const now = performance.now();
 
-  for(const shot of angs) {
+  for(const shot of angs.slice(0, availableShots)) {
     const a = shot.angle;
     const sideX = Math.cos(a + Math.PI / 2) * shot.offset;
     const sideY = Math.sin(a + Math.PI / 2) * shot.offset;
@@ -326,11 +332,12 @@ function firePlayer(tx,ty) {
       homing: UPG.homingTier>0,
       crit,
       dmg: baseDmg,
+      expireAt: now + lifeMs,
       hitIds: new Set(),
     });
   }
-  charge=Math.max(0,charge-1);
-  sparks(player.x,player.y,C.green,4,55);
+  charge=Math.max(0,charge-availableShots);
+  sparks(player.x,player.y,C.green,4 + Math.min(4, availableShots),55);
 }
 
 function sparks(x,y,col,n=6,spd=80) {
@@ -340,6 +347,12 @@ function sparks(x,y,col,n=6,spd=80) {
   }
 }
 
+function spawnGreyDrops(x,y,ts,count=5) {
+  for(let i=0;i<count;i++){
+    const a=Math.random()*Math.PI*2,s=50+Math.random()*55;
+    bullets.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,state:'grey',r:4.5,decayStart:ts,bounces:0});
+  }
+}
 function burstBlueDissipate(x, y) {
   for(let i=0;i<12;i++){
     const a = Math.random() * Math.PI * 2;
@@ -757,8 +770,7 @@ function update(dt,ts){
           if(e.hp<=0){
             score+=e.pts;kills++;
             sparks(e.x,e.y,e.col,14,95);
-            const a=Math.random()*Math.PI*2,s=50+Math.random()*50;
-            bullets.push({x:e.x,y:e.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,state:'grey',r:4.5,decayStart:ts,bounces:0});
+            spawnGreyDrops(e.x,e.y,ts,5);
             enemies.splice(ei,1);
             break;
           }
@@ -773,6 +785,8 @@ function update(dt,ts){
 
   for(let i=bullets.length-1;i>=0;i--){
     const b=bullets[i];
+
+    if(b.state==='output' && b.expireAt && ts>=b.expireAt){bullets.splice(i,1);continue;}
 
     // Homing for output bullets
     if(b.state==='output'&&b.homing&&enemies.length>0){
@@ -873,8 +887,7 @@ function update(dt,ts){
             score+=e.pts*(b.crit?2:1);kills++;
             sparks(e.x,e.y,e.col,14,95);
             // Death bullets scatter as grey
-            const a=Math.random()*Math.PI*2,s=50+Math.random()*50;
-            bullets.push({x:e.x,y:e.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,state:'grey',r:4.5,decayStart:ts,bounces:0});
+            spawnGreyDrops(e.x,e.y,ts,5);
             enemies.splice(j,1);
           }
           if(b.pierceLeft>0){
