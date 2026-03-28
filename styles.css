@@ -333,6 +333,28 @@ body.app-ready #wrap { opacity: 1; }
 #go-score { font-family:'Syne',sans-serif; font-weight:800; font-size:54px; color:var(--accent); line-height:1; }
 #go-sub   { font-size:9px; letter-spacing:.18em; color:var(--dim); text-transform:uppercase; }
 #go-note  { font-size:11px; color:var(--muted); text-align:center; max-width:250px; line-height:1.7; }
+#go-boons-panel {
+  position:absolute;
+  inset:20px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  padding:16px 14px;
+  background:rgba(22,22,22,0.98);
+  border:1px solid var(--border2);
+  border-radius:8px;
+  box-shadow:0 0 30px rgba(0,0,0,0.35);
+}
+#go-boons-panel.off { display:none; }
+#go-boons-list {
+  flex:1;
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  overflow:auto;
+  padding-right:2px;
+}
 
 /* LEADERBOARD SCREEN */
 #s-lb { z-index: 12; }

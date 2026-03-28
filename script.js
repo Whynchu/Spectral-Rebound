@@ -1,5 +1,5 @@
 import { C, ROOM_SCRIPTS, DECAY_BASE, M, VERSION } from './src/data/gameData.js';
-import { getDefaultUpgrades } from './src/data/boons.js';
+import { getActiveBoonEntries, getDefaultUpgrades, getRequiredShotCount, syncChargeCapacity } from './src/data/boons.js';
 import { ENEMY_TYPES, createEnemy, canEnemyUsePurpleShots } from './src/entities/enemyTypes.js';
 import { JOY_DEADZONE, JOY_MAX, createJoystickState, resetJoystickState, bindJoystickControls } from './src/input/joystick.js';
 import { fetchRemoteLeaderboard, submitRemoteScore } from './src/platform/leaderboardService.js';
@@ -32,6 +32,10 @@ const lbStatus = document.getElementById('lb-status');
 const lbList = document.getElementById('leaderboard-list');
 const lbPeriodBtns = document.querySelectorAll('[data-lb-period]');
 const lbScopeBtns = document.querySelectorAll('[data-lb-scope]');
+const goBoonsBtn = document.getElementById('btn-go-boons');
+const goBoonsPanel = document.getElementById('go-boons-panel');
+const goBoonsList = document.getElementById('go-boons-list');
+const goBoonsCloseBtn = document.getElementById('btn-go-boons-close');
 
 function resize() {
   const w = Math.min(400, window.innerWidth * 0.95);
@@ -46,6 +50,31 @@ bindResponsiveViewport(resize);
 let UPG = getDefaultUpgrades();
 function resetUpgrades() {
   UPG = getDefaultUpgrades();
+}
+
+function syncRunChargeCapacity() {
+  syncChargeCapacity(UPG);
+  charge = Math.min(charge, UPG.maxCharge);
+}
+
+function getEnemyGreyDropCount() {
+  return getRequiredShotCount(UPG);
+}
+
+function renderGameOverBoons() {
+  if(!goBoonsList) return;
+  const entries = getActiveBoonEntries(UPG);
+  goBoonsList.innerHTML = '';
+  if(entries.length === 0) {
+    goBoonsList.innerHTML = '<div class="up-active-empty">No boons collected this run.</div>';
+    return;
+  }
+  for(const entry of entries) {
+    const row = document.createElement('div');
+    row.className = 'up-active-item';
+    row.innerHTML = `<div class="up-active-icon">${entry.icon}</div><div class="up-active-copy"><div class="up-active-name">${entry.name}</div><div class="up-active-detail">${entry.detail}</div></div>`;
+    goBoonsList.appendChild(row);
+  }
 }
 
 function syncPlayerScale() {
@@ -347,8 +376,9 @@ function sparks(x,y,col,n=6,spd=80) {
   }
 }
 
-function spawnGreyDrops(x,y,ts,count=5) {
-  for(let i=0;i<count;i++){
+function spawnGreyDrops(x,y,ts,count=getEnemyGreyDropCount()) {
+  const dropCount = Math.max(1, Math.floor(count));
+  for(let i=0;i<dropCount;i++){
     const a=Math.random()*Math.PI*2,s=50+Math.random()*55;
     bullets.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,state:'grey',r:4.5,decayStart:ts,bounces:0});
   }
@@ -379,6 +409,7 @@ function showUpgrades() {
     onSelect: (boon) => {
       const state = { hp, maxHp };
       boon.apply(UPG, state);
+      syncRunChargeCapacity();
       hp = state.hp;
       maxHp = state.maxHp;
       syncPlayerScale();
@@ -557,6 +588,7 @@ function init() {
   bullets=[];enemies=[];particles=[];
   resetJoystickState(joy);
   resetUpgrades();
+  syncRunChargeCapacity();
   syncPlayerScale();
   startRoom(0);
   hudUpdate();
@@ -590,6 +622,8 @@ function update(dt,ts){
       cancelAnimationFrame(raf);
       document.getElementById('go-score').textContent=score;
       document.getElementById('go-note').textContent=`Room ${roomIndex+1} · ${kills} enemies eliminated`;
+      if(goBoonsPanel) goBoonsPanel.classList.add('off');
+      renderGameOverBoons();
       document.getElementById('s-go').classList.remove('off');
     }
     return;
@@ -770,7 +804,7 @@ function update(dt,ts){
           if(e.hp<=0){
             score+=e.pts;kills++;
             sparks(e.x,e.y,e.col,14,95);
-            spawnGreyDrops(e.x,e.y,ts,5);
+            spawnGreyDrops(e.x,e.y,ts);
             enemies.splice(ei,1);
             break;
           }
@@ -887,7 +921,7 @@ function update(dt,ts){
             score+=e.pts*(b.crit?2:1);kills++;
             sparks(e.x,e.y,e.col,14,95);
             // Death bullets scatter as grey
-            spawnGreyDrops(e.x,e.y,ts,5);
+            spawnGreyDrops(e.x,e.y,ts);
             enemies.splice(j,1);
           }
           if(b.pierceLeft>0){
@@ -1312,8 +1346,13 @@ document.getElementById('btn-start').onclick=()=>{
 document.getElementById('btn-restart').onclick=()=>{
   setPlayerName(nameInputGo.value, { syncInputs: true });
   document.getElementById('s-go').classList.add('off');
+  if(goBoonsPanel) goBoonsPanel.classList.add('off');
   init();gstate='playing';lastT=performance.now();raf=requestAnimationFrame(loop);
 };
+
+goBoonsBtn?.addEventListener('click', ()=>goBoonsPanel?.classList.toggle('off'));
+goBoonsCloseBtn?.addEventListener('click', ()=>goBoonsPanel?.classList.add('off'));
+
 
 loadLeaderboard();
 setLeaderboardStatus('local', 'LOCAL FALLBACK');

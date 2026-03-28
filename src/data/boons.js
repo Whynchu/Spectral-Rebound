@@ -3,13 +3,30 @@ const MAX_SHIELD_TIER = 4;
 const TITAN_HP_PCT = [1.00, 0.50, 0.25, 0.10, 0.05];
 const TITAN_SLOW_PCT = 0.05;
 const HEAL_PCT = [1.00, 0.50, 0.50];
+const BASE_CHARGE_CAP = 5;
+const CHARGE_CAP_PCT = 0.25;
 
 function getHyperbolicScale(tier) {
   return 1 + (tier * 0.45) / (tier + 1.5);
 }
 
+function getRequiredShotCount(upg) {
+  let count = 1 + (upg.forwardShotTier || 0) + (upg.ringShots || 0) + (upg.dualShot > 0 ? 1 : 0);
+  if(upg.spreadTier >= 1) count += 2;
+  if(upg.spreadTier >= 2) count += 4;
+  return Math.max(1, count);
+}
+
+function syncChargeCapacity(upg) {
+  const shotCount = getRequiredShotCount(upg);
+  const baseCap = BASE_CHARGE_CAP + Math.max(0, shotCount - 1);
+  const capMult = upg.chargeCapMult || 1;
+  upg.maxCharge = Math.max(baseCap, Math.round(baseCap * capMult));
+  return upg.maxCharge;
+}
+
 function getDefaultUpgrades() {
-  return {
+  const upg = {
     speedMult:        1,
     sps:              0.5,
     spsTier:          0,
@@ -18,7 +35,8 @@ function getDefaultUpgrades() {
     ringShots:        0,
     dualShot:         0,
     snipePower:       0,
-    maxCharge:        5,
+    maxCharge:        BASE_CHARGE_CAP,
+    chargeCapMult:    1,
     decayBonus:       0,
     absorbValue:      1,
     pierceTier:       0,
@@ -53,14 +71,16 @@ function getDefaultUpgrades() {
     healTier:         0,
     forwardShotTier:  0,
   };
+  syncChargeCapacity(upg);
+  return upg;
 }
 
 const BOONS = [
   {name:'Rapid Fire', tag:'OFFENSE', icon:'⚡', desc:'Unlock next fire rate tier. Shoot faster.', apply(upg){ if(upg.spsTier<SPS_LADDER.length-1){upg.spsTier++;upg.sps=SPS_LADDER[upg.spsTier];}}},
-  {name:'Ring Blast',tag:'OFFENSE',icon:'◎',desc:'Add one radial bullet per cycle (max 8 total).',apply(upg){upg.ringShots=Math.min(8,upg.ringShots+1);}},
-  {name:'Front+Back',tag:'OFFENSE',icon:'↕',desc:'Add a reverse shot behind you.',apply(upg){upg.dualShot=1;}},
+  {name:'Ring Blast',tag:'OFFENSE',icon:'◎',desc:'Add one radial bullet per cycle (max 8 total).',apply(upg){upg.ringShots=Math.min(8,upg.ringShots+1);syncChargeCapacity(upg);}},
+  {name:'Front+Back',tag:'OFFENSE',icon:'↕',desc:'Add a reverse shot behind you.',apply(upg){upg.dualShot=1;syncChargeCapacity(upg);}},
   {name:'Snipe Shot',tag:'OFFENSE',icon:'🎯',desc:'All output bullets gain size, speed, and damage.',apply(upg){upg.snipePower=Math.min(3,upg.snipePower+1);}},
-  {name:'Twin Lance',tag:'OFFENSE',icon:'≫',desc:'Add one extra forward-facing shot. Can repeat with reduced rarity each time.',apply(upg){upg.forwardShotTier++;}},
+  {name:'Twin Lance',tag:'OFFENSE',icon:'≫',desc:'Add one extra forward-facing shot. Can repeat with reduced rarity each time.',apply(upg){upg.forwardShotTier++;syncChargeCapacity(upg);}},
   {name:'Bigger Bullets',tag:'OFFENSE',icon:'🔵',desc:'Output bullets grow larger (diminishing returns).',apply(upg){upg.biggerBulletsTier++;upg.shotSize=getHyperbolicScale(upg.biggerBulletsTier);}},
   {name:'Faster Bullets',tag:'OFFENSE',icon:'💨',desc:'Output bullets travel faster (diminishing returns).',apply(upg){upg.fasterBulletsTier++;upg.shotSpd=getHyperbolicScale(upg.fasterBulletsTier);}},
   {name:'Critical Hit',tag:'OFFENSE',icon:'💥',desc:'+20% crit chance each shot deals double damage (max 2 picks).',apply(upg){upg.critTier=Math.min(2,upg.critTier+1);upg.critChance=Math.min(0.6,0.2*upg.critTier);}},
@@ -69,7 +89,7 @@ const BOONS = [
   {name:'Pierce',tag:'UTILITY',icon:'→',desc:'Bullets penetrate one extra enemy per tier.',apply(upg){upg.pierceTier=Math.min(3,upg.pierceTier+1);}},
   {name:'Quick Harvest',tag:'UTILITY',icon:'⬇',desc:'Absorbing grey bullets grants more charge (diminishing returns).',apply(upg){upg.absorbTier++;upg.absorbValue=1+0.4*getHyperbolicScale(upg.absorbTier);}},
   {name:'Decay Extension',tag:'UTILITY',icon:'⏳',desc:'Grey bullets linger 1s longer for easier harvest (max 3s bonus).',apply(upg){upg.decayBonus=Math.min(3000,upg.decayBonus+1000);}},
-  {name:'Charge Cap Up',tag:'UTILITY',icon:'◆',desc:'Expand your charge capacity (diminishing returns).',apply(upg){upg.chargeCapTier++;const bonus=Math.round(8*getHyperbolicScale(upg.chargeCapTier));upg.maxCharge+=bonus;}},
+  {name:'Charge Cap Up',tag:'UTILITY',icon:'◆',desc:'Increase your charge pool by 25% per pick.',apply(upg){upg.chargeCapTier++;upg.chargeCapMult = 1 + upg.chargeCapTier * CHARGE_CAP_PCT;syncChargeCapacity(upg);}},
   {name:'Wider Absorb',tag:'UTILITY',icon:'🧲',desc:'Pull grey bullets from farther away (max +50).',apply(upg){upg.absorbRange=Math.min(50,upg.absorbRange+12);}},
   {name:'Long Reach',tag:'UTILITY',icon:'➶',desc:'Your output shots last longer and travel farther.',apply(upg){upg.shotLifeTier++;upg.shotLifeMult=1+upg.shotLifeTier*0.3;}},
   {name:'Kinetic Harvest',tag:'UTILITY',icon:'🌀',desc:'Gain charge while moving (diminishing per pick).',apply(upg){upg.kineticTier++;upg.moveChargeRate=Math.min(1.8,upg.moveChargeRate+0.35);}},
@@ -142,7 +162,7 @@ function getActiveBoonEntries(upg) {
   if(upg.pierceTier > 0) entries.push({ icon:'→', name:'Pierce', detail:`Tier ${upg.pierceTier}` });
   if(upg.absorbTier > 0) entries.push({ icon:'⬇', name:'Quick Harvest', detail:`+${Math.round((upg.absorbValue - 1) * 100)}% absorb value` });
   if(upg.decayBonus > 0) entries.push({ icon:'⏳', name:'Decay Extension', detail:`+${Math.round(upg.decayBonus / 1000)}s linger` });
-  if(upg.chargeCapTier > 0) entries.push({ icon:'◆', name:'Charge Cap Up', detail:`Max charge ${upg.maxCharge}` });
+  if(upg.chargeCapTier > 0) entries.push({ icon:'◆', name:'Charge Cap Up', detail:`+${Math.round((upg.chargeCapMult - 1) * 100)}% capacity` });
   if(upg.absorbRange > 0) entries.push({ icon:'🧲', name:'Wider Absorb', detail:`+${upg.absorbRange} absorb range` });
   if(upg.kineticTier > 0) entries.push({ icon:'🌀', name:'Kinetic Harvest', detail:`${upg.moveChargeRate.toFixed(2)} charge/sec while moving` });
   if(upg.shotLifeTier > 0) entries.push({ icon:'➶', name:'Long Reach', detail:`+${Math.round((upg.shotLifeMult - 1) * 100)}% shot lifespan` });
@@ -181,4 +201,4 @@ function pickBoonChoices(upg, hp, maxHp, choiceCount = 3) {
   return picks;
 }
 
-export { BOONS, SPS_LADDER, getHyperbolicScale, getDefaultUpgrades, pickBoonChoices, createHealBoon, getActiveBoonEntries };
+export { BOONS, SPS_LADDER, getHyperbolicScale, getDefaultUpgrades, getRequiredShotCount, syncChargeCapacity, pickBoonChoices, createHealBoon, getActiveBoonEntries };
