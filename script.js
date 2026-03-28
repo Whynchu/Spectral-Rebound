@@ -656,7 +656,7 @@ function update(dt,ts){
 
   if(!isStill){
     stillTimer = 0;
-    if(UPG.moveChargeRate > 0){
+    if(UPG.moveChargeRate > 0 && (roomPhase === 'spawning' || roomPhase === 'fighting')){
       charge = Math.min(UPG.maxCharge, charge + UPG.moveChargeRate * dt);
     }
   } else {
