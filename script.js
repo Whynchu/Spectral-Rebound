@@ -1,7 +1,7 @@
 import { C, ROOM_SCRIPTS, DECAY_BASE, M, VERSION } from './src/data/gameData.js';
 import { getActiveBoonEntries, getDefaultUpgrades, getRequiredShotCount, syncChargeCapacity } from './src/data/boons.js';
 import { ENEMY_TYPES, createEnemy, canEnemyUsePurpleShots } from './src/entities/enemyTypes.js';
-import { JOY_DEADZONE, JOY_MAX, createJoystickState, resetJoystickState, bindJoystickControls } from './src/input/joystick.js';
+import { JOY_DEADZONE, JOY_MAX, createJoystickState, resetJoystickState, bindJoystickControls, tickJoystick } from './src/input/joystick.js';
 import { fetchRemoteLeaderboard, submitRemoteScore } from './src/platform/leaderboardService.js';
 import { bindResponsiveViewport } from './src/platform/viewport.js';
 import { showBoonSelection } from './src/ui/boonSelection.js';
@@ -668,6 +668,9 @@ function update(dt,ts){
   const W=cv.width,H=cv.height;
   const BASE_SPD=165*Math.min(2.5,(UPG.speedMult || 1) * (UPG.titanSlowMult || 1));
   const joyMax = joy.max || JOY_MAX;
+
+  // Drift anchor when thumb wanders far past max radius
+  if(roomPhase === 'fighting' || roomPhase === 'spawning') tickJoystick(joy, dt);
 
   // ── Player movement — virtual joystick
   if(roomPhase !== 'intro' && joy.active && joy.mag > JOY_DEADZONE){
