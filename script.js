@@ -12,6 +12,14 @@ renderVersionTag(VERSION);
 // Suppress iOS Safari magnifier / long-press context menu on the whole page
 document.addEventListener('contextmenu', (e) => e.preventDefault());
 
+// Prevent iOS Safari double-tap zoom (passive:false required to call preventDefault)
+let _lastTap = 0;
+document.addEventListener('touchend', (e) => {
+  const now = Date.now();
+  if (now - _lastTap < 300) e.preventDefault();
+  _lastTap = now;
+}, { passive: false });
+
 function revealAppShell() {
   requestAnimationFrame(() => {
     document.body.classList.remove('app-loading');
