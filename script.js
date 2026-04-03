@@ -534,11 +534,16 @@ function renderLeaderboard() {
   for(let i=0;i<rows.length;i++){
     const row = rows[i];
     const li = document.createElement('li');
+    const hasBoons = Array.isArray(row.boons) && row.boons.length > 0;
     li.innerHTML = `
       <span class="lb-rank">#${i + 1}</span>
       <span class="lb-name">${row.name} · R${row.room}</span>
       <span class="lb-score">${row.score}</span>
+      ${hasBoons ? '<button class="lb-boons-btn" type="button" title="View run loadout">📋</button>' : '<span></span>'}
     `;
+    if(hasBoons) {
+      li.querySelector('.lb-boons-btn').addEventListener('click', () => showLbBoonsPopup(row.name, row.boons));
+    }
     lbList.appendChild(li);
   }
   updateLeaderboardToggleStates();
@@ -572,12 +577,14 @@ async function refreshLeaderboardView() {
 }
 
 function pushLeaderboardEntry() {
+  const boons = getActiveBoonEntries(UPG);
   const entry = {
     name: playerName,
     score,
     room: roomIndex + 1,
     ts: Date.now(),
     version: VERSION.num,
+    boons,
   };
   leaderboard.push(entry);
   leaderboard.sort((a,b)=>b.score-a.score || b.ts-a.ts);
@@ -588,6 +595,7 @@ function pushLeaderboardEntry() {
     score: entry.score,
     room: entry.room,
     gameVersion: VERSION.num,
+    boons,
   }).then(() => {
     if(lbScope !== 'personal' || playerName === entry.name) {
       refreshLeaderboardView();
@@ -1454,6 +1462,28 @@ document.getElementById('btn-restart').onclick=()=>{
 
 goBoonsBtn?.addEventListener('click', ()=>goBoonsPanel?.classList.toggle('off'));
 goBoonsCloseBtn?.addEventListener('click', ()=>goBoonsPanel?.classList.add('off'));
+
+const lbBoonsPopup = document.getElementById('lb-boons-popup');
+const lbBoonsPopupTitle = document.getElementById('lb-boons-popup-title');
+const lbBoonsPopupList = document.getElementById('lb-boons-popup-list');
+document.getElementById('btn-lb-boons-close')?.addEventListener('click', () => lbBoonsPopup?.classList.add('off'));
+
+function showLbBoonsPopup(runnerName, boons) {
+  if(!lbBoonsPopup) return;
+  lbBoonsPopupTitle.textContent = `${runnerName} · Run Loadout`;
+  lbBoonsPopupList.innerHTML = '';
+  if(!boons || boons.length === 0) {
+    lbBoonsPopupList.innerHTML = '<div class="up-active-empty">No boon data recorded.</div>';
+  } else {
+    for(const b of boons) {
+      const row = document.createElement('div');
+      row.className = 'up-active-item';
+      row.innerHTML = `<div class="up-active-icon">${b.icon}</div><div class="up-active-copy"><div class="up-active-name">${b.name}</div><div class="up-active-detail">${b.detail}</div></div>`;
+      lbBoonsPopupList.appendChild(row);
+    }
+  }
+  lbBoonsPopup.classList.remove('off');
+}
 
 
 loadLeaderboard();

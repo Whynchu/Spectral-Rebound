@@ -21,6 +21,9 @@ create table if not exists public.leaderboard_scores (
   )
 );
 
+alter table public.leaderboard_scores
+  add column if not exists boons jsonb default null;
+
 create index if not exists leaderboard_scores_score_idx
   on public.leaderboard_scores (game_version, score desc, created_at desc);
 
@@ -35,11 +38,13 @@ alter table public.leaderboard_scores enable row level security;
 revoke all on public.leaderboard_scores from anon, authenticated;
 
 drop function if exists public.submit_score(text, integer, integer, text);
+drop function if exists public.submit_score(text, integer, integer, text, jsonb);
 create or replace function public.submit_score(
   p_player_name text,
   p_score integer,
   p_room integer,
-  p_game_version text
+  p_game_version text,
+  p_boons jsonb default null
 )
 returns jsonb
 language plpgsql
@@ -69,8 +74,15 @@ begin
     raise exception 'invalid game_version';
   end if;
 
-  insert into public.leaderboard_scores (player_name, score, room, game_version)
-  values (v_name, p_score, p_room, v_version);
+  if p_boons is not null and (
+    jsonb_typeof(p_boons) <> 'array' or
+    jsonb_array_length(p_boons) > 30
+  ) then
+    raise exception 'invalid boons';
+  end if;
+
+  insert into public.leaderboard_scores (player_name, score, room, game_version, boons)
+  values (v_name, p_score, p_room, v_version, p_boons);
 
   return jsonb_build_object('ok', true);
 end;
@@ -89,7 +101,8 @@ returns table (
   player_name text,
   score integer,
   room integer,
-  created_at timestamptz
+  created_at timestamptz,
+  boons jsonb
 )
 language sql
 security definer
@@ -100,7 +113,8 @@ as $$
       ls.player_name,
       ls.score,
       ls.room,
-      ls.created_at
+      ls.created_at,
+      ls.boons
     from public.leaderboard_scores ls
     where
       ls.game_version = trim(coalesce(p_game_version, ''))
@@ -114,11 +128,12 @@ as $$
     filtered.player_name,
     filtered.score,
     filtered.room,
-    filtered.created_at
+    filtered.created_at,
+    filtered.boons
   from filtered
   order by filtered.score desc, filtered.created_at desc
   limit greatest(1, least(coalesce(p_limit, 10), 25));
 $$;
 
-grant execute on function public.submit_score(text, integer, integer, text) to anon, authenticated;
+grant execute on function public.submit_score(text, integer, integer, text, jsonb) to anon, authenticated;
 grant execute on function public.get_leaderboard(text, text, text, text, integer) to anon, authenticated;
