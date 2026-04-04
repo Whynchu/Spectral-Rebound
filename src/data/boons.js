@@ -141,7 +141,7 @@ const BOONS = [
   {name:'Titan Heart',tag:'SURVIVE',icon:'⬢',desc:'+25% size & +max HP per pick. +5% dmg, −5% spd. Excl. MINI.',apply(upg, state){if(upg.miniTaken || upg.titanTier >= TITAN_HP_PCT.length) return; const hpPct = TITAN_HP_PCT[upg.titanTier]; upg.titanTier++; upg.playerSizeMult = 1 + upg.titanTier * 0.25; upg.playerDamageMult = 1 + upg.titanTier * 0.05; upg.titanSlowMult = Math.max(0.7, 1 - upg.titanTier * TITAN_SLOW_PCT); const gain = Math.max(1, Math.round(state.maxHp * hpPct)); state.maxHp += gain; state.hp = Math.min(state.hp, state.maxHp);}},
   {name:'Protective Shield',tag:'SURVIVE',icon:'🛡️',desc:`Blocks one danger bullet then recharges. +1 per pick. Max ${MAX_SHIELD_TIER}.`,apply(upg){upg.shieldTier=Math.min(MAX_SHIELD_TIER,upg.shieldTier+1);}},
   {name:'Tempered Shield',tag:'SURVIVE',icon:'🛡️+',desc:'Shields become 2-stage: purple absorbs first hit.',apply(upg){if(upg.shieldTempered||upg.shieldTier===0)return; upg.shieldTempered=true;}},
-  {name:'Mirror Shield',tag:'SURVIVE',icon:'🪞',desc:'Shields reflect absorbed bullets as output.',apply(upg){if(upg.shieldMirror||upg.shieldTier===0)return; upg.shieldMirror=true;}},
+  {name:'Mirror Shield',tag:'SURVIVE',icon:'🪞',desc:'Shields reflect absorbed bullets as output.',isActive:upg=>upg.shieldMirror,apply(upg){if(upg.shieldMirror||upg.shieldTier===0)return; upg.shieldMirror=true;}},
   {name:'Shield Burst',tag:'SURVIVE',icon:'💠',desc:'When a shield breaks, fire a 4-way output burst.',apply(upg){if(upg.shieldBurst)return; upg.shieldBurst=true;},evolvesWith:['Mirror Shield'],evolvedVersion:{name:'Aegis Nova',icon:'💠+',desc:'Reflected bullets also trigger the 4-way burst.',apply(upg){if(upg.shieldBurst)return; upg.shieldBurst=true; upg.aegisNova=true;}}},
   {name:'Barrier Pulse',tag:'SURVIVE',icon:'⬡',desc:'Shield break grants 1.5 charge + magnet pulse.',apply(upg){if(upg.barrierPulse)return; upg.barrierPulse=true;}},
   {name:'Orbit Spheres',tag:'UTILITY',icon:'🔮',desc:'+1 orbiting sphere per pick. Max 5.',apply(upg){upg.orbitSphereTier=Math.min(5,upg.orbitSphereTier+1);}},
@@ -160,7 +160,7 @@ const BOONS = [
   {name:'Sliver',tag:'SURVIVE',icon:'◌',desc:'At ≤25% HP: +30% speed, −25% size.',apply(upg){if(upg.sliver)return; upg.sliver=true;}},
   {name:'Vampiric Return',tag:'SURVIVE',icon:'🩸',desc:'Killing blows restore 2 HP. Up to 3×/room.',apply(upg){if(upg.vampiric)return; upg.vampiric=true;}},
   {name:'Lifeline',tag:'SURVIVE',icon:'♾',desc:'Once per run: a killing blow leaves you at 1 HP.',apply(upg){if(upg.lifeline)return; upg.lifeline=true;},evolvesWith:['Berserker'],evolvedVersion:{name:'Last Stand',icon:'♾+',desc:'Lifeline triggers AND fires a full charge burst.',apply(upg){if(upg.lifeline)return; upg.lifeline=true; upg.lastStand=true;}}},
-  {name:'Berserker',tag:'SURVIVE',icon:'🔴',desc:'Max HP→10, +3 SPS tiers, +30% speed. Exclusive.',apply(upg,state){if(upg.berserker||upg.titanTier>0||upg.extraLifeTier>0||upg.regenTick>0)return; upg.berserker=true; state.maxHp=10; state.hp=Math.min(state.hp,10); upg.spsTier=Math.min(SPS_LADDER.length-1,upg.spsTier+3); upg.sps=SPS_LADDER[upg.spsTier]; upg.speedMult*=1.3;}},
+  {name:'Berserker',tag:'SURVIVE',icon:'🔴',desc:'Max HP→10, +3 SPS tiers, +30% speed. Exclusive.',isActive:upg=>upg.berserker,apply(upg,state){if(upg.berserker||upg.titanTier>0||upg.extraLifeTier>0||upg.regenTick>0)return; upg.berserker=true; state.maxHp=10; state.hp=Math.min(state.hp,10); upg.spsTier=Math.min(SPS_LADDER.length-1,upg.spsTier+3); upg.sps=SPS_LADDER[upg.spsTier]; upg.speedMult*=1.3;}},
   {name:"Dead Man's Trigger",tag:'SURVIVE',icon:'☠',desc:'At 1 HP: ×3 damage and free pierce.',apply(upg){if(upg.deadManTrigger)return; upg.deadManTrigger=true;}},
 ];
 
@@ -184,10 +184,13 @@ function getEvolvedBoon(boon, upg) {
   const hasPrereq = boon.evolvesWith.some(name => {
     const prereq = BOONS.find(b => b.name === name);
     if(!prereq) return false;
+    // Use explicit isActive if provided — avoids false positives from guard conditions
+    if(prereq.isActive) return prereq.isActive(upg);
+    // Fallback: probe — if applying makes no change, it's already been applied
     const probe = JSON.parse(JSON.stringify(upg));
     const before = JSON.stringify(probe);
     prereq.apply(probe, {hp:100,maxHp:100});
-    return before === JSON.stringify(probe); // no change = already applied
+    return before === JSON.stringify(probe);
   });
   if(!hasPrereq) return boon;
   return { ...boon, ...boon.evolvedVersion, apply: boon.evolvedVersion.apply || boon.apply };
