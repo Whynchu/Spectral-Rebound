@@ -817,7 +817,8 @@ function update(dt,ts){
 
   const W=cv.width,H=cv.height;
   const titanSlow = UPG.colossus ? 1 - (1 - (UPG.titanSlowMult || 1)) * 0.5 : (UPG.titanSlowMult || 1);
-  const BASE_SPD=165*Math.min(2.5,(UPG.speedMult || 1) * titanSlow);
+  const bloodRushMult = UPG.bloodRush && UPG.bloodRushTimer > ts ? 1 + ((UPG.bloodRushStacks || 0) * 0.08) : 1;
+  const BASE_SPD=165*Math.min(2.5,(UPG.speedMult || 1) * titanSlow * bloodRushMult);
   const joyMax = joy.max || JOY_MAX;
 
   // Drift anchor when thumb wanders far past max radius
@@ -854,6 +855,10 @@ function update(dt,ts){
   // Predator's Instinct: decay kill streak if window expires
   if(UPG.predatorInstinct && UPG.predatorKillStreakTime > 0 && ts > UPG.predatorKillStreakTime){
     UPG.predatorKillStreak = 0;
+  }
+  // Blood Rush: decay stacks after 3s
+  if(UPG.bloodRush && UPG.bloodRushTimer > 0 && ts > UPG.bloodRushTimer){
+    UPG.bloodRushStacks = 0;
   }
   // Volatile Orb cooldowns — recharge after 8s
   for(let si=0;si<_orbCooldown.length;si++){
@@ -1410,6 +1415,44 @@ function update(dt,ts){
               // Predator's Instinct: track kill streak (5s window)
               UPG.predatorKillStreak++;
               UPG.predatorKillStreakTime = ts + 5000;
+              
+              // Blood Rush: grant +8% speed for 3s, stacks to +40%
+              if(UPG.bloodRush){
+                if(!UPG.bloodRushStacks) UPG.bloodRushStacks = 0;
+                UPG.bloodRushStacks = Math.min(5, UPG.bloodRushStacks + 1);
+                UPG.bloodRushTimer = ts + 3000;
+              }
+              
+              // Crimson Harvest: drop extra grey bullet at enemy position
+              if(UPG.crimsonHarvest){
+                bullets.push({x:e.x,y:e.y,vx:(Math.random()-0.5)*150,vy:(Math.random()-0.5)*150,state:'grey',r:5,decayStart:ts,bounceLeft:0,pierceLeft:0,homing:false,crit:false,dmg:0,hitIds:new Set()});
+              }
+              
+              // Sanguine Burst: every 10th kill (or 5th if Rampage) fires burst
+              if(UPG.sanguineBurst){
+                UPG.sanguineKillCount = (UPG.sanguineKillCount || 0) + 1;
+                const burstThreshold = UPG.rampageEvolved ? 5 : 10;
+                if(UPG.sanguineKillCount >= burstThreshold){
+                  UPG.sanguineKillCount = 0;
+                  const numShots = UPG.rampageEvolved ? 8 : 6;
+                  const angleStep = Math.PI * 2 / numShots;
+                  for(let a=0;a<numShots;a++){
+                    const ang = a * angleStep;
+                    const vx = Math.cos(ang) * 220;
+                    const vy = Math.sin(ang) * 220;
+                    bullets.push({x:player.x,y:player.y,vx,vy,state:'output',r:5,decayStart:null,bounceLeft:UPG.bounceTier,pierceLeft:UPG.pierceTier,homing:UPG.homingTier>0,crit:false,dmg:UPG.playerDamageMult,expireAt:ts+2000,hitIds:new Set()});
+                  }
+                }
+              }
+              
+              // BLOOD MOON: enhanced kill rewards
+              if(UPG.bloodMoon){
+                hp = Math.min(maxHp, hp + 8);
+                for(let i=0;i<3;i++){
+                  const ang = (Math.PI*2/3)*i + Math.random()*0.3;
+                  bullets.push({x:e.x,y:e.y,vx:Math.cos(ang)*120,vy:Math.sin(ang)*120,state:'grey',r:5,decayStart:ts,bounceLeft:0,pierceLeft:0,homing:false,crit:false,dmg:0,hitIds:new Set()});
+                }
+              }
             }
             // Corona: ring kills refund 1 charge
             if(b.isRing && UPG.corona){ charge=Math.min(UPG.maxCharge,charge+1); }

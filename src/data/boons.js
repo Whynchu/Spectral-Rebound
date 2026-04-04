@@ -116,6 +116,10 @@ function getDefaultUpgrades() {
     aegisTitan: false, ghostFlow: false, corona: false, finalForm: false,
     colossus: false, lifelineUses: 1, lifelineTriggerCount: 0,
     volatileOrbs: false, chargedOrbs: false, absorbOrbs: false,
+    bloodRush: false, bloodRushStacks: 0, bloodRushTimer: 0,
+    crimsonHarvest: false,
+    sanguineBurst: false, sanguineKillCount: 0, rampageEvolved: false,
+    bloodMoon: false,
   };
   syncChargeCapacity(upg);
   return upg;
@@ -173,6 +177,9 @@ const BOONS = [
   {name:'Lifeline',tag:'SURVIVE',icon:'♾',desc:'Once per run: a killing blow leaves you at 1 HP.',apply(upg){if(upg.lifeline)return; upg.lifeline=true;},evolvesWith:['Berserker'],evolvedVersion:{name:'Last Stand',icon:'♾+',desc:'Lifeline triggers AND fires a full charge burst.',apply(upg){if(upg.lifeline)return; upg.lifeline=true; upg.lastStand=true;}}},
   {name:'Berserker',tag:'SURVIVE',icon:'🔴',desc:'Max HP→10, +3 SPS tiers, +30% speed. Exclusive.',isActive:upg=>upg.berserker,apply(upg,state){if(upg.berserker||upg.titanTier>0||upg.extraLifeTier>0||upg.regenTick>0)return; upg.berserker=true; state.maxHp=10; state.hp=Math.min(state.hp,10); upg.spsTier=Math.min(SPS_LADDER.length-1,upg.spsTier+3); upg.sps=SPS_LADDER[upg.spsTier]; upg.speedMult*=1.3;}},
   {name:"Dead Man's Trigger",tag:'SURVIVE',icon:'☠',desc:'At ≤15% HP: ×2 damage and free pierce. Risk for reward.',apply(upg){if(upg.deadManTrigger)return; upg.deadManTrigger=true;}},
+  {name:'Blood Rush',tag:'SURVIVE',icon:'🩸→',desc:'Kills grant +8% movement speed for 3s. Stacks to +40%.',requires:upg=>upg.vampiric,apply(upg){if(upg.bloodRush)return; upg.bloodRush=true;}},
+  {name:'Crimson Harvest',tag:'SURVIVE',icon:'🩸+',desc:'Kills drop an extra grey bullet at the enemy position.',requires:upg=>upg.vampiric,apply(upg){if(upg.crimsonHarvest)return; upg.crimsonHarvest=true;}},
+  {name:'Sanguine Burst',tag:'OFFENSE',icon:'💀',desc:'Every 10th kill fires a free 6-way output burst.',requires:upg=>upg.vampiric,apply(upg){if(upg.sanguineBurst)return; upg.sanguineBurst=true;},evolvesWith:['Predator\'s Instinct'],evolvedVersion:{name:'Rampage',icon:'💀+',desc:'Every 5th kill fires a free 8-way burst instead.',apply(upg){if(upg.sanguineBurst)return; upg.sanguineBurst=true; upg.rampageEvolved=true;}}},
 ];
 
 function boonHasEffect(boon, upg, hp, maxHp) {
@@ -248,6 +255,12 @@ const LEGENDARY_SEQUENCES = [
     check: (h) => h.filter(n => n==='Titan Heart').length >= 3,
     boon: { name:'COLOSSUS', tag:'LEGENDARY', icon:'⬡', desc:'Taking damage releases a shockwave (4s cd) converting nearby danger bullets to grey. Titan speed penalty halved.',
       apply(upg){ upg.colossus=true; } }
+  },
+  {
+    id: 'bloodMoon',
+    check: (h) => ['Vampiric Return','Crimson Harvest','Sanguine Burst'].every(n => h.includes(n)),
+    boon: { name:'BLOOD MOON', tag:'LEGENDARY', icon:'🩸', desc:'Kills restore +8 HP and drop +3 grey bullets. Vampire synergy unlocked.',
+      apply(upg){ upg.bloodMoon=true; } }
   },
 ];
 
@@ -344,7 +357,11 @@ function getActiveBoonEntries(upg) {
   if(upg.corona) entries.push({icon:'☀️',name:'CORONA',detail:'Ring pierce +1, kills refund charge'});
   if(upg.finalForm) entries.push({icon:'💀',name:'FINAL FORM',detail:'Dead Man ≤15% HP ×2.5, kill→charge'});
   if(upg.colossus) entries.push({icon:'⬡',name:'COLOSSUS',detail:'Hit→shockwave, halved titan slow'});
+  if(upg.bloodMoon) entries.push({icon:'🩸',name:'BLOOD MOON',detail:'Kills: +8 HP, +3 grey bullets'});
   if(upg.volatileOrbs) entries.push({icon:'💥',name:'Volatile Orbs',detail:'Orbs explode danger bullets'});
+  if(upg.bloodRush) entries.push({icon:'🩸→',name:'Blood Rush',detail:`+${upg.bloodRushStacks||0} stacks (${((upg.bloodRushStacks||0)*8)}% speed)`});
+  if(upg.crimsonHarvest) entries.push({icon:'🩸+',name:'Crimson Harvest',detail:'Kills drop extra grey bullet'});
+  if(upg.sanguineBurst) entries.push({icon: upg.rampageEvolved?'💀+':'💀', name: upg.rampageEvolved?'Rampage':'Sanguine Burst', detail:`Free ${upg.rampageEvolved?8:6}-way burst`});
   if(upg.chargedOrbs) entries.push({icon:'⚡',name:'Charged Orbs',detail:'Orbs fire shot every 1.2s'});
   if(upg.absorbOrbs) entries.push({icon:'🌀',name:'Absorb Orbs',detail:'Orbs absorb nearby grey bullets'});
   return entries;
