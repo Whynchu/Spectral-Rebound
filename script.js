@@ -1045,8 +1045,15 @@ function update(dt,ts){
       // Fire when timer expires (only if not in disruptor cooldown)
       if(e.fT >= e.fRate && e.disruptorCooldown <= 0){
         e.fT = 0;
-        if(e.type==='zoner'){
-          if(e.isElite){
+        if(e.type==='zoner' || e.type==='purple_zoner' || e.type==='orange_zoner'){
+          if(e.type==='orange_zoner'){
+            // Orange zoner is elite and shoots orange bullets
+            for(let i=0;i<e.burst;i++) spawnEliteZB(e.x,e.y,i,e.burst,0); // stage 0 = orange
+          } else if(e.type==='purple_zoner'){
+            // Purple zoner shoots purple double-bounce bullets
+            for(let i=0;i<e.burst;i++) spawnDBB(e.x,e.y);
+          } else if(e.isElite){
+            // Regular zoner that rolled elite
             for(let i=0;i<e.burst;i++) spawnEliteZB(e.x,e.y,i,e.burst,0); // stage 0 = orange
           } else {
             for(let i=0;i<e.burst;i++) spawnZB(e.x,e.y,i,e.burst);
@@ -1610,8 +1617,8 @@ function draw(ts){
       ctx.rotate(angle);
       ctx.beginPath();
       ctx.moveTo(drawR, 0);
-      ctx.lineTo(-drawR * 0.55, drawR * 0.9);
-      ctx.lineTo(-drawR * 0.55, -drawR * 0.9);
+      ctx.lineTo(-drawR * 0.5, drawR * 0.866);
+      ctx.lineTo(-drawR * 0.5, -drawR * 0.866);
       ctx.closePath();
       ctx.fill();
       ctx.shadowBlur = 0;
@@ -1619,8 +1626,8 @@ function draw(ts){
       ctx.fillStyle = 'rgba(255,255,255,0.22)';
       ctx.beginPath();
       ctx.moveTo(drawR * 0.55, 0);
-      ctx.lineTo(-drawR * 0.22, drawR * 0.36);
-      ctx.lineTo(-drawR * 0.22, -drawR * 0.36);
+      ctx.lineTo(-drawR * 0.25, drawR * 0.43);
+      ctx.lineTo(-drawR * 0.25, -drawR * 0.43);
       ctx.closePath();
       ctx.fill();
       ctx.restore();
