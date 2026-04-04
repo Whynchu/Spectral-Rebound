@@ -1,4 +1,4 @@
-const VERSION = { num: '0.99', label: 'Room 30+ Enemy Balance' };
+const VERSION = { num: '1.00', label: 'Elite Enemy Visual Clarity' };
 
 function formatVersionTag(version = VERSION) {
   return `// prototype v${version.num} - ${version.label}`;

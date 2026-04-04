@@ -1587,9 +1587,9 @@ function draw(ts){
       ctx.fillStyle=g;ctx.beginPath();ctx.arc(e.x,e.y,72,0,Math.PI*2);ctx.fill();
     }
 
-    ctx.shadowColor=e.glowCol;
+    ctx.shadowColor= e.isElite ? 'rgba(255,149,0,0.85)' : e.glowCol;
     ctx.shadowBlur = 16;
-    ctx.fillStyle = e.col;
+    ctx.fillStyle = e.isElite ? '#ff9500' : e.col;
     if(e.isTriangle){
       const angle = Math.atan2(player.y - e.y, player.x - e.x);
       ctx.save();
