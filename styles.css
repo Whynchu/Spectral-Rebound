@@ -241,7 +241,8 @@ body.app-ready #wrap { opacity: 1; }
   display:flex; flex-direction:column; gap:10px; width:100%;
 }
 #s-up {
-  position:relative;
+  justify-content:flex-start;
+  padding-top:18px;
 }
 
 #up-active-panel {
