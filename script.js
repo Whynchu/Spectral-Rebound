@@ -982,7 +982,13 @@ function update(dt,ts){
 
     if(UPG.gravityWell && b.state==='danger'){
       const gdist=Math.hypot(b.x-player.x,b.y-player.y);
-      if(gdist<80){ b.vx*=Math.pow(0.70,dt*60); b.vy*=Math.pow(0.70,dt*60); }
+      if(gdist<80){
+        const drag=Math.pow(0.55,dt);
+        b.vx*=drag; b.vy*=drag;
+        // Floor: never fully stop a danger bullet
+        const spd=Math.hypot(b.vx,b.vy);
+        if(spd<40){const s=40/spd;b.vx*=s;b.vy*=s;}
+      }
     }
 
     b.x+=b.vx*dt; b.y+=b.vy*dt;
