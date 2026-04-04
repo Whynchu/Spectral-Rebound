@@ -319,6 +319,13 @@ function spawnZB(ex,ey,idx,total) {
   bullets.push({x:ex,y:ey,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,state:'danger',r:4.5,decayStart:null,bounces:0});
 }
 
+function spawnEliteZB(ex, ey, idx, total, stageOverride) {
+  const a = (Math.PI * 2 / total) * idx;
+  const spd = 125 * bulletSpeedScale();
+  const stage = stageOverride !== undefined ? stageOverride : 0;
+  spawnEliteBullet(ex, ey, a, spd, stage);
+}
+
 function spawnDBB(ex,ey) {
   const a=Math.atan2(player.y-ey,player.x-ex)+(Math.random()-.5)*.22;
   const spd=(145+Math.random()*40) * bulletSpeedScale();
@@ -962,7 +969,11 @@ function update(dt,ts){
       if(e.fT >= e.fRate){
         e.fT = 0;
         if(e.type==='zoner'){
-          for(let i=0;i<e.burst;i++) spawnZB(e.x,e.y,i,e.burst);
+          if(e.isElite){
+            for(let i=0;i<e.burst;i++) spawnEliteZB(e.x,e.y,i,e.burst,0); // stage 0 = orange
+          } else {
+            for(let i=0;i<e.burst;i++) spawnZB(e.x,e.y,i,e.burst);
+          }
         } else if(e.type==='triangle'){
           if(e.isElite){
             for(let i=0;i<e.burst;i++) spawnEliteTriangleBullet(e.x,e.y);

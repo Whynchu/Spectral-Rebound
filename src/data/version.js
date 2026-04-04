@@ -1,4 +1,4 @@
-const VERSION = { num: '0.94', label: 'Elite Enemies & Scaling' };
+const VERSION = { num: '0.95', label: 'Elite Zoner Variants' };
 
 function formatVersionTag(version = VERSION) {
   return `// prototype v${version.num} - ${version.label}`;
