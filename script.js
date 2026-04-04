@@ -863,6 +863,8 @@ function update(dt,ts){
           }
           else { gameOver(); return; }
         }
+      }
+    } else {
       const dx=player.x-e.x, dy=player.y-e.y, d=Math.hypot(dx,dy);
       const fleeRange = e.fleeRange || 110;
       const spd = e.spd;
