@@ -58,6 +58,9 @@ function createEnemy(type, { width, height, margin, roomIndex, nextEnemyId, isBo
     isBoss,
     isElite,
     eliteStage: 0, // 0=orange, 1=purple, 2=blue for elite enemies
+    // Disruptor cooldown: tracks bullet count for cooldown after 5 shots
+    disruptorBulletCount: 0,
+    disruptorCooldown: 0,
   };
 }
 

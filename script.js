@@ -1021,14 +1021,14 @@ function update(dt,ts){
         // Normal flee/orbit movement
         if(d < fleeRange){
           const nx=dx/d, ny=dy/d;
-          const strafeDir = (Math.sin(ts*0.0008 + ei*1.3) > 0) ? 1 : -1;
+          const strafeDir = (Math.sin(ts*0.0008 + e.eid*1.3) > 0) ? 1 : -1;
           e.x -= nx*spd*dt + (-ny)*spd*(e.strafeSpd||0.6)*strafeDir*dt;
           e.y -= ny*spd*dt + (nx)*spd*(e.strafeSpd||0.6)*strafeDir*dt;
         } else if(d > fleeRange*1.6){
           e.x += dx/d*spd*0.25*dt;
           e.y += dy/d*spd*0.25*dt;
         } else {
-          const strafeDir = (Math.sin(ts*0.0007 + ei*2.1) > 0) ? 1 : -1;
+          const strafeDir = (Math.sin(ts*0.0007 + e.eid*2.1) > 0) ? 1 : -1;
           e.x += (-dy/d)*spd*(e.strafeSpd||0.6)*strafeDir*dt;
           e.y += (dx/d)*spd*(e.strafeSpd||0.6)*strafeDir*dt;
         }
@@ -1037,8 +1037,13 @@ function update(dt,ts){
       }
       // else: frozen during windup — no position update
 
-      // Fire when timer expires
-      if(e.fT >= e.fRate){
+      // Disruptor cooldown tracking
+      if(e.disruptorCooldown > 0) {
+        e.disruptorCooldown -= dt*1000;
+      }
+
+      // Fire when timer expires (only if not in disruptor cooldown)
+      if(e.fT >= e.fRate && e.disruptorCooldown <= 0){
         e.fT = 0;
         if(e.type==='zoner'){
           if(e.isElite){
@@ -1064,6 +1069,14 @@ function update(dt,ts){
               spawnDBB(e.x,e.y);
             } else {
               spawnEB(e.x,e.y);
+            }
+          }
+          // Disruptor cooldown: after 5 bullets, cooldown for 800ms
+          if(e.type==='disruptor'){
+            e.disruptorBulletCount += e.burst;
+            if(e.disruptorBulletCount >= 5){
+              e.disruptorBulletCount = 0;
+              e.disruptorCooldown = 800;
             }
           }
         }
