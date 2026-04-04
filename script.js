@@ -1405,6 +1405,26 @@ function update(dt,ts){
           _chainMagnetTimer=500+(UPG.chainMagnetTier-1)*250;
         }
         sparks(b.x,b.y,C.ghost,5,45);
+        // Pulse Mine: count absorbed grey bullets, plant mine at 5
+        if(UPG.pulseMine){
+          UPG.pulseAbsorbCount = (UPG.pulseAbsorbCount || 0) + 1;
+          if(UPG.pulseAbsorbCount >= 5 && (!UPG.mines || UPG.mines.length < 3)){
+            UPG.pulseAbsorbCount = 0;
+            UPG.mines = UPG.mines || [];
+            UPG.mines.push({x: player.x, y: player.y, radius: 80, life: 10000});
+            sparks(player.x, player.y, '#fbbf24', 12, 100);
+          }
+        }
+        // Null Zone: count absorbed grey bullets, activate zone at 5
+        if(UPG.nullZone){
+          UPG.nullZoneAbsorbCount = (UPG.nullZoneAbsorbCount || 0) + 1;
+          if(UPG.nullZoneAbsorbCount >= 5){
+            UPG.nullZoneAbsorbCount = 0;
+            UPG.nullZoneActive = true;
+            UPG.nullZoneTimer = ts + 2000;
+            sparks(player.x, player.y, '#00d4ff', 12, 100);
+          }
+        }
         bullets.splice(i,1);continue;
       }
       // Absorb Orbs: grey bullets near any alive orbit sphere are absorbed
@@ -1638,6 +1658,7 @@ function update(dt,ts){
             if(UPG.vampiric){ 
               hp=Math.min(maxHp,hp+4); 
               charge=Math.min(UPG.maxCharge,charge+0.3);
+            }
               // Predator's Instinct: track kill streak (5s window)
               UPG.predatorKillStreak++;
               UPG.predatorKillStreakTime = ts + 5000;
@@ -1680,26 +1701,6 @@ function update(dt,ts){
                 }
               }
               
-              // Pulse Mine: absorb grey bullets on kill, plant mine at 5 absorbs
-              if(UPG.pulseMine){
-                UPG.pulseAbsorbCount = (UPG.pulseAbsorbCount || 0) + 1;
-                if(UPG.pulseAbsorbCount >= 5 && (!UPG.mines || UPG.mines.length < 3)){
-                  UPG.pulseAbsorbCount = 0;
-                  UPG.mines = UPG.mines || [];
-                  UPG.mines.push({x: player.x, y: player.y, radius: 80, life: 10000});
-                }
-              }
-              
-              // Null Zone: absorb grey bullets on kill, activate zone at 5 absorbs
-              if(UPG.nullZone){
-                UPG.nullZoneAbsorbCount = (UPG.nullZoneAbsorbCount || 0) + 1;
-                if(UPG.nullZoneAbsorbCount >= 5){
-                  UPG.nullZoneAbsorbCount = 0;
-                  UPG.nullZoneActive = true;
-                  UPG.nullZoneTimer = ts + 2000;
-                }
-              }
-            }
             // Corona: ring kills refund 1 charge
             if(b.isRing && UPG.corona){ charge=Math.min(UPG.maxCharge,charge+1); }
             // Final Form: low-HP kills grant charge
