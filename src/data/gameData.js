@@ -25,7 +25,14 @@ const ROOM_SCRIPTS = [
   { name:'VORTEX',    chaos:0.35, waves:[ [{t:'disruptor',n:2, d:0},{t:'sniper', n:1, d:0},{t:'rusher',n:2,d:0},{t:'siphon',n:1,d:0}] ] },
 ];
 
+const BOSS_ROOMS = {
+  9:  { name: 'MEGA ZONER',       bossType: 'zoner',            escortType: 'chaser',        escortCount: 2, chaos: 0.3 },
+  19: { name: 'MEGA TRIANGLE',    bossType: 'triangle',         escortType: 'rusher',        escortCount: 2, chaos: 0.4 },
+  29: { name: 'MEGA DISRUPTOR',   bossType: 'purple_disruptor', escortType: 'purple_chaser', escortCount: 2, chaos: 0.5 },
+  39: { name: 'MEGA ZONER II',    bossType: 'orange_zoner',     escortType: 'sniper',        escortCount: 2, chaos: 0.55 },
+};
+
 const DECAY_BASE = 3500;
 const M = 18;
 
-export { C, ROOM_SCRIPTS, DECAY_BASE, M, VERSION };
+export { C, ROOM_SCRIPTS, BOSS_ROOMS, DECAY_BASE, M, VERSION };

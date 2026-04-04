@@ -1,4 +1,4 @@
-import { C, ROOM_SCRIPTS, DECAY_BASE, M, VERSION } from './src/data/gameData.js';
+import { C, ROOM_SCRIPTS, BOSS_ROOMS, DECAY_BASE, M, VERSION } from './src/data/gameData.js';
 import { getActiveBoonEntries, getDefaultUpgrades, getRequiredShotCount, syncChargeCapacity, getEvolvedBoon, checkLegendarySequences } from './src/data/boons.js';
 import { ENEMY_TYPES, createEnemy, canEnemyUsePurpleShots } from './src/entities/enemyTypes.js';
 import { JOY_DEADZONE, JOY_MAX, createJoystickState, resetJoystickState, bindJoystickControls, tickJoystick } from './src/input/joystick.js';
@@ -144,7 +144,35 @@ let roomPurpleShooterAssigned = false;
 let roomIntroTimer = 0;
 const ROOM_NAMES = ROOM_SCRIPTS.map((room) => room.name);
 
+// Boss room state
+let bossAlive = false;
+let escortType = '';
+let escortMaxCount = 2;
+let escortRespawnTimer = 0;
+let reinforceTimer = 0;
+let currentRoomIsBoss = false;
+let currentRoomMaxOnScreen = 99;
+
 function getRoomDef(idx) {
+  // Boss room every 10th room (0-indexed: 9, 19, 29, 39, 49...)
+  if ((idx + 1) % 10 === 0) {
+    let bossConfig;
+    if (BOSS_ROOMS[idx]) {
+      bossConfig = BOSS_ROOMS[idx];
+    } else {
+      // Rooms 50+ cycle through boss types
+      const bossKeys = Object.keys(BOSS_ROOMS).map(Number).sort((a,b) => a-b);
+      const ci = Math.floor((idx - 9) / 10) % bossKeys.length;
+      const baseConfig = BOSS_ROOMS[bossKeys[ci]];
+      bossConfig = { ...baseConfig, name: baseConfig.name + ' +' };
+    }
+    const wave = [{ t: bossConfig.bossType, n: 1, d: 0, isBoss: true }];
+    for (let i = 0; i < bossConfig.escortCount; i++) {
+      wave.push({ t: bossConfig.escortType, n: 1, d: 0 });
+    }
+    return { name: bossConfig.name, chaos: bossConfig.chaos, waves: [wave], isBossRoom: true, bossType: bossConfig.bossType, escortType: bossConfig.escortType, escortCount: bossConfig.escortCount };
+  }
+
   const name = idx < ROOM_NAMES.length
     ? ROOM_NAMES[idx]
     : ['FRENZY','OVERRUN','DELUGE','STORM','NIGHTMARE','ABYSS','INFERNO','CHAOS'][(idx - ROOM_NAMES.length) % 8];
@@ -174,6 +202,7 @@ function generateWeightedWave(roomIdx) {
   const budgetBase = 5.0 + roomIdx * 1.35;
   let budget = budgetBase;
   let shooterCount = 0;
+  const MAX_TYPES = roomIdx >= 12 ? 3 : 99;
 
   if(roomIdx === 9) {
     entries.set('purple_chaser', 1);
@@ -186,6 +215,7 @@ function generateWeightedWave(roomIdx) {
       .filter((type) => roomIdx > 9 || (type !== 'purple_chaser' && type !== 'purple_disruptor'))
       .filter((type) => type !== 'purple_disruptor' || roomIdx >= 11)
       .filter((type) => ENEMY_TYPES[type].spawnValue <= budget + 0.5)
+      .filter((type) => entries.size < MAX_TYPES || entries.has(type))
       .filter((type) => {
         // Rooms 20-29: once a triangle is in the wave, reduce bullet pressure from other heavy shooters
         if(roomIdx >= 20 && roomIdx < 30 && entries.has('triangle')) {
@@ -219,7 +249,7 @@ function buildSpawnQueue(roomDef) {
   for(const wave of roomDef.waves) {
     for(const entry of wave) {
       for(let i=0; i<entry.n; i++) {
-        queue.push({ t: entry.t, spawnAt: 0 }); // all spawn immediately
+        queue.push({ t: entry.t, spawnAt: 0, isBoss: Boolean(entry.isBoss) });
       }
     }
   }
@@ -240,11 +270,19 @@ function startRoom(idx) {
   roomPhase = 'intro';
   enemies = [];
   bullets = [];
+  // Boss room state
+  currentRoomIsBoss = Boolean(def.isBossRoom);
+  bossAlive = currentRoomIsBoss;
+  escortType = def.escortType || '';
+  escortMaxCount = def.escortCount || 2;
+  escortRespawnTimer = 0;
+  reinforceTimer = 0;
+  currentRoomMaxOnScreen = (!currentRoomIsBoss && roomIndex >= 40) ? 12 : 99;
   player.x = cv.width / 2;
   player.y = cv.height / 2;
   player.vx = 0;
   player.vy = 0;
-  showRoomIntro('READY?', false);
+  showRoomIntro(currentRoomIsBoss ? 'BOSS!' : 'READY?', false);
   updateRoomBadge(def);
 }
 
@@ -253,13 +291,14 @@ function updateRoomBadge(def) {
   el.textContent = `ROOM ${roomIndex+1} — ${def.name}`;
 }
 
-function spawnEnemy(type) {
+function spawnEnemy(type, isBoss = false) {
   const enemy = createEnemy(type, {
     width: cv.width,
     height: cv.height,
     margin: M,
     roomIndex,
     nextEnemyId: enemyIdSeq++,
+    isBoss,
   });
   if(enemy.forcePurpleShots) roomPurpleShooterAssigned = true;
   enemies.push(enemy);
@@ -835,11 +874,20 @@ function update(dt,ts){
   }
 
   if(roomPhase==='spawning'){
-    // Drain spawn queue
+    // Drain spawn queue (respect on-screen cap for reinforcement rooms)
     while(spawnQueue.length && spawnQueue[0].spawnAt <= roomTimer){
-      spawnEnemy(spawnQueue.shift().t);
+      if(enemies.length >= currentRoomMaxOnScreen) break;
+      const entry = spawnQueue.shift();
+      spawnEnemy(entry.t, entry.isBoss);
     }
-    if(spawnQueue.length===0) roomPhase='fighting';
+    if(spawnQueue.length===0 && enemies.length > 0) roomPhase='fighting';
+    if(spawnQueue.length===0 && enemies.length === 0){
+      roomPhase='clear';
+      roomClearTimer=0;
+      bullets=[]; particles=[];
+      if(UPG.regenTick>0) hp=Math.min(maxHp, hp+UPG.regenTick);
+      showRoomClear();
+    }
   }
 
   if(roomPhase==='fighting' || roomPhase==='spawning'){
@@ -866,6 +914,30 @@ function update(dt,ts){
 
   if(roomPhase==='fighting' || roomPhase==='spawning'){
     ensureShooterPressure();
+
+    // Boss escort trickle respawning
+    if(currentRoomIsBoss && bossAlive) {
+      const escortAlive = enemies.filter(e => !e.isBoss).length;
+      if(escortAlive < escortMaxCount) {
+        escortRespawnTimer += dt * 1000;
+        if(escortRespawnTimer >= 3000) {
+          escortRespawnTimer = 0;
+          spawnEnemy(escortType);
+        }
+      } else {
+        escortRespawnTimer = 0;
+      }
+    }
+
+    // Reinforcement spawning for rooms 40+ (non-boss)
+    if(!currentRoomIsBoss && spawnQueue.length > 0 && enemies.length < currentRoomMaxOnScreen) {
+      reinforceTimer += dt * 1000;
+      if(reinforceTimer >= 800) {
+        reinforceTimer = 0;
+        const entry = spawnQueue.shift();
+        spawnEnemy(entry.t, entry.isBoss);
+      }
+    }
   }
 
   if(roomPhase==='clear'){
@@ -1302,9 +1374,15 @@ function update(dt,ts){
           }
           if(e.hp<=0){
             score+=e.pts*(b.crit?2:1);kills++;
-            sparks(e.x,e.y,e.col,14,95);
+            sparks(e.x,e.y,e.col, e.isBoss ? 30 : 14, e.isBoss ? 160 : 95);
             // Death bullets scatter as grey
             spawnGreyDrops(e.x,e.y,ts);
+            // Boss death: big HP restore + stop escort respawns
+            if(e.isBoss) {
+              bossAlive = false;
+              hp = Math.min(maxHp, hp + Math.floor(maxHp * 0.5));
+              showBossDefeated();
+            }
             // Vampiric Return: +4 HP and +0.3 charge per kill
             if(UPG.vampiric){ 
               hp=Math.min(maxHp,hp+4); 
@@ -1354,6 +1432,17 @@ function showRoomClear(){
   const el=document.getElementById('room-clear');
   el.classList.add('show');
   setTimeout(()=>el.classList.remove('show'),1400);
+}
+
+function showBossDefeated() {
+  const el = document.getElementById('room-clear');
+  const txt = document.getElementById('room-clear-txt');
+  txt.textContent = 'BOSS DEFEATED';
+  el.classList.add('show', 'boss-clear');
+  setTimeout(() => {
+    el.classList.remove('show', 'boss-clear');
+    txt.textContent = 'ROOM CLEAR';
+  }, 2000);
 }
 
 function showRoomIntro(text, isGo) {
@@ -1531,14 +1620,18 @@ function draw(ts){
     }
 
     if(e.hp<e.maxHp){
-      const bw=e.r*2.4,bx=e.x-bw/2,by=e.y-e.r-8;
-      ctx.fillStyle='#0a0e1a';ctx.fillRect(bx,by,bw,3);
-      ctx.fillStyle=e.col;ctx.fillRect(bx,by,bw*(e.hp/e.maxHp),3);
+      const bw = e.isBoss ? e.r * 2.8 : e.r * 2.4;
+      const bh = e.isBoss ? 5 : 3;
+      const bx = e.x - bw/2;
+      const by = e.y - e.r - (e.isBoss ? 12 : 8);
+      ctx.fillStyle='#0a0e1a';ctx.fillRect(bx,by,bw,bh);
+      ctx.fillStyle = e.isBoss ? '#fbbf24' : e.col;
+      ctx.fillRect(bx,by,bw*(e.hp/e.maxHp),bh);
     }
-    ctx.fillStyle='rgba(180,180,180,0.45)';
-    ctx.font='7px IBM Plex Mono,monospace';
+    ctx.fillStyle = e.isBoss ? 'rgba(251,191,36,0.7)' : 'rgba(180,180,180,0.45)';
+    ctx.font = e.isBoss ? 'bold 9px IBM Plex Mono,monospace' : '7px IBM Plex Mono,monospace';
     ctx.textAlign='center';
-    ctx.fillText(e.type.toUpperCase(),e.x,e.y+e.r+11);
+    ctx.fillText(e.isBoss ? '★ BOSS' : e.type.toUpperCase(), e.x, e.y + e.r + (e.isBoss ? 14 : 11));
     ctx.restore();
   }
 

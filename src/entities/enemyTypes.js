@@ -14,16 +14,17 @@ const ENEMY_TYPES = {
 
 const PURPLE_BULLET_ROOM_THRESHOLD = 9;
 
-function createEnemy(type, { width, height, margin, roomIndex, nextEnemyId }) {
+function createEnemy(type, { width, height, margin, roomIndex, nextEnemyId, isBoss = false }) {
   const def = ENEMY_TYPES[type];
+  const effectiveR = isBoss ? def.r * 3 : def.r;
   const edge = Math.floor(Math.random() * 4);
   let x;
   let y;
 
-  if(edge === 0){x = margin + Math.random() * (width - 2 * margin); y = margin + def.r;}
-  else if(edge === 1){x = width - margin - def.r; y = margin + Math.random() * (height - 2 * margin);}
-  else if(edge === 2){x = margin + Math.random() * (width - 2 * margin); y = height - margin - def.r;}
-  else {x = margin + def.r; y = margin + Math.random() * (height - 2 * margin);}
+  if(edge === 0){x = margin + Math.random() * (width - 2 * margin); y = margin + effectiveR;}
+  else if(edge === 1){x = width - margin - effectiveR; y = margin + Math.random() * (height - 2 * margin);}
+  else if(edge === 2){x = margin + Math.random() * (width - 2 * margin); y = height - margin - effectiveR;}
+  else {x = margin + effectiveR; y = margin + Math.random() * (height - 2 * margin);}
 
   const roomRamp = Math.min(1, roomIndex / 10);
   const hpScale = (0.28 + roomRamp * 0.72) * (1 + Math.log(roomIndex + 1) * 0.17);
@@ -34,20 +35,27 @@ function createEnemy(type, { width, height, margin, roomIndex, nextEnemyId }) {
   const hpMult = hpScale * room20Mult * lateTierMult;
   // Speed also ramps harder in late game
   const spdMult = (roomIndex >= 20 ? 1.12 : 1) * (tierOver > 0 ? 1.06 + Math.min(0.35, tierOver * 0.015) : 1);
-  // Determine if this is an elite enemy (room 40+, 30% spawn rate)
-  const isElite = roomIndex >= 40 && Math.random() < 0.30;
+  // Bosses skip elite roll; normal enemies: elite at room 40+, 30% spawn rate
+  const isElite = !isBoss && roomIndex >= 40 && Math.random() < 0.30;
+
+  const hpVal = isBoss
+    ? Math.max(1, Math.round(def.hp * hpMult * 15))
+    : Math.max(1, Math.round(def.hp * hpMult * (isElite ? 1.3 : 1)));
 
   return {
     ...def,
     eid: nextEnemyId,
     x,
     y,
+    r: effectiveR,
     type,
-    hp: Math.max(1, Math.round(def.hp * hpMult * (isElite ? 1.3 : 1))),
-    maxHp: Math.max(1, Math.round(def.hp * hpMult * (isElite ? 1.3 : 1))),
-    spd: def.spd * spdMult * (isElite ? 1.15 : 1),
+    hp: hpVal,
+    maxHp: hpVal,
+    spd: def.spd * spdMult * (isBoss ? 0.6 : (isElite ? 1.15 : 1)),
+    pts: isBoss ? def.pts * 5 : def.pts,
     fT: Math.random() * def.fRate,
     forcePurpleShots: Boolean(def.forcePurpleShots),
+    isBoss,
     isElite,
     eliteStage: 0, // 0=orange, 1=purple, 2=blue for elite enemies
   };
