@@ -920,7 +920,7 @@ function update(dt,ts){
       const escortAlive = enemies.filter(e => !e.isBoss).length;
       if(escortAlive < escortMaxCount) {
         escortRespawnTimer += dt * 1000;
-        if(escortRespawnTimer >= 3000) {
+        if(escortRespawnTimer >= 7000) {
           escortRespawnTimer = 0;
           spawnEnemy(escortType);
         }
