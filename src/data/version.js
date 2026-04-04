@@ -1,4 +1,4 @@
-const VERSION = { num: '1.06', label: 'Phase 1: Vampiric Expansion' };
+const VERSION = { num: '1.07', label: 'Phase 2: Late-Game Scaling' };
 
 function formatVersionTag(version = VERSION) {
   return `// prototype v${version.num} - ${version.label}`;

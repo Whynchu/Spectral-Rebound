@@ -480,7 +480,18 @@ function firePlayer(tx,ty) {
   const predatorBonus = UPG.predatorInstinct && UPG.predatorKillStreak >= 2 ? 1 + Math.min(UPG.predatorKillStreak * 0.2, 1.0) : 1;
   // Dense Core desperation bonus: very high damage at critical charge (1 cap)
   const denseDesperationBonus = (UPG.denseTier > 0 && UPG.maxCharge === 1) ? 2.5 : 1;
-  const baseDmg = (1 + UPG.snipePower * 0.35) * (UPG.playerDamageMult || 1) * (UPG.denseDamageMult || 1) * predatorBonus * denseDesperationBonus;
+  // Late Bloom: soft-capped scaling by room
+  let lateBloomBonus = 1;
+  if(UPG.lateBloom){
+    const room = roomIndex || 0;
+    if(room <= 30) lateBloomBonus = 1;
+    else if(room <= 60) lateBloomBonus = 1 + (room - 30) * 0.02;
+    else if(room <= 90) lateBloomBonus = 1.6 + (room - 60) * 0.01;
+    else lateBloomBonus = 1.9 + (room - 90) * 0.005;
+  }
+  // Escalation: per-kill damage in current room (max +60%)
+  const escalationBonus = UPG.escalation ? 1 + Math.min((UPG.escalationKills || 0) * 0.03, 0.6) : 1;
+  const baseDmg = (1 + UPG.snipePower * 0.35) * (UPG.playerDamageMult || 1) * (UPG.denseDamageMult || 1) * predatorBonus * denseDesperationBonus * lateBloomBonus * escalationBonus;
   const lifeMs = PLAYER_SHOT_LIFE_MS * (UPG.shotLifeMult || 1);
   const now = performance.now();
   const overchargeBonus = (UPG.overchargeVent && charge >= UPG.maxCharge) ? 1.4 : 1;
@@ -891,6 +902,8 @@ function update(dt,ts){
       roomClearTimer=0;
       bullets=[]; particles=[];
       if(UPG.regenTick>0) hp=Math.min(maxHp, hp+UPG.regenTick);
+      // Escalation: reset kill count for next room
+      if(UPG.escalation) UPG.escalationKills = 0;
       showRoomClear();
     }
   }
@@ -903,6 +916,8 @@ function update(dt,ts){
       bullets=[]; particles=[];
       // Room clear regen
       if(UPG.regenTick>0) hp=Math.min(maxHp, hp+UPG.regenTick);
+      // Escalation: reset kill count for next room
+      if(UPG.escalation) UPG.escalationKills = 0;
       // Damageless streak → earn reroll (cap 3)
       if(!tookDamageThisRoom){
         damagelessRooms++;
@@ -1402,6 +1417,8 @@ function update(dt,ts){
             sparks(e.x,e.y,e.col, e.isBoss ? 30 : 14, e.isBoss ? 160 : 95);
             // Death bullets scatter as grey
             spawnGreyDrops(e.x,e.y,ts);
+            // Escalation: track kills in room for damage scaling
+            if(UPG.escalation) UPG.escalationKills = (UPG.escalationKills || 0) + 1;
             // Boss death: big HP restore + stop escort respawns
             if(e.isBoss) {
               bossAlive = false;
