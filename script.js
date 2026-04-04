@@ -100,7 +100,7 @@ const SHIELD_HALF_W = 9;
 const SHIELD_HALF_H = 4.5;
 const STALL_SPAWN_COOLDOWN_MS = 2600;
 const SHIELD_ORBIT_R    = 35;   // orbital radius of shield orbs from player center (px)
-const SHIELD_COOLDOWN   = 1.5;  // seconds a shield is inactive after absorbing a bullet
+const SHIELD_COOLDOWN   = 5.0;  // seconds a shield is inactive after absorbing a bullet (baseline; reduced by Swift Ward)
 const SHIELD_ROTATION_SPD  = 0.001; // radians per millisecond (≈1 rev / 6.3 s)
 const ORBIT_SPHERE_R    = 40;   // orbital radius of passive orbit spheres (px)
 const ORBIT_ROTATION_SPD   = 0.003; // radians per millisecond (≈1 rev / 2.1 s)
@@ -292,6 +292,12 @@ function circleIntersectsShieldPlate(cx, cy, radius, sx, sy, angle) {
   const hitDx = lx - nearestX;
   const hitDy = ly - nearestY;
   return hitDx * hitDx + hitDy * hitDy < radius * radius;
+}
+
+// Shield recharge time — reduced by Swift Ward boon
+function getShieldCooldown() {
+  const reduction = (UPG.shieldRegenTier || 0) * 1.5;
+  return Math.max(1.5, SHIELD_COOLDOWN - reduction);
 }
 
 // Bullet speed scales with room — moderate at room 1, ramps up to full by room 10
@@ -1134,7 +1140,8 @@ function update(dt,ts){
               charge=Math.min(UPG.maxCharge,charge+1.5);
               _barrierPulseTimer=600;
             }
-            s.cooldown = UPG.aegisTitan ? 6.0 : SHIELD_COOLDOWN;
+            const cd = UPG.aegisTitan ? 8.0 : getShieldCooldown();
+            s.cooldown = cd; s.maxCooldown = cd;
             sparks(sx,sy,'#67e8f9',8,60);
             bullets.splice(i,1); shieldHit=true; break;
           }
@@ -1430,7 +1437,7 @@ function draw(ts){
       ctx.translate(sx, sy);
       ctx.rotate(shieldFacing);
       if(s.cooldown>0){
-        const frac=s.cooldown/SHIELD_COOLDOWN;
+        const frac=s.cooldown/(s.maxCooldown||SHIELD_COOLDOWN);
         ctx.globalAlpha=0.25+0.15*frac;
         ctx.strokeStyle='#67e8f9';
         ctx.lineWidth=1.5;
