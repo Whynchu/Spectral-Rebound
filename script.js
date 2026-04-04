@@ -328,7 +328,7 @@ function spawnDBB(ex,ey) {
 function spawnTB(ex,ey) {
   const a=Math.atan2(player.y-ey,player.x-ex)+(Math.random()-.5)*.18;
   const spd=(145+Math.random()*40) * bulletSpeedScale();
-  bullets.push({x:ex,y:ey,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,state:'danger',r:8,decayStart:null,bounces:0,isTriangle:true,wallBounces:0});
+  bullets.push({x:ex,y:ey,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,state:'danger',r:5,decayStart:null,bounces:0,isTriangle:true,wallBounces:0});
 }
 
 function spawnTriangleBurst(ex, ey, origVx, origVy) {
@@ -336,9 +336,44 @@ function spawnTriangleBurst(ex, ey, origVx, origVy) {
   const burstSpd = 140 * bulletSpeedScale();
   for(let i = 0; i < 3; i++) {
     const angle = baseAngle + (i - 1) * (Math.PI * 2 / 3);
-    bullets.push({x:ex,y:ey,vx:Math.cos(angle)*burstSpd,vy:Math.sin(angle)*burstSpd,state:'danger',r:7,decayStart:null,bounces:0});
+    bullets.push({x:ex,y:ey,vx:Math.cos(angle)*burstSpd,vy:Math.sin(angle)*burstSpd,state:'danger',r:5,decayStart:null,bounces:0});
   }
   sparks(ex, ey, '#60a5fa', 6, 50);
+}
+
+// Elite enemy bullets: orange (stage 0) that cycle through purple (stage 1) then blue (stage 2)
+function spawnEliteBullet(ex, ey, angle, speed, stageOverride) {
+  const stage = stageOverride !== undefined ? stageOverride : 0;
+  const colors = ['#ff9500', '#a855f7', '#3b82f6']; // orange -> purple -> blue
+  bullets.push({
+    x: ex, y: ey,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    state: 'danger',
+    r: 5,
+    decayStart: null,
+    bounces: 0,
+    eliteStage: stage,
+    eliteColor: colors[stage],
+    bounceStages: stage < 2 ? 1 : 0, // only last stage (blue) doesn't bounce to next
+  });
+}
+
+// Elite triangle: shoots purple triangles that burst into 3 blue triangles
+function spawnEliteTriangleBullet(ex, ey) {
+  const a = Math.atan2(player.y - ey, player.x - ex) + (Math.random() - 0.5) * 0.18;
+  const spd = (145 + Math.random() * 40) * bulletSpeedScale();
+  spawnEliteBullet(ex, ey, a, spd, 1); // stage 1 = purple
+}
+
+function spawnEliteTriangleBurst(ex, ey, origVx, origVy) {
+  const baseAngle = Math.atan2(origVy, origVx);
+  const burstSpd = 140 * bulletSpeedScale();
+  for(let i = 0; i < 3; i++) {
+    const angle = baseAngle + (i - 1) * (Math.PI * 2 / 3);
+    spawnEliteBullet(ex, ey, angle, burstSpd, 2); // stage 2 = blue
+  }
+  sparks(ex, ey, '#a855f7', 6, 60);
 }
 
 function createLaneOffsets(count, spacing) {
@@ -929,12 +964,24 @@ function update(dt,ts){
         if(e.type==='zoner'){
           for(let i=0;i<e.burst;i++) spawnZB(e.x,e.y,i,e.burst);
         } else if(e.type==='triangle'){
-          for(let i=0;i<e.burst;i++) spawnTB(e.x,e.y);
+          if(e.isElite){
+            for(let i=0;i<e.burst;i++) spawnEliteTriangleBullet(e.x,e.y);
+          } else {
+            for(let i=0;i<e.burst;i++) spawnTB(e.x,e.y);
+          }
         } else {
           const canShootPurple = canEnemyUsePurpleShots(e, roomIndex);
           for(let i=0;i<e.burst;i++){
-            if(canShootPurple) spawnDBB(e.x,e.y);
-            else spawnEB(e.x,e.y);
+            if(e.isElite){
+              // Elite enemies shoot orange bullets that stage-up through purple to blue
+              const angle = Math.atan2(player.y - e.y, player.x - e.x) + (Math.random() - 0.5) * 0.6;
+              const spd = (130 + Math.random() * 40) * bulletSpeedScale();
+              spawnEliteBullet(e.x, e.y, angle, spd, 0); // stage 0 = orange
+            } else if(canShootPurple) {
+              spawnDBB(e.x,e.y);
+            } else {
+              spawnEB(e.x,e.y);
+            }
           }
         }
       }
@@ -1032,7 +1079,14 @@ function update(dt,ts){
     if(bounced){
       if(b.state==='danger'){
         burstBlueDissipate(b.x, b.y);
-        if(b.isTriangle){
+        if(b.eliteStage !== undefined && b.bounceStages !== undefined && b.bounceStages > 0){
+          // Elite bullet: transition to next stage on wall bounce
+          b.eliteStage++;
+          b.bounceStages--;
+          const colors = ['#ff9500', '#a855f7', '#3b82f6'];
+          b.eliteColor = colors[Math.min(b.eliteStage, 2)];
+          sparks(b.x, b.y, b.eliteColor, 4, 40);
+        } else if(b.isTriangle){
           b.wallBounces++;
           if(b.wallBounces>=1){
             spawnTriangleBurst(b.x, b.y, b.vx, b.vy);
@@ -1180,7 +1234,9 @@ function update(dt,ts){
 
     if(b.state==='danger'&&player.invincible<=0){
       if(Math.hypot(b.x-player.x,b.y-player.y)<player.r+b.r-2){
-        const dmgScale = 1 + Math.log(roomIndex + 1) * 0.24;
+        // Damage scaling: log-based for early game, polynomial ramp post-30
+        const tierOver = Math.max(0, roomIndex - 29);
+        const dmgScale = (1 + Math.log(roomIndex + 1) * 0.24) * (tierOver > 0 ? 1 + tierOver * 0.048 : 1);
         const rawDamage = Math.ceil(18 * dmgScale);
         const finalDamage = Math.max(1, Math.ceil(rawDamage * (UPG.damageTakenMult || 1)));
         hp-=finalDamage; player.invincible=1.2; player.distort=.45;
@@ -1342,7 +1398,12 @@ function draw(ts){
     if(b.state==='danger'){
       const pulse=.75+.25*Math.sin(ts*.014);
       let bCol, bCore;
-      if(b.isTriangle){
+      if(b.eliteColor){
+        // Elite bullet with dynamic color based on stage
+        bCol = b.eliteColor;
+        const coreAlphas = ['rgba(255,200,100,0.9)', 'rgba(230,200,255,0.9)', 'rgba(150,200,255,0.9)'];
+        bCore = coreAlphas[Math.min(b.eliteStage || 0, 2)];
+      } else if(b.isTriangle){
         bCol='#60a5fa';
         bCore='rgba(180,220,255,0.9)';
       } else {

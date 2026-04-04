@@ -27,9 +27,13 @@ function createEnemy(type, { width, height, margin, roomIndex, nextEnemyId }) {
   const hpScale = (0.28 + roomRamp * 0.72) * (1 + Math.log(roomIndex + 1) * 0.17);
   const tierOver = Math.max(0, roomIndex - 29);
   const room20Mult = roomIndex >= 20 ? 1.25 : 1;
-  const lateTierMult = tierOver > 0 ? 1.18 + tierOver * 0.035 : 1;
+  // Aggressive late-game scaling: 6% per room above 30 (was 3.5%)
+  const lateTierMult = tierOver > 0 ? 1.18 + tierOver * 0.06 : 1;
   const hpMult = hpScale * room20Mult * lateTierMult;
-  const spdMult = (roomIndex >= 20 ? 1.12 : 1) * (tierOver > 0 ? 1.06 + Math.min(0.22, tierOver * 0.012) : 1);
+  // Speed also ramps harder in late game
+  const spdMult = (roomIndex >= 20 ? 1.12 : 1) * (tierOver > 0 ? 1.06 + Math.min(0.35, tierOver * 0.015) : 1);
+  // Determine if this is an elite enemy (room 40+, 30% spawn rate)
+  const isElite = roomIndex >= 40 && Math.random() < 0.30;
 
   return {
     ...def,
@@ -37,11 +41,13 @@ function createEnemy(type, { width, height, margin, roomIndex, nextEnemyId }) {
     x,
     y,
     type,
-    hp: Math.max(1, Math.round(def.hp * hpMult)),
-    maxHp: Math.max(1, Math.round(def.hp * hpMult)),
-    spd: def.spd * spdMult,
+    hp: Math.max(1, Math.round(def.hp * hpMult * (isElite ? 1.3 : 1))),
+    maxHp: Math.max(1, Math.round(def.hp * hpMult * (isElite ? 1.3 : 1))),
+    spd: def.spd * spdMult * (isElite ? 1.15 : 1),
     fT: Math.random() * def.fRate,
     forcePurpleShots: Boolean(def.forcePurpleShots),
+    isElite,
+    eliteStage: 0, // 0=orange, 1=purple, 2=blue for elite enemies
   };
 }
 
