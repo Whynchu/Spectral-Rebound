@@ -28,7 +28,7 @@ function renderActiveBoons(upg) {
   }
 }
 
-function showBoonSelection({ upg, hp, maxHp, rerolls = 0, onReroll = null, onSelect, cardsContainer = document.getElementById('up-cards'), panel = document.getElementById('s-up') }) {
+function showBoonSelection({ upg, hp, maxHp, rerolls = 0, onReroll = null, onSelect, pendingLegendary = null, onLegendaryAccept = null, cardsContainer = document.getElementById('up-cards'), panel = document.getElementById('s-up') }) {
   let pool = pickBoonChoices(upg, hp, maxHp);
   let remainingRerolls = rerolls;
   const healBoon = createHealBoon(upg);
@@ -124,6 +124,14 @@ function showBoonSelection({ upg, hp, maxHp, rerolls = 0, onReroll = null, onSel
       updateRerollCard();
     };
     healRow.appendChild(rerollCard);
+  }
+
+  if(pendingLegendary && onLegendaryAccept){
+    const legCard = document.createElement('div');
+    legCard.className = 'up-card legendary';
+    legCard.innerHTML = `<div class="up-name">${pendingLegendary.name}</div><div class="up-desc">${pendingLegendary.desc}</div><div class="up-tag" style="color:#fbbf24">LEGENDARY</div>`;
+    legCard.addEventListener('click', () => { panel.classList.add('off'); cardsContainer.innerHTML=''; onLegendaryAccept(pendingLegendary); });
+    healRow.appendChild(legCard);
   }
 
   cardsContainer.appendChild(mainRow);

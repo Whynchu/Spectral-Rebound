@@ -105,6 +105,8 @@ function getDefaultUpgrades() {
     livingFortress: false,
     lastStand: false,
     splitShotEvolved: false,
+    aegisTitan: false, ghostFlow: false, corona: false, finalForm: false,
+    colossus: false, lifelineUses: 1, lifelineTriggerCount: 0,
   };
   syncChargeCapacity(upg);
   return upg;
@@ -263,6 +265,11 @@ function getActiveBoonEntries(upg) {
   if(upg.echoFire) entries.push({icon:'↺',name:'Echo Fire',detail:'Every 5th shot fires free echo'});
   if(upg.splitShot) entries.push({icon: upg.splitShotEvolved?'⋔+':'⋔', name: upg.splitShotEvolved?'Fracture':'Split Shot', detail:'Bullets split on wall bounce'});
   if(upg.volatileRounds) entries.push({icon: upg.volatileAllTargets?'💢+':'💢', name: upg.volatileAllTargets?'Chain Reaction':'Volatile Rounds', detail:'Pierce shots burst on final hit'});
+  if(upg.aegisTitan) entries.push({icon:'🏛️',name:'AEGIS TITAN',detail:'Shields use cooldown, never break'});
+  if(upg.ghostFlow) entries.push({icon:'🌊',name:'GHOST FLOW',detail:'Move through grey = absorb'});
+  if(upg.corona) entries.push({icon:'☀️',name:'CORONA',detail:'Ring shots are homing'});
+  if(upg.finalForm) entries.push({icon:'💀',name:'FINAL FORM',detail:'2× lifeline, Dead Man at ≤2 HP'});
+  if(upg.colossus) entries.push({icon:'⬡',name:'COLOSSUS',detail:'Bullets nullified on hit, regen 1/s'});
   return entries;
 }
 

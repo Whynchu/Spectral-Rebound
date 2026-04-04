@@ -1,5 +1,5 @@
 import { C, ROOM_SCRIPTS, DECAY_BASE, M, VERSION } from './src/data/gameData.js';
-import { getActiveBoonEntries, getDefaultUpgrades, getRequiredShotCount, syncChargeCapacity, getEvolvedBoon } from './src/data/boons.js';
+import { getActiveBoonEntries, getDefaultUpgrades, getRequiredShotCount, syncChargeCapacity, getEvolvedBoon, checkLegendarySequences } from './src/data/boons.js';
 import { ENEMY_TYPES, createEnemy, canEnemyUsePurpleShots } from './src/entities/enemyTypes.js';
 import { JOY_DEADZONE, JOY_MAX, createJoystickState, resetJoystickState, bindJoystickControls, tickJoystick } from './src/input/joystick.js';
 import { fetchRemoteLeaderboard, submitRemoteScore } from './src/platform/leaderboardService.js';
@@ -127,6 +127,9 @@ let _absorbComboCount = 0, _absorbComboTimer = 0;
 let _chainMagnetTimer = 0;
 let _echoCounter = 0;
 let _vampiricRestoresThisRoom = 0;
+let boonHistory = [];
+let pendingLegendary = null;
+let legendaryOffered = false;
 
 // Room system
 let roomIndex = 0;
@@ -371,7 +374,7 @@ function firePlayer(tx,ty) {
   }
   if(UPG.ringShots>0){
     for(let i=0;i<UPG.ringShots;i++){
-      angs.push({ angle: (Math.PI*2/UPG.ringShots)*i, offset: 0 });
+      angs.push({ angle: (Math.PI*2/UPG.ringShots)*i, offset: 0, coronaHoming: !!UPG.corona });
     }
   }
 
@@ -398,7 +401,7 @@ function firePlayer(tx,ty) {
       state:'output', r:crit ? baseRadius * 1.28 : baseRadius, decayStart:null,
       bounceLeft: UPG.bounceTier>0?2:0,
       pierceLeft: UPG.pierceTier,
-      homing: UPG.homingTier>0,
+      homing: UPG.homingTier>0 || (shot.coronaHoming||false),
       crit,
       dmg: baseDmg * overchargeBonus,
       expireAt: now + lifeMs,
@@ -461,6 +464,12 @@ function showUpgrades() {
     maxHp,
     rerolls: boonRerolls,
     onReroll: () => { boonRerolls--; },
+    pendingLegendary: (!legendaryOffered && pendingLegendary) ? pendingLegendary : null,
+    onLegendaryAccept: (leg) => {
+      const lState={hp,maxHp}; leg.apply(UPG,lState); hp=lState.hp; maxHp=lState.maxHp;
+      legendaryOffered=true; pendingLegendary=null;
+      syncRunChargeCapacity(); boonHistory.push(leg.name);
+    },
     onSelect: (boon) => {
       const state = { hp, maxHp };
       const evolvedBoon = getEvolvedBoon(boon, UPG);
@@ -469,6 +478,11 @@ function showUpgrades() {
       hp = state.hp;
       maxHp = state.maxHp;
       syncPlayerScale();
+      boonHistory.push(evolvedBoon.name);
+      if(!legendaryOffered){
+        const leg = checkLegendarySequences(boonHistory, UPG);
+        if(leg) pendingLegendary=leg;
+      }
       document.getElementById('s-up').classList.add('off');
       startRoom(roomIndex+1);
       gstate='playing'; lastT=performance.now();
@@ -655,6 +669,7 @@ function init() {
   _barrierPulseTimer=0;
   _slipCooldown=0; _absorbComboCount=0; _absorbComboTimer=0;
   _chainMagnetTimer=0; _echoCounter=0; _vampiricRestoresThisRoom=0;
+  boonHistory=[]; pendingLegendary=null; legendaryOffered=false;
   bullets=[];enemies=[];particles=[];
   resetJoystickState(joy);
   resetUpgrades();
@@ -733,6 +748,7 @@ function update(dt,ts){
   if(_absorbComboTimer>0){ _absorbComboTimer-=dt*1000; if(_absorbComboTimer<=0){_absorbComboCount=0;} }
   if(_chainMagnetTimer>0) _chainMagnetTimer-=dt*1000;
   if(_slipCooldown>0) _slipCooldown-=dt*1000;
+  if(UPG.colossus) hp=Math.min(maxHp, hp+dt);
 
   // ── Room state machine
   roomTimer += dt*1000;
@@ -837,8 +853,8 @@ function update(dt,ts){
         hp-=18; player.invincible=1.0; player.distort=.4;
         sparks(player.x,player.y,'#f472b6',10,90);
         if(hp<=0){
-          if(UPG.lifeline && !UPG.lifelineUsed){
-            UPG.lifelineUsed=true; hp=1; player.invincible=2.0; sparks(player.x,player.y,'#f0abfc',16,100);
+          if(UPG.lifeline && UPG.lifelineTriggerCount < (UPG.lifelineUses||1)){
+            UPG.lifelineTriggerCount++; UPG.lifelineUsed=true; hp=1; player.invincible=2.0; sparks(player.x,player.y,'#f0abfc',16,100);
             if(UPG.lastStand){ const lsNow=performance.now(); for(let la=0;la<Math.floor(UPG.maxCharge);la++){ const lang=(Math.PI*2/Math.max(1,Math.floor(UPG.maxCharge)))*la; bullets.push({x:player.x,y:player.y,vx:Math.cos(lang)*220,vy:Math.sin(lang)*220,state:'output',r:4.5,decayStart:null,bounceLeft:UPG.bounceTier>0?2:0,pierceLeft:UPG.pierceTier,homing:false,crit:false,dmg:(UPG.playerDamageMult||1)*(UPG.denseDamageMult||1),expireAt:lsNow+2000,hitIds:new Set()}); } }
           }
           else { gameOver(); return; }
@@ -980,7 +996,8 @@ function update(dt,ts){
     if(b.state==='grey'){
       if(ts-b.decayStart>decayMS){bullets.splice(i,1);continue;}
       b.vx*=Math.pow(.97,dt*60); b.vy*=Math.pow(.97,dt*60);
-      if(Math.hypot(b.x-player.x,b.y-player.y)<absorbR+b.r){
+      const ghostFlowR = (UPG.ghostFlow && (Math.abs(player.vx)>5 || Math.abs(player.vy)>5)) ? player.r + b.r + 8 : -1;
+      if(Math.hypot(b.x-player.x,b.y-player.y)<absorbR+b.r || (ghostFlowR>0 && Math.hypot(b.x-player.x,b.y-player.y)<ghostFlowR)){
         charge=Math.min(UPG.maxCharge,charge+UPG.absorbValue);
         // Resonant Absorb
         if(UPG.resonantAbsorb){
@@ -1038,7 +1055,7 @@ function update(dt,ts){
               charge=Math.min(UPG.maxCharge,charge+1.5);
               _barrierPulseTimer=600;
             }
-            s.cooldown=SHIELD_COOLDOWN;
+            s.cooldown = UPG.aegisTitan ? 6.0 : SHIELD_COOLDOWN;
             sparks(sx,sy,'#67e8f9',8,60);
             bullets.splice(i,1); shieldHit=true; break;
           }
@@ -1048,6 +1065,7 @@ function update(dt,ts){
     }
 
     if(b.state==='danger'&&player.invincible<=0){
+      if(UPG.colossus){ bullets.splice(i,1); continue; }
       if(Math.hypot(b.x-player.x,b.y-player.y)<player.r+b.r-2){
         const dmgScale = 1 + Math.log(roomIndex + 1) * 0.24;
         const rawDamage = Math.ceil(18 * dmgScale);
@@ -1060,8 +1078,8 @@ function update(dt,ts){
         sparks(player.x,player.y,C.danger,10,85);
         bullets.splice(i,1);
         if(hp<=0){
-          if(UPG.lifeline && !UPG.lifelineUsed){
-            UPG.lifelineUsed=true; hp=1; player.invincible=2.0; sparks(player.x,player.y,'#f0abfc',16,100);
+          if(UPG.lifeline && UPG.lifelineTriggerCount < (UPG.lifelineUses||1)){
+            UPG.lifelineTriggerCount++; UPG.lifelineUsed=true; hp=1; player.invincible=2.0; sparks(player.x,player.y,'#f0abfc',16,100);
             if(UPG.lastStand){ const lsNow=performance.now(); for(let la=0;la<Math.floor(UPG.maxCharge);la++){ const lang=(Math.PI*2/Math.max(1,Math.floor(UPG.maxCharge)))*la; bullets.push({x:player.x,y:player.y,vx:Math.cos(lang)*220,vy:Math.sin(lang)*220,state:'output',r:4.5,decayStart:null,bounceLeft:UPG.bounceTier>0?2:0,pierceLeft:UPG.pierceTier,homing:false,crit:false,dmg:(UPG.playerDamageMult||1)*(UPG.denseDamageMult||1),expireAt:lsNow+2000,hitIds:new Set()}); } }
           }
           else { gameOver(); return; }
@@ -1085,8 +1103,8 @@ function update(dt,ts){
         if(b.hitIds.has(e.eid)) continue;
         if(Math.hypot(b.x-e.x,b.y-e.y)<b.r+e.r){
           b.hitIds.add(e.eid);
-          const deadManMult = (UPG.deadManTrigger && hp === 1) ? 3 : 1;
-          const deadManPierce = UPG.deadManTrigger && hp === 1;
+          const deadManMult = (UPG.deadManTrigger && hp <= (UPG.finalForm ? 2 : 1)) ? 3 : 1;
+          const deadManPierce = UPG.deadManTrigger && hp <= (UPG.finalForm ? 2 : 1);
           const dmg = (b.crit ? 2 : 1) * b.dmg * deadManMult;
           e.hp-=dmg;
           sparks(b.x,b.y,b.crit?'#7dff9b':C.green,b.crit?8:5,b.crit?70:55);
