@@ -131,6 +131,10 @@ function getDefaultUpgrades() {
     transmute: false, transmuteBounceCount: 0, decayFieldEvolved: false,
     refraction: false, refractionCooldown: 0, refractionCount: 0,
     mirrorTide: false, mirrorTideCooldown: 0,
+    phaseDash: false, phaseDashCooldown: 0, dashDirection: 0, isDashing: false,
+    overload: false, overloadActive: false, overloadCooldown: 0,
+    empBurst: false, empBurstUsed: false,
+    voidWalker: false,
   };
   syncChargeCapacity(upg);
   return upg;
@@ -204,6 +208,11 @@ const BOONS = [
   {name:'Transmute',tag:'UTILITY',icon:'🔄',desc:'Every 4th wall bounce, converts a danger bullet to grey. Deterministic.',evolvesWith:['Gravity Well'],evolvedVersion:{name:'Decay Field',icon:'🌀',desc:'Converted bullets slow enemies 1s within 100px.',apply(upg){if(upg.transmute)return; upg.transmute=true; upg.decayFieldEvolved=true;}},apply(upg){if(upg.transmute)return; upg.transmute=true;}},
   {name:'Refraction',tag:'OFFENSE',icon:'💡',desc:'Absorbed grey bullets fire weak homing shots (0.5× dmg). Max 3/sec.',requires:upg=>upg.absorbTier>0,apply(upg){if(upg.refraction)return; upg.refraction=true;}},
   {name:'Mirror Tide',tag:'OFFENSE',icon:'🪞',desc:'Next danger hit reflects as an output bullet. 2s cooldown.',requires:upg=>upg.armorTier>0,apply(upg){if(upg.mirrorTide)return; upg.mirrorTide=true;}},
+  
+  // Phase 6: Active Abilities
+  {name:'Phase Dash',tag:'SURVIVE',icon:'💨',desc:'Press dedicated button to dash in any direction. 0.3s invincibility, 4s cooldown. Disable charge during dash.',apply(upg){if(upg.phaseDash)return; upg.phaseDash=true;}},
+  {name:'Overload',tag:'OFFENSE',icon:'⚡',desc:'Full charge auto-triggers: next shot ×2 damage, empties charge, 3s cooldown.',apply(upg){if(upg.overload)return; upg.overload=true;}},
+  {name:'EMP Burst',tag:'SURVIVE',icon:'💥',desc:'At ≤30% HP + take damage: destroy all danger bullets. Once per room.',requires:upg=>upg.capacitorTier>0,apply(upg){if(upg.empBurst)return; upg.empBurst=true;}},
 ];
 
 function boonHasEffect(boon, upg, hp, maxHp) {
@@ -285,6 +294,12 @@ const LEGENDARY_SEQUENCES = [
     check: (h) => ['Vampiric Return','Crimson Harvest','Sanguine Burst'].every(n => h.includes(n)),
     boon: { name:'BLOOD MOON', tag:'LEGENDARY', icon:'🩸', desc:'Kills restore +8 HP and drop +3 grey bullets. Vampire synergy unlocked.',
       apply(upg){ upg.bloodMoon=true; } }
+  },
+  {
+    id: 'voidWalker',
+    check: (h) => ['Phase Dash','Slipstream','Gravity Well'].every(n => h.includes(n)),
+    boon: { name:'VOID WALKER', tag:'LEGENDARY', icon:'🌊', desc:'Dashing leaves a 2s void zone. Combined evasion + defensive synergy.',
+      apply(upg){ upg.voidWalker=true; } }
   },
 ];
 
@@ -399,6 +414,11 @@ function getActiveBoonEntries(upg) {
   if(upg.decayFieldEvolved) entries.push({icon:'🌀',name:'Decay Field',detail:'Converted bullets slow enemies'});
   if(upg.refraction) entries.push({icon:'💡',name:'Refraction',detail:`Cooldown: ${Math.max(0, (upg.refractionCooldown||0)/1000).toFixed(1)}s`});
   if(upg.mirrorTide) entries.push({icon:'🪞',name:'Mirror Tide',detail:`Cooldown: ${Math.max(0, (upg.mirrorTideCooldown||0)/1000).toFixed(1)}s`});
+  if(upg.phaseDash) entries.push({icon:'💨',name:'Phase Dash',detail:`Cooldown: ${Math.max(0, (upg.phaseDashCooldown||0)/1000).toFixed(1)}s`});
+  if(upg.overload) entries.push({icon:'⚡',name:'Overload',detail:'Auto ×2 damage at full charge'});
+  if(upg.empBurst) entries.push({icon:'💥',name:'EMP Burst',detail:upg.empBurstUsed?'SPENT':'Ready ≤30% HP'});
+  if(upg.voidWalker) entries.push({icon:'🌊',name:'VOID WALKER',detail:'Dashing creates void zone'});
+  if(upg.bloodMoon) entries.push({icon:'🩸',name:'BLOOD MOON',detail:'Kills: +8 HP, +3 grey bullets'});
   if(upg.chargedOrbs) entries.push({icon:'⚡',name:'Charged Orbs',detail:'Orbs fire shot every 1.2s'});
   if(upg.absorbOrbs) entries.push({icon:'🌀',name:'Absorb Orbs',detail:'Orbs absorb nearby grey bullets'});
   return entries;

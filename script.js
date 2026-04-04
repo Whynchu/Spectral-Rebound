@@ -51,6 +51,14 @@ function resize() {
 }
 bindResponsiveViewport(resize);
 
+// ── PHASE DASH INPUT ───────────────────────────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if((e.code === 'Space' || e.code === 'KeyD') && roomPhase === 'fighting'){
+    // Phase Dash trigger (will be checked in game loop)
+    _phaseDashTrigger = true;
+  }
+});
+
 // ── PLAYER UPGRADES ───────────────────────────────────────────────────────────
 let UPG = getDefaultUpgrades();
 function resetUpgrades() {
@@ -508,6 +516,15 @@ function firePlayer(tx,ty) {
   const lifeMs = PLAYER_SHOT_LIFE_MS * (UPG.shotLifeMult || 1);
   const now = performance.now();
   const overchargeBonus = (UPG.overchargeVent && charge >= UPG.maxCharge) ? 1.4 : 1;
+  
+  // Overload: if active and at full charge, apply 2x damage multiplier and consume charge
+  let overloadBonus = 1;
+  if(UPG.overload && UPG.overloadActive && charge >= UPG.maxCharge){
+    overloadBonus = 2;
+    UPG.overloadActive = false;
+    UPG.overloadCooldown = 3000;
+    charge = 0;
+  }
 
   for(const shot of angs.slice(0, availableShots)) {
     const a = shot.angle;
@@ -523,7 +540,7 @@ function firePlayer(tx,ty) {
       pierceLeft: UPG.pierceTier + ((shot.isRing && UPG.corona) ? 1 : 0),
       homing: UPG.homingTier>0,
       crit,
-      dmg: baseDmg * overchargeBonus,
+      dmg: baseDmg * overchargeBonus * overloadBonus,
       expireAt: now + lifeMs,
       hitIds: new Set(),
       isRing: shot.isRing || false,
@@ -812,6 +829,7 @@ function init() {
   _chainMagnetTimer=0; _echoCounter=0; _vampiricRestoresThisRoom=0; _colossusShockwaveCd=0;
   _orbFireTimers=[]; _orbCooldown=[];
   boonHistory=[]; pendingLegendary=null; legendaryOffered=false;
+  _phaseDashTrigger = false;
   bullets=[];enemies=[];particles=[];
   resetJoystickState(joy);
   resetUpgrades();
@@ -865,6 +883,29 @@ function update(dt,ts){
   // Drift anchor when thumb wanders far past max radius
   if(roomPhase === 'fighting' || roomPhase === 'spawning') tickJoystick(joy, dt);
 
+  // Phase Dash: triggered by key input (Space or D)
+  if(UPG.phaseDash && _phaseDashTrigger && UPG.phaseDashCooldown <= 0 && (roomPhase === 'fighting' || roomPhase === 'spawning')){
+    _phaseDashTrigger = false;
+    UPG.isDashing = true;
+    player.invincible = 0.3;
+    UPG.phaseDashCooldown = 4000;
+    // Dash in current joystick direction (or forward if not moving)
+    const dashDir = joy.active && joy.mag > JOY_DEADZONE ? {dx: joy.dx, dy: joy.dy} : {dx: 1, dy: 0};
+    const dashSpd = 500;
+    player.x += dashDir.dx * dashSpd * 0.15;
+    player.y += dashDir.dy * dashSpd * 0.15;
+    player.x = Math.max(M + player.r, Math.min(W - M - player.r, player.x));
+    player.y = Math.max(M + player.r, Math.min(H - M - player.r, player.y));
+    sparks(player.x, player.y, '#a78bfa', 16, 200);
+    
+    // VOID WALKER: dash creates a void zone (part of legendary combo)
+    if(UPG.voidWalker){
+      UPG.voidZoneActive = true;
+      UPG.voidZoneTimer = ts + 2000;
+    }
+  }
+  _phaseDashTrigger = false;
+
   // ── Player movement — virtual joystick
   if(roomPhase !== 'intro' && joy.active && joy.mag > JOY_DEADZONE){
     const t = Math.min((joy.mag - JOY_DEADZONE) / (joyMax - JOY_DEADZONE), 1);
@@ -896,6 +937,9 @@ function update(dt,ts){
   if(UPG.shockwave && UPG.shockwaveCooldown > 0) UPG.shockwaveCooldown -= dt*1000;
   if(UPG.refraction && UPG.refractionCooldown > 0) UPG.refractionCooldown -= dt*1000;
   if(UPG.mirrorTide && UPG.mirrorTideCooldown > 0) UPG.mirrorTideCooldown -= dt*1000;
+  if(UPG.overload && UPG.overloadCooldown > 0) UPG.overloadCooldown -= dt*1000;
+  if(UPG.phaseDash && UPG.phaseDashCooldown > 0) UPG.phaseDashCooldown -= dt*1000;
+  if(UPG.voidWalker && UPG.voidZoneTimer && ts > UPG.voidZoneTimer) UPG.voidZoneActive = false;
   // Predator's Instinct: decay kill streak if window expires
   if(UPG.predatorInstinct && UPG.predatorKillStreakTime > 0 && ts > UPG.predatorKillStreakTime){
     UPG.predatorKillStreak = 0;
@@ -946,6 +990,8 @@ function update(dt,ts){
       if(UPG.regenTick>0) hp=Math.min(maxHp, hp+UPG.regenTick);
       // Escalation: reset kill count for next room
       if(UPG.escalation) UPG.escalationKills = 0;
+      // EMP Burst: reset for next room
+      if(UPG.empBurst) UPG.empBurstUsed = false;
       showRoomClear();
     }
   }
@@ -960,6 +1006,8 @@ function update(dt,ts){
       if(UPG.regenTick>0) hp=Math.min(maxHp, hp+UPG.regenTick);
       // Escalation: reset kill count for next room
       if(UPG.escalation) UPG.escalationKills = 0;
+      // EMP Burst: reset for next room
+      if(UPG.empBurst) UPG.empBurstUsed = false;
       // Damageless streak → earn reroll (cap 3)
       if(!tookDamageThisRoom){
         damagelessRooms++;
@@ -1022,6 +1070,11 @@ function update(dt,ts){
     }
   } else {
     stillTimer += dt;
+  }
+
+  // Overload: auto-trigger at full charge (if cooldown ready)
+  if(UPG.overload && charge >= UPG.maxCharge && UPG.overloadCooldown <= 0){
+    UPG.overloadActive = true;
   }
 
   if(charge >= 1 && isStill){
@@ -1486,6 +1539,13 @@ function update(dt,ts){
         continue;
       }
       
+      // VOID WALKER: void zone blocks danger bullets (part of legendary combo)
+      if(UPG.voidWalker && UPG.voidZoneActive && UPG.voidZoneTimer > ts){
+        bullets.splice(i,1);
+        sparks(b.x,b.y,'#8b5cf6',8,120);
+        continue;
+      }
+      
       if(Math.hypot(b.x-player.x,b.y-player.y)<player.r+b.r-2){
         // Mirror Tide: reflect danger hit as output bullet
         if(UPG.mirrorTide && UPG.mirrorTideCooldown <= 0){
@@ -1508,6 +1568,19 @@ function update(dt,ts){
         if(UPG.hitChargeGain > 0){
           charge = Math.min(UPG.maxCharge, charge + UPG.hitChargeGain);
         }
+        
+        // EMP Burst: at ≤30% HP + take damage, destroy all danger bullets (once per room)
+        if(UPG.empBurst && !UPG.empBurstUsed && hp <= maxHp * 0.3){
+          UPG.empBurstUsed = true;
+          for(let ei = bullets.length - 1; ei >= 0; ei--){
+            if(bullets[ei].state === 'danger'){
+              sparks(bullets[ei].x, bullets[ei].y, '#fbbf24', 4, 100);
+              bullets.splice(ei, 1);
+            }
+          }
+          sparks(player.x, player.y, '#fbbf24', 20, 180);
+        }
+        
         sparks(player.x,player.y,C.danger,10,85);
         bullets.splice(i,1);
         // Colossus: shockwave converts nearby danger bullets to grey
@@ -1974,6 +2047,22 @@ function draw(ts){
     ctx.globalAlpha = 0.6 * frac;
     ctx.strokeStyle = '#00d4ff';
     ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // VOID WALKER void zone indicator
+  if(UPG.voidWalker && UPG.voidZoneActive && UPG.voidZoneTimer > ts){
+    ctx.save();
+    const frac = Math.max(0, (UPG.voidZoneTimer - ts) / 2000);
+    ctx.globalAlpha = 0.35 * frac;
+    ctx.fillStyle = '#8b5cf6';
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, 150, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.55 * frac;
+    ctx.strokeStyle = '#8b5cf6';
+    ctx.lineWidth = 2.5;
     ctx.stroke();
     ctx.restore();
   }
