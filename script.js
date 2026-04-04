@@ -121,6 +121,7 @@ let boonRerolls = 1;
 let damagelessRooms = 0;
 let tookDamageThisRoom = false;
 let lastStallSpawnAt = -99999;
+let _barrierPulseTimer = 0;
 
 // Room system
 let roomIndex = 0;
@@ -630,6 +631,7 @@ function init() {
   enemyIdSeq = 1;
   player={x:cv.width/2,y:cv.height/2,r:9,vx:0,vy:0,invincible:0,distort:0,deadAt:0,popAt:0,deadPop:false,deadPulse:0};
   player.shields=[];
+  _barrierPulseTimer=0;
   bullets=[];enemies=[];particles=[];
   resetJoystickState(joy);
   resetUpgrades();
@@ -696,8 +698,15 @@ function update(dt,ts){
   if(player.distort>0)player.distort-=dt;
 
   // ── Shields — sync count to tier, tick cooldowns
-  while(player.shields.length < UPG.shieldTier) player.shields.push({cooldown:0});
-  for(const s of player.shields){ if(s.cooldown>0) s.cooldown=Math.max(0,s.cooldown-dt); }
+  while(player.shields.length < UPG.shieldTier) player.shields.push({cooldown:0, hardened: !!UPG.shieldTempered, mirrorCooldown:-9999});
+  for(const s of player.shields){
+    if(s.cooldown>0){
+      const prev=s.cooldown;
+      s.cooldown=Math.max(0,s.cooldown-dt);
+      if(prev>0 && s.cooldown<=0 && UPG.shieldTempered) s.hardened=true;
+    }
+  }
+  if(_barrierPulseTimer>0) _barrierPulseTimer-=dt*1000;
 
   // ── Room state machine
   roomTimer += dt*1000;
@@ -874,7 +883,7 @@ function update(dt,ts){
   }
 
   // ── Bullets
-  const absorbR = player.r + 5 + UPG.absorbRange;
+  const absorbR = player.r + 5 + UPG.absorbRange + (_barrierPulseTimer > 0 ? UPG.absorbRange + 40 : 0);
   const decayMS = DECAY_BASE + UPG.decayBonus;
 
   for(let i=bullets.length-1;i>=0;i--){
@@ -946,11 +955,34 @@ function update(dt,ts){
           const sy=player.y+Math.sin(sAngle)*SHIELD_ORBIT_R;
           const shieldFacing = sAngle + Math.PI * 0.5;
           if(circleIntersectsShieldPlate(b.x, b.y, b.r, sx, sy, shieldFacing)){
+            // Mirror Shield: reflect bullet back as output
+            if(UPG.shieldMirror && (ts - (s.mirrorCooldown||0)) > 300){
+              s.mirrorCooldown = ts;
+              const mNow = performance.now();
+              bullets.push({x:sx,y:sy,vx:b.vx,vy:b.vy,state:'output',r:4.5*Math.min(2.5,UPG.shotSize),decayStart:null,bounceLeft:UPG.bounceTier>0?2:0,pierceLeft:UPG.pierceTier,homing:UPG.homingTier>0,crit:false,dmg:(UPG.playerDamageMult||1)*(UPG.denseDamageMult||1),expireAt:mNow+PLAYER_SHOT_LIFE_MS*(UPG.shotLifeMult||1),hitIds:new Set()});
+            }
+            // Tempered Shield: two-stage (purple -> blue -> pop)
+            if(UPG.shieldTempered && s.hardened){
+              s.hardened=false;
+              sparks(sx,sy,'#c084fc',8,60);
+              bullets.splice(i,1); shieldHit=true; break;
+            }
+            // Shield pops — Shield Burst fires 4-way output
+            if(UPG.shieldBurst){
+              const bNow=performance.now();
+              for(let ba=0;ba<4;ba++){
+                const bang=ba*Math.PI/2;
+                bullets.push({x:player.x,y:player.y,vx:Math.cos(bang)*230,vy:Math.sin(bang)*230,state:'output',r:4.5*Math.min(2.5,UPG.shotSize),decayStart:null,bounceLeft:UPG.bounceTier>0?2:0,pierceLeft:UPG.pierceTier,homing:UPG.homingTier>0,crit:false,dmg:(UPG.playerDamageMult||1)*(UPG.denseDamageMult||1),expireAt:bNow+PLAYER_SHOT_LIFE_MS*(UPG.shotLifeMult||1),hitIds:new Set()});
+              }
+            }
+            // Barrier Pulse: +1.5 charge + magnet pulse
+            if(UPG.barrierPulse){
+              charge=Math.min(UPG.maxCharge,charge+1.5);
+              _barrierPulseTimer=600;
+            }
             s.cooldown=SHIELD_COOLDOWN;
             sparks(sx,sy,'#67e8f9',8,60);
-            bullets.splice(i,1);
-            shieldHit=true;
-            break;
+            bullets.splice(i,1); shieldHit=true; break;
           }
         }
         if(shieldHit) continue;
@@ -1229,14 +1261,15 @@ function draw(ts){
         ctx.fillStyle='#67e8f9';
         ctx.fillRect(-SHIELD_HALF_W,-SHIELD_HALF_H,SHIELD_HALF_W * 2,SHIELD_HALF_H * 2);
       } else {
-        ctx.shadowColor='#67e8f9';ctx.shadowBlur=14;
-        ctx.strokeStyle='#67e8f9';
+        const shieldCol = (UPG.shieldTempered && s.hardened) ? '#c084fc' : '#67e8f9';
+        ctx.shadowColor=shieldCol; ctx.shadowBlur=14;
+        ctx.strokeStyle=shieldCol;
         ctx.lineWidth=2;
         ctx.globalAlpha=0.9;
-        ctx.strokeRect(-SHIELD_HALF_W,-SHIELD_HALF_H,SHIELD_HALF_W * 2,SHIELD_HALF_H * 2);
+        ctx.strokeRect(-SHIELD_HALF_W,-SHIELD_HALF_H,SHIELD_HALF_W*2,SHIELD_HALF_H*2);
         ctx.shadowBlur=0;
-        ctx.fillStyle='rgba(103,232,249,0.18)';
-        ctx.fillRect(-SHIELD_HALF_W,-SHIELD_HALF_H,SHIELD_HALF_W * 2,SHIELD_HALF_H * 2);
+        ctx.fillStyle=`rgba(${UPG.shieldTempered&&s.hardened?'192,132,252':'103,232,249'},0.18)`;
+        ctx.fillRect(-SHIELD_HALF_W,-SHIELD_HALF_H,SHIELD_HALF_W*2,SHIELD_HALF_H*2);
       }
       ctx.restore();
     }
