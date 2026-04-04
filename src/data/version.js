@@ -1,4 +1,4 @@
-const VERSION = { num: '0.92', label: 'Vampire Route Expansion' };
+const VERSION = { num: '0.93', label: 'Dense Core Rebalance' };
 
 function formatVersionTag(version = VERSION) {
   return `// prototype v${version.num} - ${version.label}`;

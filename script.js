@@ -397,7 +397,9 @@ function firePlayer(tx,ty) {
   const baseRadius = 4.5 * Math.min(2.5, UPG.shotSize) * (1 + UPG.snipePower * 0.15);
   // Predator's Instinct: apply kill streak damage multiplier (20% per kill, max +100%)
   const predatorBonus = UPG.predatorInstinct && UPG.predatorKillStreak >= 2 ? 1 + Math.min(UPG.predatorKillStreak * 0.2, 1.0) : 1;
-  const baseDmg = (1 + UPG.snipePower * 0.35) * (UPG.playerDamageMult || 1) * (UPG.denseDamageMult || 1) * predatorBonus;
+  // Dense Core desperation bonus: very high damage at critical charge (1 cap)
+  const denseDesperationBonus = (UPG.denseTier > 0 && UPG.maxCharge === 1) ? 2.5 : 1;
+  const baseDmg = (1 + UPG.snipePower * 0.35) * (UPG.playerDamageMult || 1) * (UPG.denseDamageMult || 1) * predatorBonus * denseDesperationBonus;
   const lifeMs = PLAYER_SHOT_LIFE_MS * (UPG.shotLifeMult || 1);
   const now = performance.now();
   const overchargeBonus = (UPG.overchargeVent && charge >= UPG.maxCharge) ? 1.4 : 1;

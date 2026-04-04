@@ -22,8 +22,13 @@ function syncChargeCapacity(upg) {
   const baseCap = BASE_CHARGE_CAP + Math.max(0, shotCount - 1) + (upg.chargeCapFlatBonus || 0);
   const capMult = upg.chargeCapMult || 1;
   upg.maxCharge = Math.max(baseCap, Math.round(baseCap * capMult));
-  // Dense Core reduces cap
-  if(upg.denseTier > 0) upg.maxCharge = Math.max(3, upg.maxCharge - upg.denseTier * 2);
+  // Dense Core reduces cap by percentage: −25% / −50% / −75%, down to minimum 1
+  if(upg.denseTier > 0) {
+    const reductionFactors = [0.75, 0.5, 0.25];
+    for(let i = 0; i < upg.denseTier; i++) {
+      upg.maxCharge = Math.max(1, Math.floor(upg.maxCharge * reductionFactors[i]));
+    }
+  }
   return upg.maxCharge;
 }
 
@@ -152,7 +157,7 @@ const BOONS = [
   {name:'Volatile Orbs',tag:'OFFENSE',icon:'💥',desc:'Orbit spheres explode on contact with a danger bullet, destroying it.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if(upg.volatileOrbs)return; upg.volatileOrbs=true;}},
   {name:'Charged Orbs',tag:'OFFENSE',icon:'⚡',desc:'Each orbit sphere fires a small shot at the nearest enemy every 1.2s.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if(upg.chargedOrbs)return; upg.chargedOrbs=true;}},
   {name:'Absorb Orbs',tag:'UTILITY',icon:'🌀',desc:'Grey bullets near an orbit sphere are absorbed automatically.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if(upg.absorbOrbs)return; upg.absorbOrbs=true;}},
-  {name:'Dense Core',tag:'OFFENSE',icon:'◈',desc:'−2 charge cap, output bullets hit harder. Max 3.',apply(upg){if(upg.denseTier>=3)return; upg.denseTier++; upg.denseDamageMult=1+upg.denseTier*0.2; syncChargeCapacity(upg);}},
+  {name:'Dense Core',tag:'OFFENSE',icon:'◈',desc:'Reduce charge cap −25%/−50%/−75% per tier. +30% damage per tier. Extreme at 1 cap. Max 3.',apply(upg){if(upg.denseTier>=3)return; upg.denseTier++; upg.denseDamageMult=1+upg.denseTier*0.3; syncChargeCapacity(upg);}},
   {name:'Echo Fire',tag:'OFFENSE',icon:'↺',desc:'Every 5th shot fires a free echo burst.',apply(upg){if(upg.echoFire)return; upg.echoFire=true;}},
   {name:'Split Shot',tag:'OFFENSE',icon:'⋔',desc:'Output bullets split in two on first wall bounce.',apply(upg){if(upg.splitShot||upg.bounceTier===0)return; upg.splitShot=true;},evolvesWith:['Ricochet'],evolvedVersion:{name:'Fracture',icon:'⋔+',desc:'Bullets split into 3 on bounce, +20% damage.',apply(upg){if(upg.splitShot||upg.bounceTier===0)return; upg.splitShot=true; upg.splitShotEvolved=true; upg.denseDamageMult=(upg.denseDamageMult||1)*1.2;}}},
   {name:'Volatile Rounds',tag:'OFFENSE',icon:'💢',desc:'Piercing shots burst on their final target.',apply(upg){if(upg.volatileRounds||upg.pierceTier===0)return; upg.volatileRounds=true;},evolvesWith:['Pierce'],evolvedVersion:{name:'Chain Reaction',icon:'💢+',desc:'Pierce bursts fire from each enemy hit, not just last.',apply(upg){if(upg.volatileRounds||upg.pierceTier===0)return; upg.volatileRounds=true; upg.volatileAllTargets=true;}}},
@@ -318,7 +323,7 @@ function getActiveBoonEntries(upg) {
   if(upg.barrierPulse) entries.push({ icon:'⬡', name:'Barrier Pulse', detail:'+1.5 charge + magnet on break' });
   if(upg.shieldRegenTier>0) entries.push({ icon:'⚡🛡️', name:'Swift Ward', detail:`Shields recharge in ${(5.0-upg.shieldRegenTier*1.5).toFixed(1)}s` });
   if(upg.orbitSphereTier > 0) entries.push({ icon:'🔮', name:'Orbit Spheres', detail:`${upg.orbitSphereTier} sphere${upg.orbitSphereTier === 1 ? '' : 's'}` });
-  if(upg.denseTier > 0) entries.push({ icon:'◈', name:'Dense Core', detail:`Tier ${upg.denseTier} — ×${upg.denseDamageMult.toFixed(1)} dmg, −${upg.denseTier*2} cap` });
+  if(upg.denseTier > 0) entries.push({ icon:'◈', name:'Dense Core', detail:`Tier ${upg.denseTier} — ×${upg.denseDamageMult.toFixed(2)} dmg, cap: ${upg.maxCharge}` });
   if(upg.slipTier>0) entries.push({icon: upg.fluxState?'〜+':'〜', name: upg.fluxState?'Flux State':'Slipstream', detail:`+${upg.slipChargeGain.toFixed(2)} charge/near-miss`});
   if(upg.resonantAbsorb) entries.push({icon: upg.surgeHarvest?'≋+':'≋', name: upg.surgeHarvest?'Surge Harvest':'Resonant Absorb', detail:'Combo absorbs give 1.5× charge'});
   if(upg.chainMagnetTier>0) entries.push({icon:'⤥',name:'Chain Magnet',detail:`${(500+250*(upg.chainMagnetTier-1))}ms double pull`});
