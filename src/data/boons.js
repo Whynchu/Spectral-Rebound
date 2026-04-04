@@ -134,7 +134,7 @@ function getDefaultUpgrades() {
     phaseDash: false, phaseDashCooldown: 0, dashDirection: 0, isDashing: false,
     overload: false, overloadActive: false, overloadCooldown: 0,
     empBurst: false, empBurstUsed: false,
-    voidWalker: false,
+    voidWalker: false, voidZoneActive: false, voidZoneTimer: 0,
   };
   syncChargeCapacity(upg);
   return upg;

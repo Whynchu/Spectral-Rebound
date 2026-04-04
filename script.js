@@ -141,6 +141,7 @@ let _orbCooldown = [];
 let boonHistory = [];
 let pendingLegendary = null;
 let legendaryOffered = false;
+let _phaseDashTrigger = false;
 
 // Room system
 let roomIndex = 0;
