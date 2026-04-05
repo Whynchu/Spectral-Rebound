@@ -15,6 +15,8 @@ function mapRemoteRow(row) {
     room: Number(row.room) || 1,
     ts: row.created_at ? Date.parse(row.created_at) : Date.now(),
     boons: row.boons || null,
+    color: row.player_color || 'green',
+    boonOrder: row.boon_order || '',
   };
 }
 
@@ -50,13 +52,14 @@ async function fetchRemoteLeaderboard({ period, scope, playerName, gameVersion, 
   return Array.isArray(rows) ? rows.map(mapRemoteRow) : [];
 }
 
-async function submitRemoteScore({ playerName, score, room, gameVersion, boons }) {
+async function submitRemoteScore({ playerName, score, room, gameVersion, boons, playerColor = 'green' }) {
   return callLeaderboardRpc('submit_score', {
     p_player_name: playerName,
     p_score: score,
     p_room: room,
     p_game_version: gameVersion,
     p_boons: boons || null,
+    p_player_color: playerColor,
   });
 }
 

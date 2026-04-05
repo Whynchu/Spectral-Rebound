@@ -815,6 +815,7 @@ function pushLeaderboardEntry() {
     room: entry.room,
     gameVersion: VERSION.num,
     boons: entry.boons,
+    playerColor,
   }).then(() => {
     if(lbScope !== 'personal' || playerName === entry.name) {
       refreshLeaderboardView();
