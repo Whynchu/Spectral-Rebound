@@ -2198,7 +2198,8 @@ function drawGhost(ts){
 
   // ── HP bar above ghost (drawn in local space, above dome)
   const barW=size*2.8, barH=4;
-  const barX=-barW/2, barY=-size*1.55;
+  const barY = -size * (1.55 + (_isEaster ? 0.8 : 0));
+  const barX=-barW/2;
   const hpFrac=Math.max(0,hp/maxHp);
   // Track
   ctx.fillStyle='rgba(0,0,0,0.55)';
