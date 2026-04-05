@@ -23,7 +23,7 @@
 /* Prevent iOS from auto-scaling small text (triggers column zoom) */
 html { -webkit-text-size-adjust: none; text-size-adjust: none; }
 /* Disable ALL touch handling on display-only areas that have small text — prevents iOS text-column zoom */
-#cv, #top-hud, #bot-hud, #legend, #room-badge, #room-clear, #room-intro { touch-action: none; }
+#cv, #bot-hud, #legend, #room-badge, #room-clear, #room-intro { touch-action: none; }
 html, body {
   width: 100vw;
   height: 100vh;
@@ -81,11 +81,11 @@ body.app-loading #wrap { opacity: 0; }
 body.app-ready #wrap { opacity: 1; }
 #btn-patch-notes {
   position: absolute;
-  top: -14px;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   z-index: 121;
-  padding: 8px 16px;
+  padding: 6px 14px;
   font-size: 8px;
   letter-spacing: .18em;
   opacity: .94;
@@ -114,6 +114,7 @@ body.app-ready #wrap { opacity: 1; }
   align-items: center;
   gap: 14px;
   padding: 26px 24px 20px;
+  overflow: hidden;
 }
 .patch-notes-title {
   font-size: 34px;
@@ -124,6 +125,7 @@ body.app-ready #wrap { opacity: 1; }
 #patch-notes-list {
   width: 100%;
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -187,13 +189,18 @@ body.app-ready #wrap { opacity: 1; }
 }
 #patch-notes-archive-note {
   width: 100%;
+  flex-shrink: 0;
   font-size: 9px;
   line-height: 1.5;
   color: var(--dim);
   text-align: center;
 }
+#btn-patch-notes-close {
+  flex-shrink: 0;
+}
 /* TOP HUD */
 #top-hud {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -204,6 +211,7 @@ body.app-ready #wrap { opacity: 1; }
   font-size: 10px;
   letter-spacing: 0.12em;
   color: var(--dim);
+  touch-action: manipulation;
 }
 #health-dots { display:none; }
 #score-txt { font-family:'Syne',sans-serif; font-weight:800; font-size:16px; color:var(--accent); }
@@ -689,11 +697,11 @@ body.app-ready #wrap { opacity: 1; }
   .eyebrow { letter-spacing: .2em; }
   .btn-menu-sub { padding: 8px 18px; font-size: 9px; }
   #btn-patch-notes {
-    top: -12px;
-    padding: 7px 14px;
+    padding: 5px 12px;
+    font-size: 7px;
   }
   #patch-notes-card {
-    padding: 22px 18px 18px;
+    padding: 20px 16px 16px;
   }
   .patch-notes-title {
     font-size: 30px;
