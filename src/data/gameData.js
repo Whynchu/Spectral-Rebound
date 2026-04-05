@@ -13,6 +13,19 @@ const C = {
   get green() { return getPlayerColorScheme().hex; },
   get ghost() { return getPlayerColorScheme().light; },
   get dark() { return getPlayerColorScheme().dark; },
+  get shieldActive() { return getPlayerColorScheme().light; },
+  get shieldEnhanced() { return getPlayerColorScheme().dark; },
+  get lifelineEffect() { return getPlayerColorScheme().light; },
+  getShieldActiveRgba(alpha = 0.18) { 
+    const hex = this.shieldActive; 
+    const r = parseInt(hex.slice(1,3), 16), g = parseInt(hex.slice(3,5), 16), b = parseInt(hex.slice(5,7), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  },
+  getShieldEnhancedRgba(alpha = 0.18) { 
+    const hex = this.shieldEnhanced; 
+    const r = parseInt(hex.slice(1,3), 16), g = parseInt(hex.slice(3,5), 16), b = parseInt(hex.slice(5,7), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
 };
 
 const ROOM_SCRIPTS = [

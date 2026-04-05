@@ -1102,7 +1102,7 @@ function update(dt,ts){
         }
         if(hp<=0){
           if(UPG.lifeline && UPG.lifelineTriggerCount < (UPG.lifelineUses||1)){
-            UPG.lifelineTriggerCount++; UPG.lifelineUsed=true; hp=1; player.invincible=2.0; sparks(player.x,player.y,'#f0abfc',16,100);
+            UPG.lifelineTriggerCount++; UPG.lifelineUsed=true; hp=1; player.invincible=2.0; sparks(player.x,player.y,C.lifelineEffect,16,100);
             if(UPG.lastStand){ const lsNow=performance.now(); for(let la=0;la<Math.floor(UPG.maxCharge);la++){ const lang=(Math.PI*2/Math.max(1,Math.floor(UPG.maxCharge)))*la; bullets.push({x:player.x,y:player.y,vx:Math.cos(lang)*220,vy:Math.sin(lang)*220,state:'output',r:4.5,decayStart:null,bounceLeft:UPG.bounceTier>0?2:0,pierceLeft:UPG.pierceTier,homing:false,crit:false,dmg:(UPG.playerDamageMult||1)*(UPG.denseDamageMult||1),expireAt:lsNow+2000,hitIds:new Set()}); } }
           }
           else { gameOver(); return; }
@@ -1497,7 +1497,7 @@ function update(dt,ts){
             // Tempered Shield: two-stage (purple -> blue -> pop)
             if(UPG.shieldTempered && s.hardened){
               s.hardened=false;
-              sparks(sx,sy,'#c084fc',8,60);
+              sparks(sx,sy,C.shieldEnhanced,8,60);
               bullets.splice(i,1); shieldHit=true; break;
             }
             // Shield pops — Shield Burst fires 4/8-way output
@@ -1518,7 +1518,7 @@ function update(dt,ts){
             s.cooldown = cd; s.maxCooldown = cd;
             // AEGIS TITAN: all shields share one cooldown
             if(UPG.aegisTitan){ for(const os of player.shields){ if(os!==s && os.cooldown<=0){ os.cooldown=cd; os.maxCooldown=cd; os.hardened=false; } } }
-            sparks(sx,sy,'#67e8f9',8,60);
+            sparks(sx,sy,C.shieldActive,8,60);
             bullets.splice(i,1); shieldHit=true; break;
           }
         }
@@ -1599,7 +1599,7 @@ function update(dt,ts){
         }
         if(hp<=0){
           if(UPG.lifeline && UPG.lifelineTriggerCount < (UPG.lifelineUses||1)){
-            UPG.lifelineTriggerCount++; UPG.lifelineUsed=true; hp=1; player.invincible=2.0; sparks(player.x,player.y,'#f0abfc',16,100);
+            UPG.lifelineTriggerCount++; UPG.lifelineUsed=true; hp=1; player.invincible=2.0; sparks(player.x,player.y,C.lifelineEffect,16,100);
             if(UPG.lastStand){ const lsNow=performance.now(); for(let la=0;la<Math.floor(UPG.maxCharge);la++){ const lang=(Math.PI*2/Math.max(1,Math.floor(UPG.maxCharge)))*la; bullets.push({x:player.x,y:player.y,vx:Math.cos(lang)*220,vy:Math.sin(lang)*220,state:'output',r:4.5,decayStart:null,bounceLeft:UPG.bounceTier>0?2:0,pierceLeft:UPG.pierceTier,homing:false,crit:false,dmg:(UPG.playerDamageMult||1)*(UPG.denseDamageMult||1),expireAt:lsNow+2000,hitIds:new Set()}); } }
           }
           else { gameOver(); return; }
@@ -1957,22 +1957,22 @@ function draw(ts){
       if(s.cooldown>0){
         const frac=s.cooldown/(s.maxCooldown||SHIELD_COOLDOWN);
         ctx.globalAlpha=0.25+0.15*frac;
-        ctx.strokeStyle='#67e8f9';
+        ctx.strokeStyle=C.shieldActive;
         ctx.lineWidth=1.5;
         ctx.strokeRect(-SHIELD_HALF_W,-SHIELD_HALF_H,SHIELD_HALF_W * 2,SHIELD_HALF_H * 2);
         // Partial fill showing regeneration progress
         ctx.globalAlpha=0.12*(1-frac);
-        ctx.fillStyle='#67e8f9';
+        ctx.fillStyle=C.shieldActive;
         ctx.fillRect(-SHIELD_HALF_W,-SHIELD_HALF_H,SHIELD_HALF_W * 2,SHIELD_HALF_H * 2);
       } else {
-        const shieldCol = (UPG.shieldTempered && s.hardened) ? '#c084fc' : '#67e8f9';
+        const shieldCol = (UPG.shieldTempered && s.hardened) ? C.shieldEnhanced : C.shieldActive;
         ctx.shadowColor=shieldCol; ctx.shadowBlur=14;
         ctx.strokeStyle=shieldCol;
         ctx.lineWidth=2;
         ctx.globalAlpha=0.9;
         ctx.strokeRect(-SHIELD_HALF_W,-SHIELD_HALF_H,SHIELD_HALF_W*2,SHIELD_HALF_H*2);
         ctx.shadowBlur=0;
-        ctx.fillStyle=`rgba(${UPG.shieldTempered&&s.hardened?'192,132,252':'103,232,249'},0.18)`;
+        ctx.fillStyle=(UPG.shieldTempered&&s.hardened)?C.getShieldEnhancedRgba(0.18):C.getShieldActiveRgba(0.18);
         ctx.fillRect(-SHIELD_HALF_W,-SHIELD_HALF_H,SHIELD_HALF_W*2,SHIELD_HALF_H*2);
       }
       ctx.restore();
