@@ -1,5 +1,5 @@
 import { C, ROOM_SCRIPTS, BOSS_ROOMS, DECAY_BASE, M, VERSION } from './src/data/gameData.js';
-import { getActiveBoonEntries, getDefaultUpgrades, getRequiredShotCount, syncChargeCapacity, getEvolvedBoon, checkLegendarySequences, getLateBloomGrowth, LATE_BLOOM_SPEED_PENALTY, LATE_BLOOM_DAMAGE_TAKEN_PENALTY, LATE_BLOOM_DAMAGE_PENALTY } from './src/data/boons.js';
+import { CHARGED_ORB_FIRE_INTERVAL_MS, ESCALATION_KILL_PCT, ESCALATION_MAX_BONUS, getActiveBoonEntries, getDefaultUpgrades, getRequiredShotCount, syncChargeCapacity, getEvolvedBoon, checkLegendarySequences, getLateBloomGrowth, LATE_BLOOM_SPEED_PENALTY, LATE_BLOOM_DAMAGE_TAKEN_PENALTY, LATE_BLOOM_DAMAGE_PENALTY } from './src/data/boons.js';
 import { ENEMY_TYPES, createEnemy, canEnemyUsePurpleShots } from './src/entities/enemyTypes.js';
 import { JOY_DEADZONE, JOY_MAX, createJoystickState, resetJoystickState, bindJoystickControls, tickJoystick } from './src/input/joystick.js';
 import { fetchRemoteLeaderboard, submitRemoteScore } from './src/platform/leaderboardService.js';
@@ -122,6 +122,11 @@ const SHIELD_ROTATION_SPD  = 0.001; // radians per millisecond (≈1 rev / 6.3 s
 const ORBIT_SPHERE_R    = 40;   // orbital radius of passive orbit spheres (px)
 const ORBIT_ROTATION_SPD   = 0.003; // radians per millisecond (≈1 rev / 2.1 s)
 const PLAYER_SHOT_LIFE_MS = 1100;
+const DENSE_DESPERATION_BONUS = 1.85;
+const MIRROR_SHIELD_DAMAGE_FACTOR = 0.45;
+const AEGIS_NOVA_DAMAGE_FACTOR = 0.40;
+const VOLATILE_ORB_COOLDOWN = 10;
+const VOLATILE_ORB_SHARED_COOLDOWN = 1.35;
 let enemyIdSeq = 1;
 let playerName = 'RUNNER';
 let leaderboard = [];
@@ -147,6 +152,7 @@ let _vampiricRestoresThisRoom = 0;
 let _colossusShockwaveCd = 0;
 let _orbFireTimers = [];
 let _orbCooldown = [];
+let _volatileOrbGlobalCooldown = 0;
 let boonHistory = [];
 let pendingLegendary = null;
 let legendaryOffered = false;
@@ -277,6 +283,7 @@ function startRoom(idx) {
   tookDamageThisRoom = false;
   _vampiricRestoresThisRoom = 0;
   _orbFireTimers = []; _orbCooldown = [];
+  _volatileOrbGlobalCooldown = 0;
   UPG.predatorKillStreak = 0; UPG.predatorKillStreakTime = 0;
   if(UPG.mirrorTide){
     UPG.mirrorTideRoomUses = 0;
@@ -303,7 +310,7 @@ function startRoom(idx) {
   escortMaxCount = def.escortCount || 2;
   escortRespawnTimer = 0;
   reinforceTimer = 0;
-  currentRoomMaxOnScreen = (!currentRoomIsBoss && roomIndex >= 40) ? 12 : 99;
+  currentRoomMaxOnScreen = getRoomMaxOnScreen(roomIndex, currentRoomIsBoss);
   player.x = cv.width / 2;
   player.y = cv.height / 2;
   player.vx = 0;
@@ -315,6 +322,20 @@ function startRoom(idx) {
 function updateRoomBadge(def) {
   const el = document.getElementById('room-badge');
   el.textContent = `ROOM ${roomIndex+1} — ${def.name}`;
+}
+
+function getRoomMaxOnScreen(idx, isBossRoom) {
+  if(isBossRoom) return 99;
+  if(idx >= 120) return 16;
+  if(idx >= 80) return 14;
+  if(idx >= 40) return 12;
+  return 99;
+}
+
+function getReinforcementIntervalMs(idx) {
+  if(idx >= 120) return 500;
+  if(idx >= 80) return 650;
+  return 800;
 }
 
 function spawnEnemy(type, isBoss = false) {
@@ -556,11 +577,11 @@ function firePlayer(tx,ty) {
   const baseRadius = 4.5 * Math.min(2.5, UPG.shotSize) * (1 + UPG.snipePower * 0.15);
   // Predator's Instinct: apply kill streak damage multiplier (20% per kill, max +100%)
   const predatorBonus = UPG.predatorInstinct && UPG.predatorKillStreak >= 2 ? 1 + Math.min(UPG.predatorKillStreak * 0.2, 1.0) : 1;
-  // Dense Core desperation bonus: very high damage at critical charge (1 cap)
-  const denseDesperationBonus = (UPG.denseTier > 0 && UPG.maxCharge === 1) ? 2.5 : 1;
+  // Dense Core desperation bonus: extra damage at critical charge (1 cap)
+  const denseDesperationBonus = (UPG.denseTier > 0 && UPG.maxCharge === 1) ? DENSE_DESPERATION_BONUS : 1;
   const lateBloomMods = getLateBloomMods(roomIndex || 0);
-  // Escalation: per-kill damage in current room (max +60%)
-  const escalationBonus = UPG.escalation ? 1 + Math.min((UPG.escalationKills || 0) * 0.03, 0.6) : 1;
+  // Escalation: per-kill damage in current room (max +40%)
+  const escalationBonus = UPG.escalation ? 1 + Math.min((UPG.escalationKills || 0) * ESCALATION_KILL_PCT, ESCALATION_MAX_BONUS) : 1;
   const baseDmg = (1 + UPG.snipePower * 0.35) * (UPG.playerDamageMult || 1) * (UPG.denseDamageMult || 1) * predatorBonus * denseDesperationBonus * lateBloomMods.damage * escalationBonus;
   const lifeMs = PLAYER_SHOT_LIFE_MS * (UPG.shotLifeMult || 1);
   const now = performance.now();
@@ -1001,7 +1022,8 @@ function update(dt,ts){
   if(UPG.bloodRush && UPG.bloodRushTimer > 0 && ts > UPG.bloodRushTimer){
     UPG.bloodRushStacks = 0;
   }
-  // Volatile Orb cooldowns — recharge after 8s
+  // Volatile Orb cooldowns — per-orb recharge plus a brief shared detonation lockout
+  if(_volatileOrbGlobalCooldown > 0) _volatileOrbGlobalCooldown = Math.max(0, _volatileOrbGlobalCooldown - dt);
   for(let si=0;si<_orbCooldown.length;si++){
     if(_orbCooldown[si]>0) _orbCooldown[si]=Math.max(0,_orbCooldown[si]-dt);
   }
@@ -1085,7 +1107,7 @@ function update(dt,ts){
     // Reinforcement spawning for rooms 40+ (non-boss)
     if(!currentRoomIsBoss && spawnQueue.length > 0 && enemies.length < currentRoomMaxOnScreen) {
       reinforceTimer += dt * 1000;
-      if(reinforceTimer >= 800) {
+      if(reinforceTimer >= getReinforcementIntervalMs(roomIndex)) {
         reinforceTimer = 0;
         const entry = spawnQueue.shift();
         spawnEnemy(entry.t, entry.isBoss);
@@ -1109,7 +1131,8 @@ function update(dt,ts){
   if(!isStill){
     stillTimer = 0;
     if(UPG.moveChargeRate > 0 && (roomPhase === 'spawning' || roomPhase === 'fighting')){
-      charge = Math.min(UPG.maxCharge, charge + UPG.moveChargeRate * UPG.maxCharge * dt);
+      const moveChargeRate = UPG.moveChargeRate * (UPG.fluxState ? 2 : 1);
+      charge = Math.min(UPG.maxCharge, charge + moveChargeRate * dt);
     }
   } else {
     stillTimer += dt;
@@ -1280,13 +1303,13 @@ function update(dt,ts){
     }
   }
 
-  // ── Charged Orbs: each alive orb fires at nearest enemy every 1.2s
+  // ── Charged Orbs: each alive orb fires at nearest enemy every 1.8s
   if(UPG.chargedOrbs && UPG.orbitSphereTier>0 && enemies.length>0){
     while(_orbFireTimers.length < UPG.orbitSphereTier) _orbFireTimers.push(0);
     for(let si=0;si<UPG.orbitSphereTier;si++){
       if(_orbCooldown[si]>0) continue;
       _orbFireTimers[si]=((_orbFireTimers[si]||0)+dt*1000);
-      if(_orbFireTimers[si]>=1200){
+      if(_orbFireTimers[si] >= CHARGED_ORB_FIRE_INTERVAL_MS){
         _orbFireTimers[si]=0;
         const sAngle=Math.PI*2/UPG.orbitSphereTier*si+ts*ORBIT_ROTATION_SPD;
         const ox=player.x+Math.cos(sAngle)*ORBIT_SPHERE_R;
@@ -1467,7 +1490,7 @@ function update(dt,ts){
     }
 
     // Volatile Orbs: a danger bullet near any alive orbit sphere destroys the sphere + bullet
-    if(b.state==='danger' && UPG.volatileOrbs && UPG.orbitSphereTier>0){
+    if(b.state==='danger' && UPG.volatileOrbs && UPG.orbitSphereTier>0 && _volatileOrbGlobalCooldown<=0){
       while(_orbCooldown.length < UPG.orbitSphereTier) _orbCooldown.push(0);
       let orbHit=false;
       for(let si=0;si<UPG.orbitSphereTier;si++){
@@ -1476,7 +1499,8 @@ function update(dt,ts){
         const sx=player.x+Math.cos(sAngle)*ORBIT_SPHERE_R;
         const sy=player.y+Math.sin(sAngle)*ORBIT_SPHERE_R;
         if(Math.hypot(b.x-sx,b.y-sy)<b.r+7){
-          _orbCooldown[si]=8;
+          _orbCooldown[si] = VOLATILE_ORB_COOLDOWN;
+          _volatileOrbGlobalCooldown = VOLATILE_ORB_SHARED_COOLDOWN;
           sparks(sx,sy,C.green,10,80);
           bullets.splice(i,1); orbHit=true; break;
         }
@@ -1501,7 +1525,7 @@ function update(dt,ts){
             if(UPG.shieldMirror && (ts - (s.mirrorCooldown||0)) > 300){
               s.mirrorCooldown = ts;
               const mNow = performance.now();
-              bullets.push({x:sx,y:sy,vx:b.vx,vy:b.vy,state:'output',r:4.5*Math.min(2.5,UPG.shotSize),decayStart:null,bounceLeft:UPG.bounceTier>0?2:0,pierceLeft:UPG.pierceTier,homing:UPG.homingTier>0,crit:false,dmg:(UPG.playerDamageMult||1)*(UPG.denseDamageMult||1)*(UPG.aegisTitan?2:1),expireAt:mNow+PLAYER_SHOT_LIFE_MS*(UPG.shotLifeMult||1),hitIds:new Set()});
+              bullets.push({x:sx,y:sy,vx:b.vx,vy:b.vy,state:'output',r:4.5*Math.min(2.5,UPG.shotSize),decayStart:null,bounceLeft:0,pierceLeft:0,homing:false,crit:false,dmg:(UPG.playerDamageMult||1)*(UPG.denseDamageMult||1)*(UPG.aegisTitan ? MIRROR_SHIELD_DAMAGE_FACTOR * 2 : MIRROR_SHIELD_DAMAGE_FACTOR),expireAt:mNow+PLAYER_SHOT_LIFE_MS*(UPG.shotLifeMult||1),hitIds:new Set()});
             }
             // Tempered Shield: two-stage (purple -> blue -> pop)
             if(UPG.shieldTempered && s.hardened){
@@ -1515,7 +1539,7 @@ function update(dt,ts){
               const burstCount = UPG.aegisTitan ? 8 : 4;
               for(let ba=0;ba<burstCount;ba++){
                 const bang=ba*Math.PI*2/burstCount;
-                bullets.push({x:player.x,y:player.y,vx:Math.cos(bang)*230,vy:Math.sin(bang)*230,state:'output',r:4.5*Math.min(2.5,UPG.shotSize),decayStart:null,bounceLeft:UPG.bounceTier>0?2:0,pierceLeft:UPG.pierceTier,homing:UPG.homingTier>0,crit:false,dmg:(UPG.playerDamageMult||1)*(UPG.denseDamageMult||1),expireAt:bNow+PLAYER_SHOT_LIFE_MS*(UPG.shotLifeMult||1),hitIds:new Set()});
+                bullets.push({x:player.x,y:player.y,vx:Math.cos(bang)*230,vy:Math.sin(bang)*230,state:'output',r:4.5*Math.min(2.5,UPG.shotSize),decayStart:null,bounceLeft:0,pierceLeft:0,homing:false,crit:false,dmg:(UPG.playerDamageMult||1)*(UPG.denseDamageMult||1)*AEGIS_NOVA_DAMAGE_FACTOR,expireAt:bNow+PLAYER_SHOT_LIFE_MS*(UPG.shotLifeMult||1),hitIds:new Set()});
               }
             }
             // Barrier Pulse: +1.5 charge + magnet pulse
