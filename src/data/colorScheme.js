@@ -68,7 +68,17 @@ const PLAYER_COLORS = {
   }
 };
 
+// Color key order for cycling
+const COLOR_KEYS = Object.keys(PLAYER_COLORS);
+
 let activePlayerColor = 'green';
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return `${r},${g},${b}`;
+}
 
 function setPlayerColor(colorKey) {
   if (!PLAYER_COLORS[colorKey]) {
@@ -77,33 +87,41 @@ function setPlayerColor(colorKey) {
   }
   activePlayerColor = colorKey;
   
-  // Update CSS variables for DOM elements (HUD, buttons, etc.)
-  // Defer DOM access until document is ready
+  // Update ALL CSS variables so the entire UI adapts
   if (document.documentElement) {
-    const scheme = PLAYER_COLORS[activePlayerColor];
-    document.documentElement.style.setProperty('--player-accent', scheme.hex);
-    document.documentElement.style.setProperty('--player-accent-light', scheme.light);
-    document.documentElement.style.setProperty('--player-accent-dark', scheme.dark);
-    document.documentElement.style.setProperty('--player-danger', scheme.dangerHex);
+    const s = PLAYER_COLORS[activePlayerColor];
+    const root = document.documentElement.style;
+    // Primary theme variables (used throughout CSS)
+    root.setProperty('--accent', s.hex);
+    root.setProperty('--accent2', s.dark);
+    root.setProperty('--ghost', s.light);
+    // RGB triplets for rgba() usage in CSS
+    root.setProperty('--accent-rgb', hexToRgb(s.hex));
+    root.setProperty('--ghost-rgb', hexToRgb(s.light));
+    root.setProperty('--danger-rgb', hexToRgb(s.dangerHex));
+    // Named player variables (kept for clarity)
+    root.setProperty('--player-accent', s.hex);
+    root.setProperty('--player-accent-light', s.light);
+    root.setProperty('--player-accent-dark', s.dark);
+    root.setProperty('--player-danger', s.dangerHex);
   }
   
-  // Persist to localStorage
   try {
     localStorage.setItem('phantom-player-color', colorKey);
   } catch (e) {
-    // localStorage might not be available in some contexts
     console.warn('Could not save color to localStorage:', e);
   }
 }
 
+function cyclePlayerColor() {
+  const idx = COLOR_KEYS.indexOf(activePlayerColor);
+  const next = COLOR_KEYS[(idx + 1) % COLOR_KEYS.length];
+  setPlayerColor(next);
+  return PLAYER_COLORS[next];
+}
+
 function getPlayerColorScheme() {
-  const scheme = PLAYER_COLORS[activePlayerColor];
-  // Fallback to green if somehow activePlayerColor is invalid
-  if (!scheme) {
-    console.warn(`Color scheme not found for '${activePlayerColor}', falling back to green`);
-    return PLAYER_COLORS['green'];
-  }
-  return scheme;
+  return PLAYER_COLORS[activePlayerColor] || PLAYER_COLORS['green'];
 }
 
 function getPlayerColor() {
@@ -130,9 +148,12 @@ function getColorOptions() {
 
 export {
   PLAYER_COLORS,
+  COLOR_KEYS,
   setPlayerColor,
+  cyclePlayerColor,
   getPlayerColorScheme,
   getPlayerColor,
   loadPlayerColorFromStorage,
-  getColorOptions
+  getColorOptions,
+  hexToRgb
 };

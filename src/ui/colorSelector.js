@@ -1,55 +1,35 @@
-// Color selector UI component
-// Inline color picker for player to choose from 8 color schemes
+// Color selector UI component — compact inline button that cycles through colors
 
-import { getColorOptions, setPlayerColor, getPlayerColor } from '../data/colorScheme.js';
+import { cyclePlayerColor, getPlayerColor, getPlayerColorScheme } from '../data/colorScheme.js';
 
 function renderColorSelector(containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  const options = getColorOptions();
-  const current = getPlayerColor();
-
+  const scheme = getPlayerColorScheme();
   container.innerHTML = '';
-  container.className = 'color-selector';
+  container.className = 'color-btn-wrap';
 
-  options.forEach(opt => {
-    const swatch = document.createElement('button');
-    swatch.className = `color-swatch ${opt.key === current ? 'active' : ''}`;
-    swatch.style.setProperty('--swatch-hex', opt.hex);
-    swatch.setAttribute('data-color', opt.key);
-    swatch.setAttribute('title', opt.name);
-    swatch.setAttribute('aria-label', `Select ${opt.name}`);
-    swatch.setAttribute('role', 'radio');
-    swatch.setAttribute('aria-checked', opt.key === current ? 'true' : 'false');
+  const btn = document.createElement('button');
+  btn.className = 'color-btn';
+  btn.type = 'button';
+  btn.setAttribute('title', `Color: ${scheme.name} — tap to change`);
+  btn.setAttribute('aria-label', `Player color: ${scheme.name}. Tap to cycle.`);
+  btn.style.background = scheme.hex;
+  btn.style.boxShadow = `0 0 10px ${scheme.hex}55`;
+  btn.textContent = scheme.icon;
 
-    swatch.innerHTML = `<span class="swatch-icon">${opt.icon}</span><span class="swatch-name">${opt.name}</span>`;
-
-    swatch.addEventListener('click', (e) => {
-      e.preventDefault();
-      setPlayerColor(opt.key);
-      // Update UI
-      container.querySelectorAll('.color-swatch').forEach(s => {
-        s.classList.remove('active');
-        s.setAttribute('aria-checked', 'false');
-      });
-      swatch.classList.add('active');
-      swatch.setAttribute('aria-checked', 'true');
-      // Trigger visual feedback
-      onColorChanged(opt);
-    });
-
-    container.appendChild(swatch);
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const next = cyclePlayerColor();
+    btn.style.background = next.hex;
+    btn.style.boxShadow = `0 0 10px ${next.hex}55`;
+    btn.textContent = next.icon;
+    btn.setAttribute('title', `Color: ${next.name} — tap to change`);
+    btn.setAttribute('aria-label', `Player color: ${next.name}. Tap to cycle.`);
   });
-}
 
-function onColorChanged(colorOpt) {
-  // Visual feedback: briefly highlight the choice
-  const indicator = document.getElementById('color-indicator');
-  if (indicator) {
-    indicator.style.background = colorOpt.hex;
-    indicator.style.boxShadow = `0 0 16px ${colorOpt.hex}`;
-  }
+  container.appendChild(btn);
 }
 
 export { renderColorSelector };

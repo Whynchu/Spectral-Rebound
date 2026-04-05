@@ -1646,7 +1646,7 @@ function update(dt,ts){
           const deadManPierce = UPG.deadManTrigger && hp <= deadManThreshold;
           const dmg = (b.crit ? 2 : 1) * b.dmg * deadManMult;
           e.hp-=dmg;
-          sparks(b.x,b.y,b.crit?'#7dff9b':C.green,b.crit?8:5,b.crit?70:55);
+          sparks(b.x,b.y,b.crit?C.ghost:C.green,b.crit?8:5,b.crit?70:55);
           // Blood Pact: piercing shots restore 1 HP per enemy hit
           if(UPG.bloodPact && b.pierceLeft > 0){
             hp=Math.min(maxHp,hp+1);
@@ -1824,8 +1824,8 @@ function draw(ts){
         const coreAlphas = ['rgba(255,200,100,0.9)', 'rgba(230,200,255,0.9)', 'rgba(150,200,255,0.9)'];
         bCore = coreAlphas[Math.min(b.eliteStage || 0, 2)];
       } else if(b.isTriangle){
-        bCol='#60a5fa';
-        bCore='rgba(180,220,255,0.9)';
+        bCol=C.danger;
+        bCore=C.dangerCore;
       } else {
         bCol=b.doubleBounce&&b.bounceCount===0?'#c084fc':C.danger;
         bCore=b.doubleBounce&&b.bounceCount===0?'rgba(230,200,255,0.9)':C.dangerCore;
@@ -1863,7 +1863,7 @@ function draw(ts){
       ctx.globalAlpha=1;ctx.shadowBlur=0;
 
     } else if(b.state==='output'){
-      const col = b.crit?'#7dff9b':C.green;
+      const col = b.crit?C.ghost:C.green;
       ctx.shadowColor=col;ctx.shadowBlur=b.crit?28:18;
       drawGooBall(
         b.x,
@@ -2099,27 +2099,29 @@ function drawGhost(ts){
 
   // Ambient glow
   const pulse=.55+.45*Math.sin(ts*.0025);
+  const gRgb = C.ghostRgb;
   const ga=ctx.createRadialGradient(0,0,0,0,0,size*3);
-  ga.addColorStop(0,gstate === 'dying' ? `rgba(248,180,199,${0.14 + deathFrac * 0.16})` : overload?`rgba(120,255,160,${0.20 + 0.08 * pulse})`:`rgba(184,255,204,${0.18*pulse})`);
-  ga.addColorStop(1,'rgba(184,255,204,0)');
+  ga.addColorStop(0,gstate === 'dying' ? `rgba(248,180,199,${0.14 + deathFrac * 0.16})` : overload?`rgba(${gRgb.r},${gRgb.g},${gRgb.b},${0.20 + 0.08 * pulse})`:`rgba(${gRgb.r},${gRgb.g},${gRgb.b},${0.18*pulse})`);
+  ga.addColorStop(1,`rgba(${gRgb.r},${gRgb.g},${gRgb.b},0)`);
   ctx.fillStyle=ga;
   ctx.beginPath();ctx.arc(0,0,size*3,0,Math.PI*2);ctx.fill();
 
   ctx.shadowBlur=22+chargeFrac*14;
-  ctx.shadowColor=gstate === 'dying' ? '#f8b4c7' : overload?'#7dff9b':C.ghost;
+  ctx.shadowColor=gstate === 'dying' ? '#f8b4c7' : overload?C.ghost:C.ghost;
 
   const inv=player.invincible>0?Math.min(1,player.invincible/.4):0;
+  const baseRgb = C.greenRgb;
   let bodyR,bodyG,bodyB;
   if(gstate === 'dying'){
     bodyR = 208;
     bodyG = 244 - Math.round(deathFrac * 36);
     bodyB = 224 + Math.round(deathFrac * 12);
   } else if(overload){
-    bodyR=Math.round(176 + overloadPulse * 40);
-    bodyG=Math.round(244 + overloadPulse * 10);
-    bodyB=Math.round(196 + overloadPulse * 32);
+    bodyR=Math.round(baseRgb.r + overloadPulse * 40);
+    bodyG=Math.round(Math.min(255, baseRgb.g + overloadPulse * 10));
+    bodyB=Math.round(baseRgb.b + overloadPulse * 32);
   } else {
-    bodyR=Math.round(184+inv*71);bodyG=255;bodyB=Math.round(220+inv*35);
+    bodyR=Math.round(baseRgb.r+inv*71);bodyG=Math.round(Math.min(255,baseRgb.g+inv*10));bodyB=Math.round(baseRgb.b+inv*35);
   }
   ctx.fillStyle=`rgba(${bodyR},${bodyG},${bodyB},0.93)`;
 

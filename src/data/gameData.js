@@ -3,36 +3,34 @@
  */
 
 import { VERSION } from './version.js';
-import { getPlayerColorScheme, loadPlayerColorFromStorage } from './colorScheme.js';
+import { getPlayerColorScheme, loadPlayerColorFromStorage, hexToRgb } from './colorScheme.js';
 
 // Initialize player color on module load
 loadPlayerColorFromStorage();
+
+function _rgb(hex) {
+  return { r: parseInt(hex.slice(1,3), 16), g: parseInt(hex.slice(3,5), 16), b: parseInt(hex.slice(5,7), 16) };
+}
 
 const C = {
   bg:'#161616', grid:'rgba(255,255,255,0.025)', border:'rgba(255,255,255,0.1)',
   grey:'#888', siphon:'#a78bfa',
   get danger() { return getPlayerColorScheme().dangerHex; },
-  get dangerCore() { 
-    const hex = this.danger;
-    const r = parseInt(hex.slice(1,3), 16), g = parseInt(hex.slice(3,5), 16), b = parseInt(hex.slice(5,7), 16);
-    return `rgba(${r},${g},${b},0.9)`;
-  },
+  get dangerCore() { const {r,g,b} = _rgb(this.danger); return `rgba(${r},${g},${b},0.9)`; },
   get green() { return getPlayerColorScheme().hex; },
   get ghost() { return getPlayerColorScheme().light; },
   get dark() { return getPlayerColorScheme().dark; },
   get shieldActive() { return getPlayerColorScheme().light; },
   get shieldEnhanced() { return getPlayerColorScheme().dark; },
   get lifelineEffect() { return getPlayerColorScheme().light; },
-  getShieldActiveRgba(alpha = 0.18) { 
-    const hex = this.shieldActive; 
-    const r = parseInt(hex.slice(1,3), 16), g = parseInt(hex.slice(3,5), 16), b = parseInt(hex.slice(5,7), 16);
-    return `rgba(${r},${g},${b},${alpha})`;
-  },
-  getShieldEnhancedRgba(alpha = 0.18) { 
-    const hex = this.shieldEnhanced; 
-    const r = parseInt(hex.slice(1,3), 16), g = parseInt(hex.slice(3,5), 16), b = parseInt(hex.slice(5,7), 16);
-    return `rgba(${r},${g},${b},${alpha})`;
-  }
+  // RGB triplets for canvas rendering
+  get greenRgb() { return _rgb(this.green); },
+  get ghostRgb() { return _rgb(this.ghost); },
+  get darkRgb() { return _rgb(this.dark); },
+  get dangerRgb() { return _rgb(this.danger); },
+  getRgba(hex, alpha) { const {r,g,b} = _rgb(hex); return `rgba(${r},${g},${b},${alpha})`; },
+  getShieldActiveRgba(alpha = 0.18) { const {r,g,b} = _rgb(this.shieldActive); return `rgba(${r},${g},${b},${alpha})`; },
+  getShieldEnhancedRgba(alpha = 0.18) { const {r,g,b} = _rgb(this.shieldEnhanced); return `rgba(${r},${g},${b},${alpha})`; }
 };
 
 const ROOM_SCRIPTS = [
