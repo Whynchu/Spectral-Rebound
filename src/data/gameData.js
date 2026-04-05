@@ -3,7 +3,10 @@
  */
 
 import { VERSION } from './version.js';
-import { getPlayerColorScheme } from './colorScheme.js';
+import { getPlayerColorScheme, loadPlayerColorFromStorage } from './colorScheme.js';
+
+// Initialize player color on module load
+loadPlayerColorFromStorage();
 
 const C = {
   bg:'#161616', grid:'rgba(255,255,255,0.025)', border:'rgba(255,255,255,0.1)',

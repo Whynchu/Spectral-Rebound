@@ -6,13 +6,10 @@ import { fetchRemoteLeaderboard, submitRemoteScore } from './src/platform/leader
 import { bindResponsiveViewport } from './src/platform/viewport.js';
 import { showBoonSelection } from './src/ui/boonSelection.js';
 import { renderVersionTag } from './src/ui/versionTag.js';
-import { loadPlayerColorFromStorage, getPlayerColor } from './src/data/colorScheme.js';
+import { getPlayerColor } from './src/data/colorScheme.js';
 import { renderColorSelector } from './src/ui/colorSelector.js';
 
 renderVersionTag(VERSION);
-
-// Load player's saved color preference
-loadPlayerColorFromStorage();
 
 // 🐰 Easter seasonal flag — show bunny ears on Easter weekend
 const _now = new Date();
