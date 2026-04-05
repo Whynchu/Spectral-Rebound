@@ -99,7 +99,7 @@ body.app-ready #wrap { opacity: 1; }
 }
 #patch-notes-panel.off { display: none; }
 #patch-notes-card {
-  width: min(420px, 100%);
+  width: min(388px, calc(100vw - 32px));
   max-height: min(760px, calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 44px));
   background: rgba(22,22,22,0.98);
   border: 1px solid var(--border2);
@@ -707,14 +707,55 @@ body.app-ready #wrap { opacity: 1; }
     padding: 5px 12px;
     font-size: 7px;
   }
+  #patch-notes-panel {
+    padding: calc(env(safe-area-inset-top) + 12px) 12px calc(env(safe-area-inset-bottom) + 12px);
+  }
   #patch-notes-card {
-    padding: 20px 16px 16px;
+    width: min(340px, calc(100vw - 24px));
+    max-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
+    gap: 10px;
+    padding: 16px 14px 14px;
   }
   #patch-notes-toolbar {
-    gap: 8px;
+    gap: 6px;
   }
   .patch-notes-title {
-    font-size: 30px;
+    font-size: 24px;
+  }
+  .patch-notes-current {
+    font-size: 10px;
+    line-height: 1.55;
+  }
+  #patch-notes-list {
+    gap: 8px;
+  }
+  .patch-note-entry {
+    padding: 10px 10px 9px;
+  }
+  .patch-note-version {
+    font-size: 15px;
+  }
+  .patch-note-label {
+    font-size: 7px;
+    letter-spacing: .14em;
+  }
+  .patch-note-copy {
+    gap: 8px;
+  }
+  .patch-note-paragraph {
+    font-size: 8.5px;
+    line-height: 1.5;
+  }
+  .patch-note-highlights {
+    gap: 5px;
+  }
+  .patch-note-highlight {
+    font-size: 8px;
+    line-height: 1.45;
+  }
+  #patch-notes-archive-note {
+    font-size: 8px;
+    line-height: 1.4;
   }
 }
 
