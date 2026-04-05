@@ -80,11 +80,11 @@ body::before {
 body.app-loading #wrap { opacity: 0; }
 body.app-ready #wrap { opacity: 1; }
 #btn-patch-notes {
-  position: fixed;
-  top: calc(env(safe-area-inset-top) + 10px);
+  position: absolute;
+  top: -14px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 120;
+  z-index: 121;
   padding: 8px 16px;
   font-size: 8px;
   letter-spacing: .18em;
@@ -689,7 +689,7 @@ body.app-ready #wrap { opacity: 1; }
   .eyebrow { letter-spacing: .2em; }
   .btn-menu-sub { padding: 8px 18px; font-size: 9px; }
   #btn-patch-notes {
-    top: calc(env(safe-area-inset-top) + 8px);
+    top: -12px;
     padding: 7px 14px;
   }
   #patch-notes-card {
