@@ -125,13 +125,11 @@ function getDefaultUpgrades() {
     spreadShot: false,
     payload: false,
     shockwave: false, shockwaveCooldown: 0,
-    pulseMine: false, mines: [], pulseAbsorbCount: 0,
     nullZone: false,
     gravityWell2: false,
-    transmute: false, transmuteBounceCount: 0, decayFieldEvolved: false,
     refraction: false, refractionCooldown: 0, refractionCount: 0,
-    mirrorTide: false, mirrorTideCooldown: 0,
-    phaseDash: false, phaseDashCooldown: 0, dashDirection: 0, isDashing: false,
+    mirrorTide: false, mirrorTideTier: 0, mirrorTideCooldown: 0, mirrorTideRoomLimit: 0, mirrorTideRoomUses: 0,
+    phaseDash: false, phaseDashTier: 0, phaseDashCooldown: 0, phaseDashRoomLimit: 0, phaseDashRoomUses: 0, dashDirection: 0, isDashing: false,
     overload: false, overloadActive: false, overloadCooldown: 0,
     empBurst: false, empBurstUsed: false,
     voidWalker: false, voidZoneActive: false, voidZoneTimer: 0,
@@ -201,17 +199,15 @@ const BOONS = [
   {name:'Spread Shot',tag:'OFFENSE',icon:'⬄',desc:'Fire 3 bullets in a cone instead of 1. +2 charge cost per fire.',apply(upg){if(upg.spreadShot)return; upg.spreadShot=true;syncChargeCapacity(upg);}},
   {name:'Payload',tag:'OFFENSE',icon:'💣',desc:'Output bullets explode on final impact, damaging in a 40px radius.',requires:upg=>upg.biggerBulletsTier>0,apply(upg){if(upg.payload)return; upg.payload=true;}},
   {name:'Shockwave',tag:'OFFENSE',icon:'⚡',desc:'Firing at full charge releases a radial enemy push. 3s cooldown.',apply(upg){if(upg.shockwave)return; upg.shockwave=true;}},
-  {name:'Pulse Mine',tag:'UTILITY',icon:'⛏️',desc:'Absorbing 5 grey bullets plants a mine at your position. Max 3. Converts danger→grey nearby.',apply(upg){if(upg.pulseMine)return; upg.pulseMine=true;}},
   // Null Zone removed — unfun invincibility loop
   {name:'Gravity Well',tag:'UTILITY',icon:'⊙',desc:'Picking this a 2nd time adds: enemies move 20% slower within 90px.',evolvesWith:['Gravity Well'],evolvedVersion:{name:'Gravity Well II',icon:'⊙+',desc:'Slows both danger bullets AND enemies 30%.'},apply(upg){if(!upg.gravityWell)return; if(upg.gravityWell2)return; upg.gravityWell2=true;}},
   
   // Phase 5: Bullet Alchemy
-  {name:'Transmute',tag:'UTILITY',icon:'🔄',desc:'Every 4th wall bounce, converts a danger bullet to grey. Deterministic.',evolvesWith:['Gravity Well'],evolvedVersion:{name:'Decay Field',icon:'🌀',desc:'Converted bullets slow enemies 1s within 100px.',apply(upg){if(upg.transmute)return; upg.transmute=true; upg.decayFieldEvolved=true;}},apply(upg){if(upg.transmute)return; upg.transmute=true;}},
   {name:'Refraction',tag:'OFFENSE',icon:'💡',desc:'Absorbed grey bullets fire weak homing shots (0.5× dmg). Max 3/sec.',requires:upg=>upg.absorbTier>0,apply(upg){if(upg.refraction)return; upg.refraction=true;}},
-  {name:'Mirror Tide',tag:'OFFENSE',icon:'🪞',desc:'Next danger hit reflects as an output bullet. 2s cooldown.',requires:upg=>upg.armorTier>0,apply(upg){if(upg.mirrorTide)return; upg.mirrorTide=true;}},
+  {name:'Mirror Tide',tag:'OFFENSE',icon:'🪞',desc:'Reflects the next danger hit. Starts at 1 use/room, repeats add +1 use/room. 2s cooldown.',requires:upg=>upg.armorTier>0,apply(upg){if(upg.mirrorTideTier>=3)return; upg.mirrorTide=true; upg.mirrorTideTier++; upg.mirrorTideRoomLimit=upg.mirrorTideTier;}},
   
   // Phase 6: Active Abilities
-  {name:'Phase Dash',tag:'SURVIVE',icon:'💨',desc:'Auto-dodge when hit: dash away from danger. 0.3s invincibility, 4s cooldown.',apply(upg){if(upg.phaseDash)return; upg.phaseDash=true;}},
+  {name:'Phase Dash',tag:'SURVIVE',icon:'💨',desc:'Auto-dodge when hit. Starts at 1 use/room, repeats add +1 use/room. 0.3s invincibility, 4s cooldown.',apply(upg){if(upg.phaseDashTier>=3)return; upg.phaseDash=true; upg.phaseDashTier++; upg.phaseDashRoomLimit=upg.phaseDashTier;}},
   {name:'Overload',tag:'OFFENSE',icon:'⚡',desc:'Full charge auto-triggers: next shot ×2 damage, empties charge, 3s cooldown.',apply(upg){if(upg.overload)return; upg.overload=true;}},
   {name:'EMP Burst',tag:'SURVIVE',icon:'💥',desc:'At ≤30% HP + take damage: destroy all danger bullets. Once per room.',requires:upg=>upg.capacitorTier>0,apply(upg){if(upg.empBurst)return; upg.empBurst=true;}},
 ];
@@ -407,15 +403,12 @@ function getActiveBoonEntries(upg) {
   if(upg.spreadShot) entries.push({icon:'⬄',name:'Spread Shot',detail:'3-bullet cone spread'});
   if(upg.payload) entries.push({icon:'💣',name:'Payload',detail:'Bullets explode on impact'});
   if(upg.shockwave) entries.push({icon:'⚡',name:'Shockwave',detail:'Full charge → push enemies'});
-  if(upg.pulseMine) entries.push({icon:'⛏️',name:'Pulse Mine',detail:`${upg.mines?upg.mines.length:0}/3 active`});
 
   if(upg.gravityWell2) entries.push({icon:'⊙+',name:'Gravity Well II',detail:'Slows bullets & enemies'});
   else if(upg.gravityWell) entries.push({icon:'⊙',name:'Gravity Well',detail:'Slows nearby danger bullets'});
-  if(upg.transmute && !upg.decayFieldEvolved) entries.push({icon:'🔄',name:'Transmute',detail:`Bounce count: ${upg.transmuteBounceCount||0}/4`});
-  if(upg.decayFieldEvolved) entries.push({icon:'🌀',name:'Decay Field',detail:'Converted bullets slow enemies'});
   if(upg.refraction) entries.push({icon:'💡',name:'Refraction',detail:`Cooldown: ${Math.max(0, (upg.refractionCooldown||0)/1000).toFixed(1)}s`});
-  if(upg.mirrorTide) entries.push({icon:'🪞',name:'Mirror Tide',detail:`Cooldown: ${Math.max(0, (upg.mirrorTideCooldown||0)/1000).toFixed(1)}s`});
-  if(upg.phaseDash) entries.push({icon:'💨',name:'Phase Dash',detail:`Cooldown: ${Math.max(0, (upg.phaseDashCooldown||0)/1000).toFixed(1)}s`});
+  if(upg.mirrorTide) entries.push({icon:'🪞',name:'Mirror Tide',detail:`${Math.max(0, (upg.mirrorTideRoomLimit||0) - (upg.mirrorTideRoomUses||0))}/${upg.mirrorTideRoomLimit||0} room uses, ${Math.max(0, (upg.mirrorTideCooldown||0)/1000).toFixed(1)}s cd`});
+  if(upg.phaseDash) entries.push({icon:'💨',name:'Phase Dash',detail:`${Math.max(0, (upg.phaseDashRoomLimit||0) - (upg.phaseDashRoomUses||0))}/${upg.phaseDashRoomLimit||0} room uses, ${Math.max(0, (upg.phaseDashCooldown||0)/1000).toFixed(1)}s cd`});
   if(upg.overload) entries.push({icon:'⚡',name:'Overload',detail:'Auto ×2 damage at full charge'});
   if(upg.empBurst) entries.push({icon:'💥',name:'EMP Burst',detail:upg.empBurstUsed?'SPENT':'Ready ≤30% HP'});
   if(upg.voidWalker) entries.push({icon:'🌊',name:'VOID WALKER',detail:'Dashing creates void zone'});

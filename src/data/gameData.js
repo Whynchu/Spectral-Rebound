@@ -3,7 +3,7 @@
  */
 
 import { VERSION } from './version.js';
-import { getPlayerColorScheme, loadPlayerColorFromStorage } from './colorScheme.js';
+import { getPlayerColorScheme, getThreatPalette, loadPlayerColorFromStorage } from './colorScheme.js';
 
 // Initialize player color on module load
 loadPlayerColorFromStorage();
@@ -21,7 +21,8 @@ function _mixHex(baseHex, tintHex, amount) {
 
 const C = {
   bg:'#161616', grid:'rgba(255,255,255,0.025)', border:'rgba(255,255,255,0.1)',
-  grey:'#888', siphon:'#a78bfa',
+  grey:'#888',
+  get siphon() { return getThreatPalette().siphon.hex; },
   get danger() { return getPlayerColorScheme().dangerHex; },
   get dangerCore() { const {r,g,b} = _rgb(this.danger); return `rgba(${r},${g},${b},0.9)`; },
   get green() { return getPlayerColorScheme().hex; },

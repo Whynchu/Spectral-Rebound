@@ -6,7 +6,7 @@ import { fetchRemoteLeaderboard, submitRemoteScore } from './src/platform/leader
 import { bindResponsiveViewport } from './src/platform/viewport.js';
 import { showBoonSelection } from './src/ui/boonSelection.js';
 import { renderVersionTag } from './src/ui/versionTag.js';
-import { PLAYER_COLORS, getPlayerColor, getPlayerColorScheme } from './src/data/colorScheme.js';
+import { PLAYER_COLORS, getPlayerColor, getPlayerColorScheme, getThreatPalette } from './src/data/colorScheme.js';
 import { renderColorSelector } from './src/ui/colorSelector.js';
 
 renderVersionTag(VERSION);
@@ -278,6 +278,15 @@ function startRoom(idx) {
   _vampiricRestoresThisRoom = 0;
   _orbFireTimers = []; _orbCooldown = [];
   UPG.predatorKillStreak = 0; UPG.predatorKillStreakTime = 0;
+  if(UPG.mirrorTide){
+    UPG.mirrorTideRoomUses = 0;
+    UPG.mirrorTideCooldown = 0;
+  }
+  if(UPG.phaseDash){
+    UPG.phaseDashRoomUses = 0;
+    UPG.phaseDashCooldown = 0;
+    UPG.isDashing = false;
+  }
   roomIndex = idx;
   roomPurpleShooterAssigned = false;
   const def = getRoomDef(idx);
@@ -363,6 +372,32 @@ function bulletSpeedScale() {
   return 0.68 + Math.min(roomIndex, 10) * 0.032;
 }
 
+function getEliteBulletStagePalette() {
+  const threat = getThreatPalette();
+  return [
+    { fill: threat.elite.hex, core: C.getRgba(threat.elite.light, 0.9) },
+    { fill: threat.advanced.hex, core: C.getRgba(threat.advanced.light, 0.9) },
+    { fill: threat.danger.hex, core: C.getRgba(threat.danger.light, 0.9) },
+  ];
+}
+
+function applyEliteBulletStage(bullet, stage) {
+  const palette = getEliteBulletStagePalette();
+  const nextStage = Math.max(0, Math.min(stage, palette.length - 1));
+  bullet.eliteStage = nextStage;
+  bullet.eliteColor = palette[nextStage].fill;
+  bullet.eliteCore = palette[nextStage].core;
+  bullet.bounceStages = nextStage < palette.length - 1 ? 1 : 0;
+}
+
+function getDoubleBounceBulletPalette() {
+  const threat = getThreatPalette();
+  return {
+    fill: threat.advanced.hex,
+    core: C.getRgba(threat.advanced.light, 0.9),
+  };
+}
+
 function spawnEB(ex,ey) {
   const a=Math.atan2(player.y-ey,player.x-ex)+(Math.random()-.5)*.22;
   const spd=(145+Math.random()*40) * bulletSpeedScale();
@@ -391,7 +426,7 @@ function spawnDBB(ex,ey) {
 function spawnTB(ex,ey) {
   const a=Math.atan2(player.y-ey,player.x-ex)+(Math.random()-.5)*.18;
   const spd=(145+Math.random()*40) * bulletSpeedScale();
-  bullets.push({x:ex,y:ey,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,state:'danger',r:5,decayStart:null,bounces:0,isTriangle:true,wallBounces:0});
+  bullets.push({x:ex,y:ey,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,state:'danger',r:7,decayStart:null,bounces:0,isTriangle:true,wallBounces:0});
 }
 
 function spawnTriangleBurst(ex, ey, origVx, origVy) {
@@ -399,34 +434,33 @@ function spawnTriangleBurst(ex, ey, origVx, origVy) {
   const burstSpd = 140 * bulletSpeedScale();
   for(let i = 0; i < 3; i++) {
     const angle = baseAngle + (i - 1) * (Math.PI * 2 / 3);
-    bullets.push({x:ex,y:ey,vx:Math.cos(angle)*burstSpd,vy:Math.sin(angle)*burstSpd,state:'danger',r:5,decayStart:null,bounces:0});
+    bullets.push({x:ex,y:ey,vx:Math.cos(angle)*burstSpd,vy:Math.sin(angle)*burstSpd,state:'danger',r:5,decayStart:null,bounces:0,dangerBounceBudget:1});
   }
   sparks(ex, ey, C.danger, 6, 50);
 }
 
-// Elite enemy bullets: orange (stage 0) that cycle through purple (stage 1) then blue (stage 2)
-function spawnEliteBullet(ex, ey, angle, speed, stageOverride) {
+// Elite bullets advance through the current threat palette rather than fixed colors.
+function spawnEliteBullet(ex, ey, angle, speed, stageOverride, extras = {}) {
   const stage = stageOverride !== undefined ? stageOverride : 0;
-  const colors = ['#ff9500', '#a855f7', '#3b82f6']; // orange -> purple -> blue
-  bullets.push({
+  const bullet = {
     x: ex, y: ey,
     vx: Math.cos(angle) * speed,
     vy: Math.sin(angle) * speed,
     state: 'danger',
-    r: 5,
+    r: extras.r ?? 5,
     decayStart: null,
     bounces: 0,
-    eliteStage: stage,
-    eliteColor: colors[stage],
-    bounceStages: stage < 2 ? 1 : 0, // only last stage (blue) doesn't bounce to next
-  });
+    ...extras,
+  };
+  applyEliteBulletStage(bullet, stage);
+  bullets.push(bullet);
 }
 
-// Elite triangle: shoots purple triangles that burst into 3 blue triangles
+// Elite triangle shots use the same staged palette, just scaled up.
 function spawnEliteTriangleBullet(ex, ey) {
   const a = Math.atan2(player.y - ey, player.x - ex) + (Math.random() - 0.5) * 0.18;
   const spd = (145 + Math.random() * 40) * bulletSpeedScale();
-  spawnEliteBullet(ex, ey, a, spd, 1); // stage 1 = purple
+  spawnEliteBullet(ex, ey, a, spd, 1, { r: 7 });
 }
 
 function spawnEliteTriangleBurst(ex, ey, origVx, origVy) {
@@ -434,9 +468,9 @@ function spawnEliteTriangleBurst(ex, ey, origVx, origVy) {
   const burstSpd = 140 * bulletSpeedScale();
   for(let i = 0; i < 3; i++) {
     const angle = baseAngle + (i - 1) * (Math.PI * 2 / 3);
-    spawnEliteBullet(ex, ey, angle, burstSpd, 2); // stage 2 = blue
+    spawnEliteBullet(ex, ey, angle, burstSpd, 2, { dangerBounceBudget: 1 });
   }
-  sparks(ex, ey, '#a855f7', 6, 60);
+  sparks(ex, ey, getThreatPalette().advanced.hex, 6, 60);
 }
 
 function createLaneOffsets(count, spacing) {
@@ -609,6 +643,7 @@ function spawnGreyDrops(x,y,ts,count=getEnemyGreyDropCount()) {
   }
 }
 function burstBlueDissipate(x, y) {
+  const threat = getThreatPalette();
   const room = Math.min(12, MAX_PARTICLES - particles.length);
   for(let i=0;i<room;i++){
     const a = Math.random() * Math.PI * 2;
@@ -618,7 +653,7 @@ function burstBlueDissipate(x, y) {
       y,
       vx: Math.cos(a) * s,
       vy: Math.sin(a) * s,
-      col: `rgba(96,165,250,${0.35 + Math.random() * 0.4})`,
+      col: C.getRgba(threat.danger.light, 0.35 + Math.random() * 0.4),
       life: 0.9 + Math.random() * 0.35,
       decay: 2.2 + Math.random() * 0.9,
       grow: 0.8 + Math.random() * 1.2,
@@ -963,16 +998,6 @@ function update(dt,ts){
   for(let si=0;si<_orbCooldown.length;si++){
     if(_orbCooldown[si]>0) _orbCooldown[si]=Math.max(0,_orbCooldown[si]-dt);
   }
-  // Pulse Mines — decay life
-  if(UPG.pulseMine && UPG.mines && UPG.mines.length > 0){
-    for(let mi = UPG.mines.length - 1; mi >= 0; mi--){
-      UPG.mines[mi].life -= dt * 1000;
-      if(UPG.mines[mi].life <= 0){
-        UPG.mines.splice(mi, 1);
-      }
-    }
-  }
-
   // ── Room state machine
   roomTimer += dt*1000;
 
@@ -1120,11 +1145,11 @@ function update(dt,ts){
       e.y=Math.max(M+e.r,Math.min(H-M-e.r,e.y));
       if(d<player.r+e.r+2 && player.invincible<=0){
         hp-=18; player.invincible=1.0; player.distort=.4;
-        sparks(player.x,player.y,'#f472b6',10,90);
+        sparks(player.x,player.y,C.danger,10,90);
         if(UPG.colossus && _colossusShockwaveCd <= 0){
           _colossusShockwaveCd = 4.0;
           for(let ci=bullets.length-1;ci>=0;ci--){ const cb=bullets[ci]; if(cb.state==='danger' && Math.hypot(cb.x-player.x,cb.y-player.y)<120){ cb.state='grey'; cb.decayStart=ts; } }
-          sparks(player.x,player.y,'#a78bfa',14,120);
+          sparks(player.x,player.y,getThreatPalette().advanced.hex,14,120);
         }
         if(hp<=0){
           if(UPG.lifeline && UPG.lifelineTriggerCount < (UPG.lifelineUses||1)){
@@ -1141,11 +1166,6 @@ function update(dt,ts){
       
       // Gravity Well tier 2: apply 20% enemy movement slowdown
       if(UPG.gravityWell2) spd *= 0.8;
-      
-      // Decay Field: apply temporary slow from transmute conversions
-      if(UPG.decayFieldEvolved && e.slowedUntil && ts < e.slowedUntil){
-        spd *= 0.5;
-      }
 
       // Advance fire timer
       e.fT += dt*1000;
@@ -1331,10 +1351,7 @@ function update(dt,ts){
         burstBlueDissipate(b.x, b.y);
         if(b.eliteStage !== undefined && b.bounceStages !== undefined && b.bounceStages > 0){
           // Elite bullet: transition to next stage on wall bounce
-          b.eliteStage++;
-          b.bounceStages--;
-          const colors = ['#ff9500', '#a855f7', '#3b82f6'];
-          b.eliteColor = colors[Math.min(b.eliteStage, 2)];
+          applyEliteBulletStage(b, (b.eliteStage || 0) + 1);
           sparks(b.x, b.y, b.eliteColor, 4, 40);
         } else if(b.isTriangle){
           b.wallBounces++;
@@ -1342,31 +1359,12 @@ function update(dt,ts){
             spawnTriangleBurst(b.x, b.y, b.vx, b.vy);
             bullets.splice(i,1);continue;
           }
+        } else if((b.dangerBounceBudget || 0) > 0){
+          b.dangerBounceBudget--;
+          sparks(b.x, b.y, C.danger, 4, 40);
         } else if(b.doubleBounce){
           b.bounceCount++;
           if(b.bounceCount>=2){b.state='grey';b.decayStart=ts;sparks(b.x,b.y,C.grey,4,35);}
-        } else if(UPG.transmute){
-          // Transmute: every 4th bounce converts danger to grey
-          b.bounceCount = (b.bounceCount || 0) + 1;
-          if(b.bounceCount >= 4){
-            b.state = 'grey';
-            b.decayStart = ts;
-            sparks(b.x, b.y, '#a78bfa', 6, 50);
-            
-            // Decay Field: if transmute evolved, slow nearby enemies 1s
-            const decayFieldActive = UPG.transmute && UPG.gravityWell && UPG.decayFieldEvolved;
-            if(decayFieldActive){
-              const slowRadius = 100;
-              for(const e of enemies){
-                if(Math.hypot(e.x - b.x, e.y - b.y) < slowRadius + e.r){
-                  e.slowedUntil = Math.max(e.slowedUntil || 0, ts + 1000);
-                }
-              }
-            }
-          } else {
-            b.state='grey';b.decayStart=ts;
-            sparks(b.x,b.y,C.grey,4,35);
-          }
         } else {
           b.state='grey';b.decayStart=ts;
           sparks(b.x,b.y,C.grey,4,35);
@@ -1440,16 +1438,6 @@ function update(dt,ts){
           _chainMagnetTimer=500+(UPG.chainMagnetTier-1)*250;
         }
         sparks(b.x,b.y,C.ghost,5,45);
-        // Pulse Mine: count absorbed grey bullets, plant mine at 5
-        if(UPG.pulseMine){
-          UPG.pulseAbsorbCount = (UPG.pulseAbsorbCount || 0) + 1;
-          if(UPG.pulseAbsorbCount >= 5 && (!UPG.mines || UPG.mines.length < 3)){
-            UPG.pulseAbsorbCount = 0;
-            UPG.mines = UPG.mines || [];
-            UPG.mines.push({x: player.x, y: player.y, radius: 80, life: 10000});
-            sparks(player.x, player.y, '#fbbf24', 12, 100);
-          }
-        }
         bullets.splice(i,1);continue;
       }
       // Absorb Orbs: grey bullets near any alive orbit sphere are absorbed
@@ -1487,18 +1475,6 @@ function update(dt,ts){
         }
       }
       if(orbHit) continue;
-    }
-
-    // Pulse Mine: convert danger bullets to grey in mine radius
-    if(b.state==='danger' && UPG.pulseMine && UPG.mines && UPG.mines.length > 0){
-      for(let mi = UPG.mines.length - 1; mi >= 0; mi--){
-        const m = UPG.mines[mi];
-        if(Math.hypot(b.x - m.x, b.y - m.y) < m.radius){
-          b.state = 'grey';
-          b.decayStart = ts;
-          break;
-        }
-      }
     }
 
     if(b.state==='danger' && player.shields.length>0){
@@ -1563,7 +1539,12 @@ function update(dt,ts){
       
       if(Math.hypot(b.x-player.x,b.y-player.y)<player.r+b.r-2){
         // Phase Dash: auto-dodge when about to take a hit
-        if(UPG.phaseDash && UPG.phaseDashCooldown <= 0){
+        if(
+          UPG.phaseDash &&
+          UPG.phaseDashCooldown <= 0 &&
+          (UPG.phaseDashRoomUses || 0) < (UPG.phaseDashRoomLimit || 0)
+        ){
+          UPG.phaseDashRoomUses = (UPG.phaseDashRoomUses || 0) + 1;
           UPG.isDashing = true;
           player.invincible = 0.3;
           UPG.phaseDashCooldown = 4000;
@@ -1573,7 +1554,7 @@ function update(dt,ts){
           player.y += Math.sin(awayAng) * 75;
           player.x = Math.max(M + player.r, Math.min(W - M - player.r, player.x));
           player.y = Math.max(M + player.r, Math.min(H - M - player.r, player.y));
-          sparks(player.x, player.y, '#a78bfa', 16, 200);
+          sparks(player.x, player.y, getThreatPalette().advanced.hex, 16, 200);
           if(UPG.voidWalker){
             UPG.voidZoneActive = true;
             UPG.voidZoneTimer = ts + 2000;
@@ -1582,12 +1563,17 @@ function update(dt,ts){
           continue;
         }
         // Mirror Tide: reflect danger hit as output bullet
-        if(UPG.mirrorTide && UPG.mirrorTideCooldown <= 0){
+        if(
+          UPG.mirrorTide &&
+          UPG.mirrorTideCooldown <= 0 &&
+          (UPG.mirrorTideRoomUses || 0) < (UPG.mirrorTideRoomLimit || 0)
+        ){
+          UPG.mirrorTideRoomUses = (UPG.mirrorTideRoomUses || 0) + 1;
           UPG.mirrorTideCooldown = 2000;
           const reflectAngle = Math.atan2(b.vy, b.vx) + Math.PI;
           const mNow = performance.now();
           bullets.push({x: player.x, y: player.y, vx: Math.cos(reflectAngle) * 200, vy: Math.sin(reflectAngle) * 200, state: 'output', r: b.r, decayStart: null, bounceLeft: 0, pierceLeft: 0, homing: false, crit: false, dmg: (UPG.playerDamageMult || 1) * (UPG.denseDamageMult || 1), expireAt: mNow + 2000, hitIds: new Set()});
-          sparks(player.x, player.y, '#fbbf24', 12, 150);
+          sparks(player.x, player.y, getThreatPalette().elite.hex, 12, 150);
           bullets.splice(i, 1);
           continue;
         }
@@ -1621,7 +1607,7 @@ function update(dt,ts){
         if(UPG.colossus && _colossusShockwaveCd <= 0){
           _colossusShockwaveCd = 4.0;
           for(let ci=bullets.length-1;ci>=0;ci--){ const cb=bullets[ci]; if(cb.state==='danger' && Math.hypot(cb.x-player.x,cb.y-player.y)<120){ cb.state='grey'; cb.decayStart=ts; } }
-          sparks(player.x,player.y,'#a78bfa',14,120);
+          sparks(player.x,player.y,getThreatPalette().advanced.hex,14,120);
         }
         if(hp<=0){
           if(UPG.lifeline && UPG.lifelineTriggerCount < (UPG.lifelineUses||1)){
@@ -1826,18 +1812,17 @@ function draw(ts){
   for(const b of bullets){
     if(b.state==='danger'){
       const pulse=.75+.25*Math.sin(ts*.014);
+      const doubleBouncePalette = getDoubleBounceBulletPalette();
       let bCol, bCore;
       if(b.eliteColor){
-        // Elite bullet with dynamic color based on stage
         bCol = b.eliteColor;
-        const coreAlphas = ['rgba(255,200,100,0.9)', 'rgba(230,200,255,0.9)', 'rgba(150,200,255,0.9)'];
-        bCore = coreAlphas[Math.min(b.eliteStage || 0, 2)];
+        bCore = b.eliteCore || C.dangerCore;
       } else if(b.isTriangle){
         bCol=C.danger;
         bCore=C.dangerCore;
       } else {
-        bCol=b.doubleBounce&&b.bounceCount===0?'#c084fc':C.danger;
-        bCore=b.doubleBounce&&b.bounceCount===0?'rgba(230,200,255,0.9)':C.dangerCore;
+        bCol=b.doubleBounce&&b.bounceCount===0 ? doubleBouncePalette.fill : C.danger;
+        bCore=b.doubleBounce&&b.bounceCount===0 ? doubleBouncePalette.core : C.dangerCore;
       }
       ctx.globalAlpha = 0.88;
       ctx.shadowColor=bCol;ctx.shadowBlur=16*pulse;
@@ -1908,17 +1893,18 @@ function draw(ts){
     }
 
     if(e.isSiphon){
+      const threat = getThreatPalette();
       const dd=Math.hypot(e.x-player.x,e.y-player.y);
       const aa=dd<72?.14+.08*Math.sin(ts*.006):.04;
       const g=ctx.createRadialGradient(e.x,e.y,0,e.x,e.y,72);
-      g.addColorStop(0,`rgba(167,139,250,${aa*4})`);
-      g.addColorStop(1,'rgba(167,139,250,0)');
+      g.addColorStop(0,C.getRgba(threat.siphon.hex, aa * 4));
+      g.addColorStop(1,C.getRgba(threat.siphon.hex, 0));
       ctx.fillStyle=g;ctx.beginPath();ctx.arc(e.x,e.y,72,0,Math.PI*2);ctx.fill();
     }
 
-    ctx.shadowColor= e.isElite ? 'rgba(255,149,0,0.85)' : e.glowCol;
+    ctx.shadowColor= e.glowCol;
     ctx.shadowBlur = 16;
-    ctx.fillStyle = e.isElite ? '#ff9500' : e.col;
+    ctx.fillStyle = e.col;
     if(e.isTriangle){
       const angle = Math.atan2(player.y - e.y, player.x - e.x);
       ctx.save();
@@ -1954,10 +1940,10 @@ function draw(ts){
       const bx = e.x - bw/2;
       const by = e.y - e.r - (e.isBoss ? 12 : 8);
       ctx.fillStyle='#0a0e1a';ctx.fillRect(bx,by,bw,bh);
-      ctx.fillStyle = e.isBoss ? '#fbbf24' : e.col;
+      ctx.fillStyle = e.col;
       ctx.fillRect(bx,by,bw*(e.hp/e.maxHp),bh);
     }
-    ctx.fillStyle = e.isBoss ? 'rgba(251,191,36,0.7)' : 'rgba(180,180,180,0.45)';
+    ctx.fillStyle = e.isBoss ? C.getRgba(e.col, 0.72) : 'rgba(180,180,180,0.45)';
     ctx.font = e.isBoss ? 'bold 9px IBM Plex Mono,monospace' : '7px IBM Plex Mono,monospace';
     ctx.textAlign='center';
     ctx.fillText(e.isBoss ? '★ BOSS' : e.type.toUpperCase(), e.x, e.y + e.r + (e.isBoss ? 14 : 11));
@@ -2028,24 +2014,6 @@ function draw(ts){
       ctx.shadowBlur=0;
       ctx.fillStyle=C.getRgba(C.ghost, 0.92);
       ctx.beginPath();ctx.arc(sx,sy,2,0,Math.PI*2);ctx.fill();
-      ctx.restore();
-    }
-  }
-
-  // Pulse Mines
-  if(UPG.pulseMine && UPG.mines && UPG.mines.length > 0){
-    for(let mi = 0; mi < UPG.mines.length; mi++){
-      const m = UPG.mines[mi];
-      ctx.save();
-      ctx.globalAlpha = 0.6;
-      ctx.strokeStyle = '#e879f9';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(m.x, m.y, m.radius, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.globalAlpha = 0.15;
-      ctx.fillStyle = '#e879f9';
-      ctx.fill();
       ctx.restore();
     }
   }
