@@ -7,6 +7,7 @@ import { bindResponsiveViewport } from './src/platform/viewport.js';
 import { showBoonSelection } from './src/ui/boonSelection.js';
 import { renderVersionTag } from './src/ui/versionTag.js';
 import { PLAYER_COLORS, getPlayerColor, getPlayerColorScheme, getThreatPalette } from './src/data/colorScheme.js';
+import { PATCH_NOTES, PATCH_NOTES_ARCHIVE_MESSAGE } from './src/data/patchNotes.js';
 import { renderColorSelector } from './src/ui/colorSelector.js';
 
 renderVersionTag(VERSION);
@@ -51,6 +52,12 @@ startDangerCopy = document.getElementById('start-danger-copy');
 const lbCurrent = document.getElementById('lb-current');
 const lbStatus = document.getElementById('lb-status');
 const lbList = document.getElementById('leaderboard-list');
+const patchNotesBtn = document.getElementById('btn-patch-notes');
+const patchNotesPanel = document.getElementById('patch-notes-panel');
+const patchNotesCurrent = document.getElementById('patch-notes-current');
+const patchNotesList = document.getElementById('patch-notes-list');
+const patchNotesArchiveNote = document.getElementById('patch-notes-archive-note');
+const patchNotesCloseBtn = document.getElementById('btn-patch-notes-close');
 const lbPeriodBtns = document.querySelectorAll('[data-lb-period]');
 const lbScopeBtns = document.querySelectorAll('[data-lb-scope]');
 const goBoonsBtn = document.getElementById('btn-go-boons');
@@ -102,6 +109,40 @@ function renderGameOverBoons() {
 function syncPlayerScale() {
   if(!player) return;
   player.r = 9 * (UPG.playerSizeMult || 1);
+}
+
+function renderPatchNotes() {
+  if(!patchNotesCurrent || !patchNotesList || !patchNotesArchiveNote) return;
+  patchNotesCurrent.textContent = `Current live build: v${VERSION.num} — ${VERSION.label}`;
+  patchNotesArchiveNote.textContent = PATCH_NOTES_ARCHIVE_MESSAGE;
+  patchNotesList.innerHTML = '';
+  for(const note of PATCH_NOTES) {
+    const card = document.createElement('section');
+    card.className = 'patch-note-entry';
+    const paragraphs = note.summary
+      .map((paragraph) => `<p class="patch-note-paragraph">${paragraph}</p>`)
+      .join('');
+    const highlights = (note.highlights || [])
+      .map((item) => `<div class="patch-note-highlight">${item}</div>`)
+      .join('');
+    card.innerHTML = `
+      <div class="patch-note-meta">
+        <div class="patch-note-version">v${note.version}</div>
+        <div class="patch-note-label">${note.label}</div>
+      </div>
+      <div class="patch-note-copy">
+        ${paragraphs}
+        <div class="patch-note-highlights">${highlights}</div>
+      </div>
+    `;
+    patchNotesList.appendChild(card);
+  }
+}
+
+function setPatchNotesOpen(isOpen) {
+  if(!patchNotesPanel) return;
+  patchNotesPanel.classList.toggle('off', !isOpen);
+  patchNotesPanel.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
 }
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
@@ -2264,6 +2305,18 @@ bindJoystickControls({
   canvas: cv,
   joy,
   getGameState: () => gstate,
+});
+
+renderPatchNotes();
+patchNotesBtn?.addEventListener('click', () => setPatchNotesOpen(true));
+patchNotesCloseBtn?.addEventListener('click', () => setPatchNotesOpen(false));
+patchNotesPanel?.addEventListener('click', (event) => {
+  if(event.target === patchNotesPanel) setPatchNotesOpen(false);
+});
+document.addEventListener('keydown', (event) => {
+  if(event.key === 'Escape') {
+    setPatchNotesOpen(false);
+  }
 });
 
 function openLeaderboardScreen() {

@@ -79,6 +79,119 @@ body::before {
 }
 body.app-loading #wrap { opacity: 0; }
 body.app-ready #wrap { opacity: 1; }
+#btn-patch-notes {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
+  padding: 8px 16px;
+  font-size: 8px;
+  letter-spacing: .18em;
+  opacity: .94;
+}
+#patch-notes-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 125;
+  background: rgba(0,0,0,0.58);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(env(safe-area-inset-top) + 18px) 16px calc(env(safe-area-inset-bottom) + 18px);
+}
+#patch-notes-panel.off { display: none; }
+#patch-notes-card {
+  width: min(420px, 100%);
+  max-height: min(760px, calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 44px));
+  background: rgba(22,22,22,0.98);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  box-shadow: 0 0 40px rgba(0,0,0,0.45);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 26px 24px 20px;
+}
+.patch-notes-title {
+  font-size: 34px;
+}
+.patch-notes-current {
+  max-width: 100%;
+}
+#patch-notes-list {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: auto;
+  touch-action: pan-y;
+  padding-right: 4px;
+  text-align: left;
+}
+#patch-notes-list::-webkit-scrollbar {
+  width: 6px;
+}
+#patch-notes-list::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.08);
+  border-radius: 999px;
+}
+.patch-note-entry {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 14px 12px;
+}
+.patch-note-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.patch-note-version {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px;
+  color: #fff;
+}
+.patch-note-label {
+  font-size: 8px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-align: right;
+}
+.patch-note-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.patch-note-paragraph {
+  font-size: 10px;
+  line-height: 1.65;
+  color: var(--muted);
+}
+.patch-note-highlights {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.patch-note-highlight {
+  font-size: 9px;
+  line-height: 1.55;
+  color: var(--text);
+}
+#patch-notes-archive-note {
+  width: 100%;
+  font-size: 9px;
+  line-height: 1.5;
+  color: var(--dim);
+  text-align: center;
+}
 /* TOP HUD */
 #top-hud {
   display: flex;
@@ -575,6 +688,16 @@ body.app-ready #wrap { opacity: 1; }
   .screen { gap: 12px; padding: 24px; }
   .eyebrow { letter-spacing: .2em; }
   .btn-menu-sub { padding: 8px 18px; font-size: 9px; }
+  #btn-patch-notes {
+    top: calc(env(safe-area-inset-top) + 8px);
+    padding: 7px 14px;
+  }
+  #patch-notes-card {
+    padding: 22px 18px 18px;
+  }
+  .patch-notes-title {
+    font-size: 30px;
+  }
 }
 
 /* ── Phase 4: Evolved boon cards ──────────────────────────────────────────── */

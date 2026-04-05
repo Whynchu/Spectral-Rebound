@@ -1,4 +1,4 @@
-const VERSION = { num: '1.16.4', label: 'BALANCE PASS' };
+const VERSION = { num: '1.16.5', label: 'PATCH NOTES' };
 
 function formatVersionTag(version = VERSION) {
   return `// prototype v${version.num} - ${version.label}`;
