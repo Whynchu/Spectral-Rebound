@@ -9,6 +9,10 @@ import { renderVersionTag } from './src/ui/versionTag.js';
 
 renderVersionTag(VERSION);
 
+// 🐰 Easter seasonal flag — show bunny ears on Easter weekend
+const _now = new Date();
+const _isEaster = (_now.getMonth() === 3 && _now.getDate() >= 4 && _now.getDate() <= 6); // Apr 4-6
+
 // Suppress iOS Safari magnifier / long-press context menu on the whole page
 document.addEventListener('contextmenu', (e) => e.preventDefault());
 // Block dblclick — iOS can route double-tap zoom through this even when CSS manipulation is set
@@ -2108,6 +2112,52 @@ function drawGhost(ts){
   }
   ctx.closePath();ctx.fill();
   ctx.shadowBlur=0;
+
+  // 🐰 Easter bunny ears (seasonal)
+  if(_isEaster){
+    const earH = size * 1.6;
+    const earW = size * 0.35;
+    const earBase = -size * 1.1;
+    ctx.save();
+
+    // Left ear — tall and straight, slight outward tilt
+    ctx.save();
+    ctx.translate(-size * 0.3, earBase);
+    ctx.rotate(-0.15);
+    // Outer ear
+    ctx.fillStyle = `rgba(${bodyR},${bodyG},${bodyB},0.93)`;
+    ctx.beginPath();
+    ctx.ellipse(0, -earH * 0.5, earW, earH * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = `rgba(${Math.max(0,bodyR-40)},${Math.max(0,bodyG-30)},${Math.max(0,bodyB-40)},0.6)`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // Inner ear (pink)
+    ctx.fillStyle = 'rgba(255,180,200,0.55)';
+    ctx.beginPath();
+    ctx.ellipse(0, -earH * 0.5, earW * 0.5, earH * 0.38, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Right ear — flopped over to the right
+    ctx.save();
+    ctx.translate(size * 0.3, earBase);
+    ctx.rotate(0.9);
+    ctx.fillStyle = `rgba(${bodyR},${bodyG},${bodyB},0.93)`;
+    ctx.beginPath();
+    ctx.ellipse(0, -earH * 0.4, earW * 0.9, earH * 0.42, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = `rgba(${Math.max(0,bodyR-40)},${Math.max(0,bodyG-30)},${Math.max(0,bodyB-40)},0.6)`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,180,200,0.55)';
+    ctx.beginPath();
+    ctx.ellipse(0, -earH * 0.4, earW * 0.45, earH * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.restore();
+  }
 
   ctx.fillStyle='#080f0a';
   ctx.beginPath();ctx.arc(-5,-size*.25,3,0,Math.PI*2);ctx.fill();
