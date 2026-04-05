@@ -1,3 +1,20 @@
+-- Phantom Rebound Leaderboard Schema
+-- Updated for Phase 7: Player Color Customization (v1.14.0+)
+--
+-- This schema now supports:
+-- - 8 player color themes (green, blue, purple, pink, gold, red, cyan, orange)
+-- - Boon selection order tracking (stored as CSV in boon_order column)
+-- - Enhanced boons structure: {picks: [], color: 'color_name', order: 'csv'}
+-- - Backwards compatibility with legacy boon arrays
+--
+-- New columns:
+--   player_color TEXT - The color theme chosen by the player (default: 'green')
+--   boon_order TEXT - CSV of boon names selected in order (for UI display)
+-- 
+-- Updated boons structure (v1.14.0+):
+--   Legacy (still supported): boons = [boon1, boon2, boon3]
+--   New format: boons = {picks: [boon1, boon2, ...], color: 'blue', order: 'Rapid Fire,Shield Burst,...'}
+
 create extension if not exists pgcrypto;
 
 create table if not exists public.leaderboard_scores (
@@ -24,6 +41,12 @@ create table if not exists public.leaderboard_scores (
 alter table public.leaderboard_scores
   add column if not exists boons jsonb default null;
 
+alter table public.leaderboard_scores
+  add column if not exists player_color text default 'green' check (player_color in ('green', 'blue', 'purple', 'pink', 'gold', 'red', 'cyan', 'orange'));
+
+alter table public.leaderboard_scores
+  add column if not exists boon_order text default null;
+
 create index if not exists leaderboard_scores_score_idx
   on public.leaderboard_scores (game_version, score desc, created_at desc);
 
@@ -32,6 +55,9 @@ create index if not exists leaderboard_scores_created_idx
 
 create index if not exists leaderboard_scores_name_idx
   on public.leaderboard_scores (game_version, player_name, created_at desc);
+
+create index if not exists leaderboard_scores_color_idx
+  on public.leaderboard_scores (game_version, player_color, score desc);
 
 alter table public.leaderboard_scores enable row level security;
 
@@ -44,7 +70,8 @@ create or replace function public.submit_score(
   p_score integer,
   p_room integer,
   p_game_version text,
-  p_boons jsonb default null
+  p_boons jsonb default null,
+  p_player_color text default 'green'
 )
 returns jsonb
 language plpgsql
@@ -54,9 +81,12 @@ as $$
 declare
   v_name text;
   v_version text;
+  v_color text;
+  v_boon_order text;
 begin
   v_name := upper(trim(coalesce(p_player_name, '')));
   v_version := trim(coalesce(p_game_version, ''));
+  v_color := coalesce(p_player_color, 'green');
 
   if v_name !~ '^[A-Z0-9 _-]{1,14}$' then
     raise exception 'invalid player_name';
@@ -74,15 +104,30 @@ begin
     raise exception 'invalid game_version';
   end if;
 
-  if p_boons is not null and (
-    jsonb_typeof(p_boons) <> 'array' or
-    jsonb_array_length(p_boons) > 30
-  ) then
-    raise exception 'invalid boons';
+  -- Validate player_color (only 8 valid options)
+  if v_color not in ('green', 'blue', 'purple', 'pink', 'gold', 'red', 'cyan', 'orange') then
+    v_color := 'green';
   end if;
 
-  insert into public.leaderboard_scores (player_name, score, room, game_version, boons)
-  values (v_name, p_score, p_room, v_version, p_boons);
+  if p_boons is not null then
+    -- Support both legacy array and new object format
+    if jsonb_typeof(p_boons) = 'array' then
+      -- Legacy format: just array of boons, ignore for validation
+      null;
+    elsif jsonb_typeof(p_boons) = 'object' then
+      -- New format: {picks: [...], color: '...', order: '...'}
+      if (p_boons->>'picks') is null then
+        raise exception 'invalid boons: missing picks field';
+      end if;
+      -- Extract order for indexing
+      v_boon_order := (p_boons->>'order');
+    else
+      raise exception 'invalid boons: must be array or object';
+    end if;
+  end if;
+
+  insert into public.leaderboard_scores (player_name, score, room, game_version, boons, player_color, boon_order)
+  values (v_name, p_score, p_room, v_version, p_boons, v_color, v_boon_order);
 
   return jsonb_build_object('ok', true);
 end;
@@ -102,7 +147,9 @@ returns table (
   score integer,
   room integer,
   created_at timestamptz,
-  boons jsonb
+  boons jsonb,
+  player_color text,
+  boon_order text
 )
 language sql
 security definer
@@ -114,7 +161,9 @@ as $$
       ls.score,
       ls.room,
       ls.created_at,
-      ls.boons
+      ls.boons,
+      coalesce(ls.player_color, 'green') as player_color,
+      ls.boon_order
     from public.leaderboard_scores ls
     where
       ls.game_version = trim(coalesce(p_game_version, ''))
@@ -129,11 +178,14 @@ as $$
     filtered.score,
     filtered.room,
     filtered.created_at,
-    filtered.boons
+    filtered.boons,
+    filtered.player_color,
+    filtered.boon_order
   from filtered
   order by filtered.score desc, filtered.created_at desc
   limit greatest(1, least(coalesce(p_limit, 10), 25));
 $$;
 
 grant execute on function public.submit_score(text, integer, integer, text, jsonb) to anon, authenticated;
+grant execute on function public.submit_score(text, integer, integer, text, jsonb, text) to anon, authenticated;
 grant execute on function public.get_leaderboard(text, text, text, text, integer) to anon, authenticated;
