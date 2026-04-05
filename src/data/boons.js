@@ -126,7 +126,7 @@ function getDefaultUpgrades() {
     payload: false,
     shockwave: false, shockwaveCooldown: 0,
     pulseMine: false, mines: [], pulseAbsorbCount: 0,
-    nullZone: false, nullZoneActive: false, nullZoneTimer: 0, nullZoneAbsorbCount: 0,
+    nullZone: false,
     gravityWell2: false,
     transmute: false, transmuteBounceCount: 0, decayFieldEvolved: false,
     refraction: false, refractionCooldown: 0, refractionCount: 0,
@@ -201,7 +201,7 @@ const BOONS = [
   {name:'Payload',tag:'OFFENSE',icon:'💣',desc:'Output bullets explode on final impact, damaging in a 40px radius.',requires:upg=>upg.biggerBulletsTier>0,apply(upg){if(upg.payload)return; upg.payload=true;}},
   {name:'Shockwave',tag:'OFFENSE',icon:'⚡',desc:'Firing at full charge releases a radial enemy push. 3s cooldown.',apply(upg){if(upg.shockwave)return; upg.shockwave=true;}},
   {name:'Pulse Mine',tag:'UTILITY',icon:'⛏️',desc:'Absorbing 5 grey bullets plants a mine at your position. Max 3. Converts danger→grey nearby.',apply(upg){if(upg.pulseMine)return; upg.pulseMine=true;}},
-  {name:'Null Zone',tag:'UTILITY',icon:'🔵',desc:'Absorbing 5 grey bullets creates a 2s zone that converts danger→grey within 120px.',requires:upg=>upg.absorbRange>0,apply(upg){if(upg.nullZone)return; upg.nullZone=true;}},
+  // Null Zone removed — unfun invincibility loop
   {name:'Gravity Well',tag:'UTILITY',icon:'⊙',desc:'Picking this a 2nd time adds: enemies move 20% slower within 90px.',evolvesWith:['Gravity Well'],evolvedVersion:{name:'Gravity Well II',icon:'⊙+',desc:'Slows both danger bullets AND enemies 30%.'},apply(upg){if(!upg.gravityWell)return; if(upg.gravityWell2)return; upg.gravityWell2=true;}},
   
   // Phase 5: Bullet Alchemy
@@ -407,7 +407,7 @@ function getActiveBoonEntries(upg) {
   if(upg.payload) entries.push({icon:'💣',name:'Payload',detail:'Bullets explode on impact'});
   if(upg.shockwave) entries.push({icon:'⚡',name:'Shockwave',detail:'Full charge → push enemies'});
   if(upg.pulseMine) entries.push({icon:'⛏️',name:'Pulse Mine',detail:`${upg.mines?upg.mines.length:0}/3 active`});
-  if(upg.nullZone) entries.push({icon:'🔵',name:'Null Zone',detail:`Timer: ${Math.max(0,(upg.nullZoneTimer||0)/1000).toFixed(1)}s`});
+
   if(upg.gravityWell2) entries.push({icon:'⊙+',name:'Gravity Well II',detail:'Slows bullets & enemies'});
   else if(upg.gravityWell) entries.push({icon:'⊙',name:'Gravity Well',detail:'Slows nearby danger bullets'});
   if(upg.transmute && !upg.decayFieldEvolved) entries.push({icon:'🔄',name:'Transmute',detail:`Bounce count: ${upg.transmuteBounceCount||0}/4`});

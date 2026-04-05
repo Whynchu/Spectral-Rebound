@@ -1415,16 +1415,6 @@ function update(dt,ts){
             sparks(player.x, player.y, '#fbbf24', 12, 100);
           }
         }
-        // Null Zone: count absorbed grey bullets, activate zone at 5 (paused while zone active)
-        if(UPG.nullZone && !(UPG.nullZoneActive && UPG.nullZoneTimer > ts)){
-          UPG.nullZoneAbsorbCount = (UPG.nullZoneAbsorbCount || 0) + 1;
-          if(UPG.nullZoneAbsorbCount >= 5){
-            UPG.nullZoneAbsorbCount = 0;
-            UPG.nullZoneActive = true;
-            UPG.nullZoneTimer = ts + 2000;
-            sparks(player.x, player.y, '#00d4ff', 12, 100);
-          }
-        }
         bullets.splice(i,1);continue;
       }
       // Absorb Orbs: grey bullets near any alive orbit sphere are absorbed
@@ -1528,15 +1518,6 @@ function update(dt,ts){
     }
 
     if(b.state==='danger'&&player.invincible<=0){
-      // Null Zone: converts danger→grey within 120px radius
-      if(UPG.nullZone && UPG.nullZoneActive && UPG.nullZoneTimer > ts){
-        if(Math.hypot(b.x-player.x,b.y-player.y) < 120){
-          b.state = 'grey';
-          b.decayStart = ts;
-          sparks(b.x,b.y,'#00d4ff',4,60);
-          continue;
-        }
-      }
       
       // VOID WALKER: void zone blocks danger bullets (part of legendary combo)
       if(UPG.voidWalker && UPG.voidZoneActive && UPG.voidZoneTimer > ts){
@@ -2032,22 +2013,6 @@ function draw(ts){
       ctx.fill();
       ctx.restore();
     }
-  }
-
-  // Null Zone active indicator
-  if(UPG.nullZone && UPG.nullZoneActive && UPG.nullZoneTimer > ts){
-    ctx.save();
-    const frac = Math.max(0, (UPG.nullZoneTimer - ts) / 2000);
-    ctx.globalAlpha = 0.4 * frac;
-    ctx.fillStyle = '#00d4ff';
-    ctx.beginPath();
-    ctx.arc(player.x, player.y, 120, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 0.6 * frac;
-    ctx.strokeStyle = '#00d4ff';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.restore();
   }
 
   // VOID WALKER void zone indicator
