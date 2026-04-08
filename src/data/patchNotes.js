@@ -1,5 +1,18 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.12',
+    label: 'SMALL IPHONE FIT',
+    summary: [
+      'This follow-up patch tightens the mobile shell for shorter iPhones and Safari chrome-heavy layouts. The game canvas now sizes itself against both width and available height instead of assuming a comfortable vertical budget, which prevents the stack from overcommitting space on smaller screens.',
+      'The UI also gains compact viewport modes that only activate on shorter devices, so the typography and shell spacing step down when needed without shrinking the whole presentation for larger phones.'
+    ],
+    highlights: [
+      'Canvas sizing now respects vertical viewport budget as well as width.',
+      'Shorter iPhones get compact and tight layout modes instead of relying on browser text-size reduction.',
+      'Safe-area padding and shell usage were adjusted so the browser view feels less letterboxed.'
+    ]
+  },
+  {
     version: '1.16.11',
     label: 'THREAT ROTATION + BOON SURGE',
     summary: [

@@ -64,11 +64,42 @@ const goBoonsBtn = document.getElementById('btn-go-boons');
 const goBoonsPanel = document.getElementById('go-boons-panel');
 const goBoonsList = document.getElementById('go-boons-list');
 const goBoonsCloseBtn = document.getElementById('btn-go-boons-close');
+const wrap = document.getElementById('wrap');
+const topHud = document.getElementById('top-hud');
+const botHud = document.getElementById('bot-hud');
+const roomBadge = document.getElementById('room-badge');
+const legend = document.getElementById('legend');
 
 function resize() {
-  const w = Math.min(400, window.innerWidth * 0.95);
-  cv.width  = Math.floor(w);
-  cv.height = Math.floor(w * 1.18);
+  const viewportWidth = window.visualViewport?.width || window.innerWidth;
+  const viewportHeight = window.visualViewport?.height || window.innerHeight;
+  document.body.classList.toggle('compact-viewport', viewportHeight < 780);
+  document.body.classList.toggle('tight-viewport', viewportHeight < 700);
+
+  const setCanvasSize = (width) => {
+    const nextWidth = Math.max(240, Math.floor(width));
+    cv.width = nextWidth;
+    cv.height = Math.floor(nextWidth * 1.18);
+  };
+
+  const maxWidthByViewport = Math.min(400, viewportWidth - 16);
+  setCanvasSize(maxWidthByViewport);
+
+  const wrapGap = parseFloat(getComputedStyle(wrap).gap) || 0;
+  const bodyStyle = getComputedStyle(document.body);
+  const bodyPadTop = parseFloat(bodyStyle.paddingTop) || 0;
+  const bodyPadBottom = parseFloat(bodyStyle.paddingBottom) || 0;
+  const availableHeight = viewportHeight - bodyPadTop - bodyPadBottom;
+  const nonCanvasHeight =
+    (topHud?.getBoundingClientRect().height || 0) +
+    (botHud?.getBoundingClientRect().height || 0) +
+    (roomBadge?.getBoundingClientRect().height || 0) +
+    (legend?.getBoundingClientRect().height || 0) +
+    wrapGap * 4;
+  const maxWidthByHeight = Math.floor((availableHeight - nonCanvasHeight) / 1.18);
+  const finalWidth = Math.min(maxWidthByViewport, maxWidthByHeight > 0 ? maxWidthByHeight : maxWidthByViewport);
+  setCanvasSize(finalWidth);
+
   cv.style.width = `${cv.width}px`;
   cv.style.height = `${cv.height}px`;
 }
