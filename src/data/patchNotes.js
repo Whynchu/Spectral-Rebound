@@ -1,5 +1,16 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.13',
+    label: 'DARK BACKDROP RESTORE',
+    summary: [
+      'This is a presentation follow-up to the small-iPhone fit patch. The responsive sizing changes stayed in place, but the outer app backdrop was pulled back to a solid dark base so Safari and browser chrome no longer read as bright or washed out around the game shell.'
+    ],
+    highlights: [
+      'Restored a solid dark root and body background behind the app shell.',
+      'Keeps the 1.16.12 viewport-fit changes without the lighter browser-facing backdrop.'
+    ]
+  },
+  {
     version: '1.16.12',
     label: 'SMALL IPHONE FIT',
     summary: [
