@@ -1,5 +1,20 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.11',
+    label: 'THREAT ROTATION + BOON SURGE',
+    summary: [
+      'This update rebuilds the threat-color system around a single rotated baseline instead of per-color exceptions. The green-mode relationship is now the source of truth, and every other player color shifts the full threat stack by the same hue offsets, which keeps danger, advanced, and elite stages aligned no matter which ghost color is selected.',
+      'It also pushes a broad power pass across the boon ecosystem so more picks can compete with the strongest lane-clearing builds. Charge economy, crit scaling, shield tech, orbit tech, vampiric synergies, actives, and several underperforming offensive follow-ups were all raised together, while a few long-standing behavior mismatches like Spread Shot ammo ordering and Fracture only splitting into two were corrected in runtime.'
+    ],
+    highlights: [
+      'Threat colors now rotate as a full set from the player hue, fixing palette collisions like the cyan readability issue and restoring the intended staged elite progression.',
+      'Spread Shot now counts correctly for shot economy and enemy grey drops, and low-ammo cone shots fire center-first instead of left-first.',
+      'Dense Core was heavily buffed, including a stronger per-tier multiplier and a bigger one-cap desperation spike.',
+      'Large boon uplift pass: Rapid Fire, Critical Hit, Quick Harvest, Charge Cap Up, Deep Reserve, Kinetic Harvest, shield boons, Charged Orbs, Escalation, Refraction, Mirror Tide, Phase Dash, Overload, vampiric synergies, and several follow-up effects were all raised.',
+      'Fracture now actually fires 3 split bullets in gameplay instead of behaving like a 2-way split despite the card text.'
+    ]
+  },
+  {
     version: '1.16.4',
     label: 'BALANCE PASS',
     summary: [

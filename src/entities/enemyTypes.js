@@ -104,7 +104,7 @@ function createEnemy(type, { width, height, margin, roomIndex, nextEnemyId, isBo
     forcePurpleShots: Boolean(def.forcePurpleShots),
     isBoss,
     isElite,
-    eliteStage: 0, // 0=orange, 1=purple, 2=blue for elite enemies
+    eliteStage: 0, // 0=elite hue, 1=advanced hue, 2=danger hue for the current player-color rotation
     // Disruptor cooldown: tracks bullet count for cooldown after 5 shots
     disruptorBulletCount: 0,
     disruptorCooldown: 0,

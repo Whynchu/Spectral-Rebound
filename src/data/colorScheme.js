@@ -7,9 +7,6 @@ const PLAYER_COLORS = {
     hex: '#4ade80',
     light: '#b8ffcc',
     dark: '#22c55e',
-    dangerKey: 'blue',
-    dangerHex: '#60a5fa',
-    dangerLabel: 'blue',
     icon: '🟢'
   },
   blue: {
@@ -17,9 +14,6 @@ const PLAYER_COLORS = {
     hex: '#60a5fa',
     light: '#93c5fd',
     dark: '#2563eb',
-    dangerKey: 'red',
-    dangerHex: '#f87171',
-    dangerLabel: 'red',
     icon: '🔵'
   },
   purple: {
@@ -27,9 +21,6 @@ const PLAYER_COLORS = {
     hex: '#c084fc',
     light: '#e9d5ff',
     dark: '#9333ea',
-    dangerKey: 'gold',
-    dangerHex: '#fbbf24',
-    dangerLabel: 'gold',
     icon: '🟣'
   },
   pink: {
@@ -37,9 +28,6 @@ const PLAYER_COLORS = {
     hex: '#f472b6',
     light: '#fbcfe8',
     dark: '#ec4899',
-    dangerKey: 'cyan',
-    dangerHex: '#22d3ee',
-    dangerLabel: 'cyan',
     icon: '💗'
   },
   gold: {
@@ -47,9 +35,6 @@ const PLAYER_COLORS = {
     hex: '#fbbf24',
     light: '#fef3c7',
     dark: '#d97706',
-    dangerKey: 'green',
-    dangerHex: '#4ade80',
-    dangerLabel: 'green',
     icon: '⭐'
   },
   red: {
@@ -57,9 +42,6 @@ const PLAYER_COLORS = {
     hex: '#f87171',
     light: '#fecaca',
     dark: '#dc2626',
-    dangerKey: 'blue',
-    dangerHex: '#93c5fd',
-    dangerLabel: 'blue',
     icon: '🔴'
   },
   cyan: {
@@ -67,9 +49,6 @@ const PLAYER_COLORS = {
     hex: '#67e8f9',
     light: '#a5f3fc',
     dark: '#06b6d4',
-    dangerKey: 'red',
-    dangerHex: '#f87171',
-    dangerLabel: 'red',
     icon: '🧊'
   },
   orange: {
@@ -77,9 +56,6 @@ const PLAYER_COLORS = {
     hex: '#fb923c',
     light: '#fed7aa',
     dark: '#ea580c',
-    dangerKey: 'green',
-    dangerHex: '#4ade80',
-    dangerLabel: 'green',
     icon: '🔥'
   }
 };
@@ -87,6 +63,12 @@ const PLAYER_COLORS = {
 // Color key order for cycling
 const COLOR_KEYS = Object.keys(PLAYER_COLORS);
 const THREAT_WHEEL = ['green', 'cyan', 'blue', 'purple', 'pink', 'red', 'orange', 'gold'];
+const THREAT_ROLE_OFFSETS = {
+  danger: 2,
+  advanced: 3,
+  aggressive: 4,
+  elite: 7,
+};
 
 let activePlayerColor = 'green';
 
@@ -127,13 +109,13 @@ function _getThreatWheelKey(baseKey, offset = 0) {
 }
 
 function getThreatPalette() {
-  const scheme = getPlayerColorScheme();
-  const dangerKey = scheme.dangerKey || 'blue';
-  const advancedKey = _getThreatWheelKey(dangerKey, 1);
-  const aggressiveKey = _getThreatWheelKey(dangerKey, 2);
-  const eliteKey = _getThreatWheelKey(dangerKey, 4);
+  const playerKey = activePlayerColor;
+  const dangerKey = _getThreatWheelKey(playerKey, THREAT_ROLE_OFFSETS.danger);
+  const advancedKey = _getThreatWheelKey(playerKey, THREAT_ROLE_OFFSETS.advanced);
+  const aggressiveKey = _getThreatWheelKey(playerKey, THREAT_ROLE_OFFSETS.aggressive);
+  const eliteKey = _getThreatWheelKey(playerKey, THREAT_ROLE_OFFSETS.elite);
 
-  const danger = _buildSwatch(scheme.dangerHex, 0.32, 0.28);
+  const danger = _buildSwatch(PLAYER_COLORS[dangerKey].hex, 0.32, 0.28);
   const advanced = _buildSwatch(PLAYER_COLORS[advancedKey].hex, 0.24, 0.22);
   const aggressive = _buildSwatch(PLAYER_COLORS[aggressiveKey].hex, 0.24, 0.22);
   const elite = _buildSwatch(PLAYER_COLORS[eliteKey].hex, 0.22, 0.18);
@@ -141,6 +123,7 @@ function getThreatPalette() {
 
   return {
     dangerKey,
+    dangerLabel: PLAYER_COLORS[dangerKey].name,
     advancedKey,
     aggressiveKey,
     eliteKey,
@@ -166,6 +149,7 @@ function setPlayerColor(colorKey) {
   // Update ALL CSS variables so the entire UI adapts
   if (document.documentElement) {
     const s = PLAYER_COLORS[activePlayerColor];
+    const threat = getThreatPalette();
     const root = document.documentElement.style;
     // Primary theme variables (used throughout CSS)
     root.setProperty('--accent', s.hex);
@@ -174,12 +158,12 @@ function setPlayerColor(colorKey) {
     // RGB triplets for rgba() usage in CSS
     root.setProperty('--accent-rgb', hexToRgb(s.hex));
     root.setProperty('--ghost-rgb', hexToRgb(s.light));
-    root.setProperty('--danger-rgb', hexToRgb(s.dangerHex));
+    root.setProperty('--danger-rgb', hexToRgb(threat.danger.hex));
     // Named player variables (kept for clarity)
     root.setProperty('--player-accent', s.hex);
     root.setProperty('--player-accent-light', s.light);
     root.setProperty('--player-accent-dark', s.dark);
-    root.setProperty('--player-danger', s.dangerHex);
+    root.setProperty('--player-danger', threat.danger.hex);
   }
   
   try {

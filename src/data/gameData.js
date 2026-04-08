@@ -23,7 +23,7 @@ const C = {
   bg:'#161616', grid:'rgba(255,255,255,0.025)', border:'rgba(255,255,255,0.1)',
   grey:'#888',
   get siphon() { return getThreatPalette().siphon.hex; },
-  get danger() { return getPlayerColorScheme().dangerHex; },
+  get danger() { return getThreatPalette().danger.hex; },
   get dangerCore() { const {r,g,b} = _rgb(this.danger); return `rgba(${r},${g},${b},0.9)`; },
   get green() { return getPlayerColorScheme().hex; },
   get ghost() { return getPlayerColorScheme().light; },

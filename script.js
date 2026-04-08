@@ -29,8 +29,8 @@ function revealAppShell() {
   });
 }
 
-function syncColorDrivenCopy(scheme = getPlayerColorScheme()) {
-  if(startDangerCopy) startDangerCopy.textContent = `${scheme.dangerLabel || 'blue'} rounds`;
+function syncColorDrivenCopy() {
+  if(startDangerCopy) startDangerCopy.textContent = `${getThreatPalette().dangerKey} rounds`;
 }
 
 window.addEventListener('phantom:player-color-change', (event) => {
@@ -158,16 +158,17 @@ const SHIELD_HALF_W = 9;
 const SHIELD_HALF_H = 4.5;
 const STALL_SPAWN_COOLDOWN_MS = 2600;
 const SHIELD_ORBIT_R    = 35;   // orbital radius of shield orbs from player center (px)
-const SHIELD_COOLDOWN   = 5.0;  // seconds a shield is inactive after absorbing a bullet (baseline; reduced by Swift Ward)
+const SHIELD_COOLDOWN   = 4.5;  // seconds a shield is inactive after absorbing a bullet (baseline; reduced by Swift Ward)
 const SHIELD_ROTATION_SPD  = 0.001; // radians per millisecond (≈1 rev / 6.3 s)
 const ORBIT_SPHERE_R    = 40;   // orbital radius of passive orbit spheres (px)
 const ORBIT_ROTATION_SPD   = 0.003; // radians per millisecond (≈1 rev / 2.1 s)
 const PLAYER_SHOT_LIFE_MS = 1100;
-const DENSE_DESPERATION_BONUS = 1.85;
-const MIRROR_SHIELD_DAMAGE_FACTOR = 0.45;
-const AEGIS_NOVA_DAMAGE_FACTOR = 0.40;
-const VOLATILE_ORB_COOLDOWN = 10;
-const VOLATILE_ORB_SHARED_COOLDOWN = 1.35;
+const DENSE_DESPERATION_BONUS = 2.4;
+const CRIT_DAMAGE_FACTOR = 2.4;
+const MIRROR_SHIELD_DAMAGE_FACTOR = 0.60;
+const AEGIS_NOVA_DAMAGE_FACTOR = 0.55;
+const VOLATILE_ORB_COOLDOWN = 8;
+const VOLATILE_ORB_SHARED_COOLDOWN = 1.0;
 let enemyIdSeq = 1;
 let playerName = 'RUNNER';
 let leaderboard = [];
@@ -425,7 +426,7 @@ function circleIntersectsShieldPlate(cx, cy, radius, sx, sy, angle) {
 
 // Shield recharge time — reduced by Swift Ward boon
 function getShieldCooldown() {
-  const reduction = (UPG.shieldRegenTier || 0) * 1.5;
+  const reduction = (UPG.shieldRegenTier || 0) * 2.0;
   return Math.max(1.5, SHIELD_COOLDOWN - reduction);
 }
 
@@ -602,8 +603,8 @@ function firePlayer(tx,ty) {
     const newAngs = [];
     for(const ang of angs){
       if(ang.isRing) { newAngs.push(ang); continue; } // skip ring shots
-      newAngs.push({ angle: ang.angle - 0.35, offset: ang.offset });
       newAngs.push({ angle: ang.angle, offset: ang.offset });
+      newAngs.push({ angle: ang.angle - 0.35, offset: ang.offset });
       newAngs.push({ angle: ang.angle + 0.35, offset: ang.offset });
     }
     angs.length = 0;
@@ -616,8 +617,8 @@ function firePlayer(tx,ty) {
   const snipeScale = 1 + UPG.snipePower * 0.18;
   const bspd = 230 * Math.min(2.0, UPG.shotSpd) * snipeScale;
   const baseRadius = 4.5 * Math.min(2.5, UPG.shotSize) * (1 + UPG.snipePower * 0.15);
-  // Predator's Instinct: apply kill streak damage multiplier (20% per kill, max +100%)
-  const predatorBonus = UPG.predatorInstinct && UPG.predatorKillStreak >= 2 ? 1 + Math.min(UPG.predatorKillStreak * 0.2, 1.0) : 1;
+  // Predator's Instinct: apply kill streak damage multiplier (25% per kill, max +125%)
+  const predatorBonus = UPG.predatorInstinct && UPG.predatorKillStreak >= 2 ? 1 + Math.min(UPG.predatorKillStreak * 0.25, 1.25) : 1;
   // Dense Core desperation bonus: extra damage at critical charge (1 cap)
   const denseDesperationBonus = (UPG.denseTier > 0 && UPG.maxCharge === 1) ? DENSE_DESPERATION_BONUS : 1;
   const lateBloomMods = getLateBloomMods(roomIndex || 0);
@@ -626,12 +627,12 @@ function firePlayer(tx,ty) {
   const baseDmg = (1 + UPG.snipePower * 0.35) * (UPG.playerDamageMult || 1) * (UPG.denseDamageMult || 1) * predatorBonus * denseDesperationBonus * lateBloomMods.damage * escalationBonus;
   const lifeMs = PLAYER_SHOT_LIFE_MS * (UPG.shotLifeMult || 1);
   const now = performance.now();
-  const overchargeBonus = (UPG.overchargeVent && charge >= UPG.maxCharge) ? 1.4 : 1;
+  const overchargeBonus = (UPG.overchargeVent && charge >= UPG.maxCharge) ? 1.6 : 1;
   
-  // Overload: if active and at full charge, apply 2x damage multiplier and consume charge
+  // Overload: if active and at full charge, apply 2.5x damage multiplier and consume charge
   let overloadBonus = 1;
   if(UPG.overload && UPG.overloadActive && charge >= UPG.maxCharge){
-    overloadBonus = 2;
+    overloadBonus = 2.5;
     UPG.overloadActive = false;
     UPG.overloadCooldown = 3000;
     charge = 0;
@@ -663,7 +664,7 @@ function firePlayer(tx,ty) {
   
   // Shockwave: fire a radial push on full-charge fire
   if(UPG.shockwave && availableShots === Math.floor(UPG.maxCharge) && UPG.shockwaveCooldown <= 0){
-    UPG.shockwaveCooldown = 3000;
+    UPG.shockwaveCooldown = 2250;
     for(const e of enemies){
       const dx = e.x - player.x;
       const dy = e.y - player.y;
@@ -1013,7 +1014,7 @@ function update(dt,ts){
 
   const W=cv.width,H=cv.height;
   const titanSlow = UPG.colossus ? 1 - (1 - (UPG.titanSlowMult || 1)) * 0.5 : (UPG.titanSlowMult || 1);
-  const bloodRushMult = UPG.bloodRush && UPG.bloodRushTimer > ts ? 1 + ((UPG.bloodRushStacks || 0) * 0.08) : 1;
+  const bloodRushMult = UPG.bloodRush && UPG.bloodRushTimer > ts ? 1 + ((UPG.bloodRushStacks || 0) * 0.10) : 1;
   const lateBloomMoveMods = getLateBloomMods(roomIndex || 0);
   const BASE_SPD=165*Math.min(2.5,(UPG.speedMult || 1) * titanSlow * bloodRushMult * lateBloomMoveMods.speed);
   const joyMax = joy.max || JOY_MAX;
@@ -1272,14 +1273,14 @@ function update(dt,ts){
         e.fT = 0;
         if(e.type==='zoner' || e.type==='purple_zoner' || e.type==='orange_zoner'){
           if(e.type==='orange_zoner'){
-            // Orange zoner is elite and shoots orange bullets
-            for(let i=0;i<e.burst;i++) spawnEliteZB(e.x,e.y,i,e.burst,0); // stage 0 = orange
+            // Orange zoner is the elite-stage zoner and uses the rotated elite palette
+            for(let i=0;i<e.burst;i++) spawnEliteZB(e.x,e.y,i,e.burst,0); // stage 0 = elite hue
           } else if(e.type==='purple_zoner'){
             // Purple zoner shoots purple double-bounce bullets
             for(let i=0;i<e.burst;i++) spawnDBB(e.x,e.y);
           } else if(e.isElite){
             // Regular zoner that rolled elite
-            for(let i=0;i<e.burst;i++) spawnEliteZB(e.x,e.y,i,e.burst,0); // stage 0 = orange
+            for(let i=0;i<e.burst;i++) spawnEliteZB(e.x,e.y,i,e.burst,0); // stage 0 = elite hue
           } else {
             for(let i=0;i<e.burst;i++) spawnZB(e.x,e.y,i,e.burst);
           }
@@ -1293,10 +1294,10 @@ function update(dt,ts){
           const canShootPurple = canEnemyUsePurpleShots(e, roomIndex);
           for(let i=0;i<e.burst;i++){
             if(e.isElite){
-              // Elite enemies shoot orange bullets that stage-up through purple to blue
+              // Elite enemies shoot bullets that stage through elite -> advanced -> danger hues
               const angle = Math.atan2(player.y - e.y, player.x - e.x) + (Math.random() - 0.5) * 0.6;
               const spd = (130 + Math.random() * 40) * bulletSpeedScale();
-              spawnEliteBullet(e.x, e.y, angle, spd, 0); // stage 0 = orange
+              spawnEliteBullet(e.x, e.y, angle, spd, 0); // stage 0 = elite hue
             } else if(canShootPurple) {
               spawnDBB(e.x,e.y);
             } else {
@@ -1329,7 +1330,7 @@ function update(dt,ts){
         if(ts - lastHitAt < 220) continue;
         if(Math.hypot(e.x-sx,e.y-sy) < e.r + 6){
           e.orbitHitAt[si] = ts;
-          e.hp -= 1;
+          e.hp -= 2;
           sparks(sx,sy,C.green,4,45);
           if(e.hp<=0){
             score+=e.pts;kills++;
@@ -1359,7 +1360,7 @@ function update(dt,ts){
         if(tgt){
           const ang=Math.atan2(tgt.e.y-oy,tgt.e.x-ox);
           const oNow=performance.now();
-          bullets.push({x:ox,y:oy,vx:Math.cos(ang)*200,vy:Math.sin(ang)*200,state:'output',r:3.5,decayStart:null,bounceLeft:0,pierceLeft:0,homing:false,crit:false,dmg:1,expireAt:oNow+1200,hitIds:new Set()});
+          bullets.push({x:ox,y:oy,vx:Math.cos(ang)*220,vy:Math.sin(ang)*220,state:'output',r:3.8,decayStart:null,bounceLeft:0,pierceLeft:0,homing:false,crit:false,dmg:1.4,expireAt:oNow+1300,hitIds:new Set()});
         }
       }
     }
@@ -1375,10 +1376,10 @@ function update(dt,ts){
     if(b.state==='output' && b.expireAt && ts>=b.expireAt){
       // Payload: explode on expiration, damaging enemies in AoE
       if(b.hasPayload && enemies.length > 0){
-        const aoeRadius = 40;
+        const aoeRadius = 48;
         for(const e of enemies){
           if(Math.hypot(e.x - b.x, e.y - b.y) < aoeRadius + e.r){
-            e.hp -= b.dmg * 0.5; // AoE damage is 50% of bullet damage
+            e.hp -= b.dmg * 0.6; // AoE damage is 60% of bullet damage
           }
         }
         sparks(b.x, b.y, '#ff6b35', 8, 60);
@@ -1401,7 +1402,7 @@ function update(dt,ts){
 
     if(UPG.gravityWell && b.state==='danger'){
       const gdist=Math.hypot(b.x-player.x,b.y-player.y);
-      if(gdist<80){
+      if(gdist<96){
         const drag=Math.pow(0.55,dt);
         b.vx*=drag; b.vy*=drag;
         // Floor: never fully stop a danger bullet
@@ -1446,19 +1447,21 @@ function update(dt,ts){
           if(UPG.splitShot && !b.hasSplit){
             b.hasSplit=true;
             const splitNow=performance.now();
-            for(const delta of [-0.35,0.35]){
+            const splitDeltas = UPG.splitShotEvolved ? [-0.42, 0, 0.42] : [-0.35, 0.35];
+            const splitDamageFactor = UPG.splitShotEvolved ? 0.85 : 0.8;
+            for(const delta of splitDeltas){
               const sa=Math.atan2(b.vy,b.vx)+delta;
               const sp=Math.hypot(b.vx,b.vy);
-              bullets.push({x:b.x,y:b.y,vx:Math.cos(sa)*sp,vy:Math.sin(sa)*sp,state:'output',r:b.r*0.8,decayStart:null,bounceLeft:0,pierceLeft:b.pierceLeft,homing:b.homing,crit:b.crit,dmg:b.dmg*0.7,expireAt:splitNow+2000,hitIds:new Set(),hasSplit:true});
+              bullets.push({x:b.x,y:b.y,vx:Math.cos(sa)*sp,vy:Math.sin(sa)*sp,state:'output',r:b.r*0.8,decayStart:null,bounceLeft:0,pierceLeft:b.pierceLeft,homing:b.homing,crit:b.crit,dmg:b.dmg*splitDamageFactor,expireAt:splitNow+2000,hitIds:new Set(),hasSplit:true});
             }
           }
         } else {
           // Payload: explode when no bounces left, damaging enemies in AoE
           if(b.hasPayload && enemies.length > 0){
-            const aoeRadius = 40;
+            const aoeRadius = 48;
             for(const e of enemies){
               if(Math.hypot(e.x - b.x, e.y - b.y) < aoeRadius + e.r){
-                e.hp -= b.dmg * 0.5; // AoE damage is 50% of bullet damage
+                e.hp -= b.dmg * 0.6; // AoE damage is 60% of bullet damage
               }
             }
             sparks(b.x, b.y, '#ff6b35', 8, 60);
@@ -1487,26 +1490,26 @@ function update(dt,ts){
           _absorbComboTimer=1500;
           _absorbComboCount++;
           if(_absorbComboCount>=3){
-            charge=Math.min(UPG.maxCharge, charge + UPG.absorbValue * 0.5);
+            charge=Math.min(UPG.maxCharge, charge + UPG.absorbValue * (UPG.surgeHarvest ? 1.0 : 0.5));
             _absorbComboCount=0;
           }
         }
         // Refraction: fire weak homing shot from absorbed grey bullet
         if(UPG.refraction && UPG.refractionCooldown <= 0){
           UPG.refractionCount = (UPG.refractionCount || 0) + 1;
-          if(UPG.refractionCount <= 3){
+          if(UPG.refractionCount <= 4){
             const angle = Math.atan2(player.y - b.y, player.x - b.x);
             const rNow = performance.now();
-            bullets.push({x: b.x, y: b.y, vx: Math.cos(angle) * 120, vy: Math.sin(angle) * 120, state: 'output', r: 3, decayStart: null, bounceLeft: 0, pierceLeft: 0, homing: true, crit: false, dmg: 0.5, expireAt: rNow + 1500, hitIds: new Set()});
-            if(UPG.refractionCount >= 3){
-              UPG.refractionCooldown = 1000;
+            bullets.push({x: b.x, y: b.y, vx: Math.cos(angle) * 140, vy: Math.sin(angle) * 140, state: 'output', r: 3.2, decayStart: null, bounceLeft: 0, pierceLeft: 0, homing: true, crit: false, dmg: 0.75, expireAt: rNow + 1600, hitIds: new Set()});
+            if(UPG.refractionCount >= 4){
+              UPG.refractionCooldown = 900;
               UPG.refractionCount = 0;
             }
           }
         }
         // Chain Magnet
         if(UPG.chainMagnetTier>0){
-          _chainMagnetTimer=500+(UPG.chainMagnetTier-1)*250;
+          _chainMagnetTimer=700+(UPG.chainMagnetTier-1)*350;
         }
         sparks(b.x,b.y,C.ghost,5,45);
         bullets.splice(i,1);continue;
@@ -1583,10 +1586,10 @@ function update(dt,ts){
                 bullets.push({x:player.x,y:player.y,vx:Math.cos(bang)*230,vy:Math.sin(bang)*230,state:'output',r:4.5*Math.min(2.5,UPG.shotSize),decayStart:null,bounceLeft:0,pierceLeft:0,homing:false,crit:false,dmg:(UPG.playerDamageMult||1)*(UPG.denseDamageMult||1)*AEGIS_NOVA_DAMAGE_FACTOR,expireAt:bNow+PLAYER_SHOT_LIFE_MS*(UPG.shotLifeMult||1),hitIds:new Set()});
               }
             }
-            // Barrier Pulse: +1.5 charge + magnet pulse
+            // Barrier Pulse: +2 charge + magnet pulse
             if(UPG.barrierPulse){
-              charge=Math.min(UPG.maxCharge,charge+1.5);
-              _barrierPulseTimer=600;
+              charge=Math.min(UPG.maxCharge,charge+2);
+              _barrierPulseTimer=800;
             }
             const cd = getShieldCooldown();
             s.cooldown = cd; s.maxCooldown = cd;
@@ -1618,8 +1621,8 @@ function update(dt,ts){
         ){
           UPG.phaseDashRoomUses = (UPG.phaseDashRoomUses || 0) + 1;
           UPG.isDashing = true;
-          player.invincible = 0.3;
-          UPG.phaseDashCooldown = 4000;
+          player.invincible = 0.45;
+          UPG.phaseDashCooldown = 3500;
           // Dash away from the bullet
           const awayAng = Math.atan2(player.y - b.y, player.x - b.x);
           player.x += Math.cos(awayAng) * 75;
@@ -1641,7 +1644,7 @@ function update(dt,ts){
           (UPG.mirrorTideRoomUses || 0) < (UPG.mirrorTideRoomLimit || 0)
         ){
           UPG.mirrorTideRoomUses = (UPG.mirrorTideRoomUses || 0) + 1;
-          UPG.mirrorTideCooldown = 2000;
+          UPG.mirrorTideCooldown = 1500;
           const reflectAngle = Math.atan2(b.vy, b.vx) + Math.PI;
           const mNow = performance.now();
           bullets.push({x: player.x, y: player.y, vx: Math.cos(reflectAngle) * 200, vy: Math.sin(reflectAngle) * 200, state: 'output', r: b.r, decayStart: null, bounceLeft: 0, pierceLeft: 0, homing: false, crit: false, dmg: (UPG.playerDamageMult || 1) * (UPG.denseDamageMult || 1), expireAt: mNow + 2000, hitIds: new Set()});
@@ -1712,7 +1715,7 @@ function update(dt,ts){
           const deadManThreshold = maxHp * 0.15;
           const deadManMult = (UPG.deadManTrigger && hp <= deadManThreshold) ? (UPG.finalForm ? 2.5 : 2) : 1;
           const deadManPierce = UPG.deadManTrigger && hp <= deadManThreshold;
-          const dmg = (b.crit ? 2 : 1) * b.dmg * deadManMult;
+          const dmg = (b.crit ? CRIT_DAMAGE_FACTOR : 1) * b.dmg * deadManMult;
           e.hp-=dmg;
           sparks(b.x,b.y,b.crit?C.ghost:C.green,b.crit?8:5,b.crit?70:55);
           // Blood Pact: piercing shots restore 1 HP per enemy hit
@@ -1732,16 +1735,16 @@ function update(dt,ts){
               hp = Math.min(maxHp, hp + Math.floor(maxHp * 0.5));
               showBossDefeated();
             }
-            // Vampiric Return: +4 HP and +0.3 charge per kill
+            // Vampiric Return: +5 HP and +0.5 charge per kill
             if(UPG.vampiric){ 
-              hp=Math.min(maxHp,hp+4); 
-              charge=Math.min(UPG.maxCharge,charge+0.3);
+              hp=Math.min(maxHp,hp+5); 
+              charge=Math.min(UPG.maxCharge,charge+0.5);
             }
               // Predator's Instinct: track kill streak (5s window)
               UPG.predatorKillStreak++;
               UPG.predatorKillStreakTime = ts + 5000;
               
-              // Blood Rush: grant +8% speed for 3s, stacks to +40%
+              // Blood Rush: grant +10% speed for 3s, stacks to +50%
               if(UPG.bloodRush){
                 if(!UPG.bloodRushStacks) UPG.bloodRushStacks = 0;
                 UPG.bloodRushStacks = Math.min(5, UPG.bloodRushStacks + 1);
@@ -1753,10 +1756,10 @@ function update(dt,ts){
                 bullets.push({x:e.x,y:e.y,vx:(Math.random()-0.5)*150,vy:(Math.random()-0.5)*150,state:'grey',r:5,decayStart:ts,bounceLeft:0,pierceLeft:0,homing:false,crit:false,dmg:0,hitIds:new Set()});
               }
               
-              // Sanguine Burst: every 10th kill (or 5th if Rampage) fires burst
+              // Sanguine Burst: every 8th kill (or 4th if Rampage) fires burst
               if(UPG.sanguineBurst){
                 UPG.sanguineKillCount = (UPG.sanguineKillCount || 0) + 1;
-                const burstThreshold = UPG.rampageEvolved ? 5 : 10;
+                const burstThreshold = UPG.rampageEvolved ? 4 : 8;
                 if(UPG.sanguineKillCount >= burstThreshold){
                   UPG.sanguineKillCount = 0;
                   const numShots = UPG.rampageEvolved ? 8 : 6;
@@ -1765,7 +1768,7 @@ function update(dt,ts){
                     const ang = a * angleStep;
                     const vx = Math.cos(ang) * 220;
                     const vy = Math.sin(ang) * 220;
-                    bullets.push({x:player.x,y:player.y,vx,vy,state:'output',r:5,decayStart:null,bounceLeft:UPG.bounceTier,pierceLeft:UPG.pierceTier,homing:UPG.homingTier>0,crit:false,dmg:UPG.playerDamageMult,expireAt:ts+2000,hitIds:new Set()});
+                    bullets.push({x:player.x,y:player.y,vx,vy,state:'output',r:5.5,decayStart:null,bounceLeft:UPG.bounceTier,pierceLeft:UPG.pierceTier,homing:UPG.homingTier>0,crit:false,dmg:(UPG.playerDamageMult||1)*(UPG.denseDamageMult||1),expireAt:ts+2200,hitIds:new Set()});
                   }
                 }
               }
@@ -1792,7 +1795,7 @@ function update(dt,ts){
                 const vNow=performance.now();
                 for(let va=0;va<4;va++){
                   const vang=va*Math.PI/2;
-                  bullets.push({x:b.x,y:b.y,vx:Math.cos(vang)*180,vy:Math.sin(vang)*180,state:'output',r:b.r*0.7,decayStart:null,bounceLeft:0,pierceLeft:0,homing:false,crit:false,dmg:b.dmg*0.5,expireAt:vNow+1500,hitIds:new Set()});
+                  bullets.push({x:b.x,y:b.y,vx:Math.cos(vang)*180,vy:Math.sin(vang)*180,state:'output',r:b.r*0.75,decayStart:null,bounceLeft:0,pierceLeft:0,homing:false,crit:false,dmg:b.dmg*0.65,expireAt:vNow+1600,hitIds:new Set()});
                 }
                 sparks(b.x,b.y,C.green,6,60);
               }
