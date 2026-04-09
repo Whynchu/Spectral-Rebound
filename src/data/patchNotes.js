@@ -1,5 +1,17 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.23',
+    label: 'RUN RECOVERY',
+    summary: [
+      'This stability pass protects mobile runs from silent canvas-loop freezes. Active runs now save a lightweight local recovery snapshot during play and on page hide, and the game loop now catches runtime failures so a frozen run can still be preserved with score, room, boons, and telemetry.'
+    ],
+    highlights: [
+      'Active runs now save local recovery snapshots every few seconds.',
+      'If the game loop crashes while the page UI still works, the run is converted into a recovered score entry instead of disappearing.',
+      'Recovery payloads include the active room telemetry snapshot when the freeze happens.'
+    ]
+  },
+  {
     version: '1.16.22',
     label: 'GLOBAL SPEED LIFT',
     summary: [
