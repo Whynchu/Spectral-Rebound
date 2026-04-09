@@ -1,5 +1,16 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.17',
+    label: 'VERTICAL ARENA EXPANSION',
+    summary: [
+      'This follow-up takes advantage of the height freed up by the recent mobile UI cleanup. Instead of holding the arena to one fixed shape, the game now lets the canvas grow taller when a phone has real vertical headroom, so that reclaimed shell space turns into actual play space.'
+    ],
+    highlights: [
+      'The arena can now extend vertically on phones that have spare height instead of leaving dead space under the playfield.',
+      'Resize math now counts only visible shell chrome, so hidden menu-only UI no longer steals gameplay budget.'
+    ]
+  },
+  {
     version: '1.16.16',
     label: 'ROOM BADGE RETIRED',
     summary: [

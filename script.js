@@ -78,15 +78,18 @@ function setMenuChromeVisible(isVisible) {
 }
 
 function resize() {
+  const BASE_ARENA_ASPECT = 1.18;
+  const MAX_ARENA_ASPECT = 1.34;
   const viewportWidth = window.visualViewport?.width || window.innerWidth;
   const viewportHeight = window.visualViewport?.height || window.innerHeight;
   document.body.classList.toggle('compact-viewport', viewportHeight < 780);
   document.body.classList.toggle('tight-viewport', viewportHeight < 700);
 
-  const setCanvasSize = (width) => {
+  const setCanvasSize = (width, height = Math.floor(width * BASE_ARENA_ASPECT)) => {
     const nextWidth = Math.max(240, Math.floor(width));
+    const nextHeight = Math.max(Math.floor(nextWidth * BASE_ARENA_ASPECT), Math.floor(height));
     cv.width = nextWidth;
-    cv.height = Math.floor(nextWidth * 1.18);
+    cv.height = nextHeight;
   };
 
   const maxWidthByViewport = Math.min(400, viewportWidth - 16);
@@ -97,14 +100,23 @@ function resize() {
   const bodyPadTop = parseFloat(bodyStyle.paddingTop) || 0;
   const bodyPadBottom = parseFloat(bodyStyle.paddingBottom) || 0;
   const availableHeight = viewportHeight - bodyPadTop - bodyPadBottom;
+  const visibleFlowItems = [...wrap.children].filter((child) => {
+    const style = getComputedStyle(child);
+    return style.display !== 'none' && style.position !== 'absolute';
+  });
+  const visibleGapCount = Math.max(0, visibleFlowItems.length - 1);
   const nonCanvasHeight =
     (topHud?.getBoundingClientRect().height || 0) +
     (botHud?.getBoundingClientRect().height || 0) +
     (legend?.getBoundingClientRect().height || 0) +
-    wrapGap * 4;
-  const maxWidthByHeight = Math.floor((availableHeight - nonCanvasHeight) / 1.18);
+    wrapGap * visibleGapCount;
+  const availableCanvasHeight = Math.max(0, availableHeight - nonCanvasHeight);
+  const maxWidthByHeight = Math.floor(availableCanvasHeight / BASE_ARENA_ASPECT);
   const finalWidth = Math.min(maxWidthByViewport, maxWidthByHeight > 0 ? maxWidthByHeight : maxWidthByViewport);
-  setCanvasSize(finalWidth);
+  const baseHeight = Math.floor(finalWidth * BASE_ARENA_ASPECT);
+  const extendedHeightCap = Math.floor(finalWidth * MAX_ARENA_ASPECT);
+  const finalHeight = Math.max(baseHeight, Math.min(availableCanvasHeight, extendedHeightCap));
+  setCanvasSize(finalWidth, finalHeight);
 
   cv.style.width = `${cv.width}px`;
   cv.style.height = `${cv.height}px`;
