@@ -1,5 +1,17 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.26',
+    label: 'SCORE SUBMIT HOTFIX',
+    summary: [
+      'This hotfix restores normal death score submission after the diagnostics split. The death path was building a valid score entry, but the remote submit call referenced a stale player-color variable name and was being caught as a diagnostic crash.'
+    ],
+    highlights: [
+      'Death score submissions now send the player color from the completed score entry.',
+      'Normal deaths should return to the leaderboard path instead of the crash-diagnostic path.',
+      'No gameplay balance values changed in this hotfix.'
+    ]
+  },
+  {
     version: '1.16.25',
     label: 'MOBILE LOAD HOTFIX',
     summary: [
