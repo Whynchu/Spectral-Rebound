@@ -1,5 +1,16 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.16',
+    label: 'ROOM BADGE RETIRED',
+    summary: [
+      'This cleanup removes the old bottom room-name badge entirely now that the current room is already shown in the top HUD. That extra chrome was just burning vertical space on smaller phones, so the shell no longer reserves room for it.'
+    ],
+    highlights: [
+      'Removed the redundant bottom room badge from the interface.',
+      'Canvas sizing no longer budgets height for the retired badge, giving a little more room back to gameplay.'
+    ]
+  },
+  {
     version: '1.16.15',
     label: 'GAME VIEW RECLAIM',
     summary: [

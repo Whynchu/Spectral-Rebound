@@ -70,7 +70,6 @@ const mainMenuBtn = document.getElementById('btn-main-menu');
 const wrap = document.getElementById('wrap');
 const topHud = document.getElementById('top-hud');
 const botHud = document.getElementById('bot-hud');
-const roomBadge = document.getElementById('room-badge');
 const legend = document.getElementById('legend');
 
 function setMenuChromeVisible(isVisible) {
@@ -101,7 +100,6 @@ function resize() {
   const nonCanvasHeight =
     (topHud?.getBoundingClientRect().height || 0) +
     (botHud?.getBoundingClientRect().height || 0) +
-    (roomBadge?.getBoundingClientRect().height || 0) +
     (legend?.getBoundingClientRect().height || 0) +
     wrapGap * 4;
   const maxWidthByHeight = Math.floor((availableHeight - nonCanvasHeight) / 1.18);
@@ -397,12 +395,6 @@ function startRoom(idx) {
   player.vx = 0;
   player.vy = 0;
   showRoomIntro(currentRoomIsBoss ? 'BOSS!' : 'READY?', false);
-  updateRoomBadge(def);
-}
-
-function updateRoomBadge(def) {
-  const el = document.getElementById('room-badge');
-  el.textContent = `ROOM ${roomIndex+1} — ${def.name}`;
 }
 
 function getRoomMaxOnScreen(idx, isBossRoom) {

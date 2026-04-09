@@ -24,7 +24,7 @@
 html { -webkit-text-size-adjust: none; text-size-adjust: none; }
 html { background: #050505; }
 /* Disable ALL touch handling on display-only areas that have small text — prevents iOS text-column zoom */
-#cv, #bot-hud, #legend, #room-badge, #room-clear, #room-intro { touch-action: none; }
+#cv, #bot-hud, #legend, #room-clear, #room-intro { touch-action: none; }
 html, body {
   width: 100%;
   height: 100vh;
@@ -244,17 +244,10 @@ body.compact-viewport #wrap {
 #sps-box { text-align:center; min-width:52px; }
 #sps-num { font-family:'Syne',sans-serif; font-weight:800; font-size:22px; color:var(--accent); line-height:1; }
 #sps-lbl { font-size:8px; letter-spacing:.2em; color:var(--dim); text-transform:uppercase; margin-top:2px; }
-/* ROOM BADGE */
-#room-badge {
-  font-family:'IBM Plex Mono',monospace;
-  font-size:9px; letter-spacing:.18em; color:var(--muted);
-  text-align:center; opacity:.6;
-}
 /* LEGEND */
 #legend { display:flex; justify-content:center; gap:16px; font-size:9px; letter-spacing:.1em; color:var(--dim); text-transform:uppercase; }
 .leg { display:flex; align-items:center; gap:5px; }
 .leg-dot { width:7px; height:7px; border-radius:50%; }
-body:not(.menu-chrome-visible) #room-badge,
 body:not(.menu-chrome-visible) #legend {
   display: none;
 }
@@ -805,10 +798,6 @@ body.compact-viewport #legend {
   gap: 12px;
   font-size: 8px;
 }
-body.compact-viewport #room-badge {
-  font-size: 8px;
-}
-
 body.tight-viewport .screen {
   gap: 10px;
   padding: 18px 16px;
@@ -833,8 +822,5 @@ body.tight-viewport #bot-hud {
 }
 body.tight-viewport #legend {
   gap: 10px;
-  font-size: 7px;
-}
-body.tight-viewport #room-badge {
   font-size: 7px;
 }
