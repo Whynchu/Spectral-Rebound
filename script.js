@@ -326,6 +326,21 @@ function createRoomTelemetry(roomNumber, roomDef) {
       slipstream: 0,
       corona: 0,
       finalForm: 0,
+      wasted: 0,
+    },
+    offense: {
+      shotsFired: 0,
+      chargeSpent: 0,
+      outputKills: 0,
+      orbitKills: 0,
+    },
+    control: {
+      movingMs: 0,
+      stillMs: 0,
+      movingWithEnemiesMs: 0,
+      movingNoFireMs: 0,
+      firingReadyMs: 0,
+      fullChargeMs: 0,
     },
     damage: {
       projectile: 0,
@@ -367,7 +382,12 @@ function gainCharge(amount, source) {
   if(amount <= 0) return 0;
   const before = charge;
   charge = Math.min(UPG.maxCharge, charge + amount);
-  return recordChargeGain(source, charge - before);
+  const gained = charge - before;
+  const wasted = amount - gained;
+  if(currentRoomTelemetry && wasted > 0) {
+    currentRoomTelemetry.charge.wasted = roundTelemetryValue((currentRoomTelemetry.charge.wasted || 0) + wasted);
+  }
+  return recordChargeGain(source, gained);
 }
 
 function recordHeal(source, amount) {
@@ -396,9 +416,31 @@ function recordPlayerDamage(amount, source) {
   return delta;
 }
 
-function recordKill() {
+function recordShotSpend(count) {
+  if(!currentRoomTelemetry || count <= 0) return;
+  currentRoomTelemetry.offense.shotsFired += count;
+  currentRoomTelemetry.offense.chargeSpent = roundTelemetryValue(currentRoomTelemetry.offense.chargeSpent + count);
+}
+
+function recordControlTelemetry(dt, isStill) {
+  if(!currentRoomTelemetry || !(roomPhase === 'spawning' || roomPhase === 'fighting')) return;
+  const ms = dt * 1000;
+  const control = currentRoomTelemetry.control;
+  if(isStill) control.stillMs = roundTelemetryValue(control.stillMs + ms);
+  else control.movingMs = roundTelemetryValue(control.movingMs + ms);
+  if(charge >= UPG.maxCharge) control.fullChargeMs = roundTelemetryValue(control.fullChargeMs + ms);
+  if(enemies.length > 0) {
+    if(!isStill) control.movingWithEnemiesMs = roundTelemetryValue(control.movingWithEnemiesMs + ms);
+    if(!isStill && charge >= 1) control.movingNoFireMs = roundTelemetryValue(control.movingNoFireMs + ms);
+    if(isStill && charge >= 1) control.firingReadyMs = roundTelemetryValue(control.firingReadyMs + ms);
+  }
+}
+
+function recordKill(source = 'output') {
   if(!currentRoomTelemetry) return;
   currentRoomTelemetry.kills += 1;
+  if(source === 'orbit') currentRoomTelemetry.offense.orbitKills += 1;
+  else currentRoomTelemetry.offense.outputKills += 1;
 }
 
 function captureTelemetrySnapshot(roomNumber) {
@@ -461,6 +503,14 @@ function buildRunTelemetryPayload() {
     acc.totalShieldBlocks += room.safety?.shieldBlocks || 0;
     acc.totalPhaseDashProcs += room.safety?.phaseDashProcs || 0;
     acc.totalMirrorTideProcs += room.safety?.mirrorTideProcs || 0;
+    acc.totalShotsFired += room.offense?.shotsFired || 0;
+    acc.totalChargeSpent = roundTelemetryValue(acc.totalChargeSpent + (room.offense?.chargeSpent || 0));
+    acc.totalChargeWasted = roundTelemetryValue(acc.totalChargeWasted + (room.charge?.wasted || 0));
+    acc.totalOutputKills += room.offense?.outputKills || 0;
+    acc.totalOrbitKills += room.offense?.orbitKills || 0;
+    acc.totalMovingNoFireMs = roundTelemetryValue(acc.totalMovingNoFireMs + (room.control?.movingNoFireMs || 0));
+    acc.totalFiringReadyMs = roundTelemetryValue(acc.totalFiringReadyMs + (room.control?.firingReadyMs || 0));
+    acc.totalFullChargeMs = roundTelemetryValue(acc.totalFullChargeMs + (room.control?.fullChargeMs || 0));
     for(const [key, value] of Object.entries(room.heal || {})) {
       acc.heal[key] = roundTelemetryValue((acc.heal[key] || 0) + (value || 0));
     }
@@ -477,6 +527,14 @@ function buildRunTelemetryPayload() {
     totalShieldBlocks: 0,
     totalPhaseDashProcs: 0,
     totalMirrorTideProcs: 0,
+    totalShotsFired: 0,
+    totalChargeSpent: 0,
+    totalChargeWasted: 0,
+    totalOutputKills: 0,
+    totalOrbitKills: 0,
+    totalMovingNoFireMs: 0,
+    totalFiringReadyMs: 0,
+    totalFullChargeMs: 0,
     heal: {},
     charge: {},
   });
@@ -936,6 +994,7 @@ function firePlayer(tx,ty) {
     });
   }
   charge=Math.max(0,charge-availableShots);
+  recordShotSpend(availableShots);
   sparks(player.x,player.y,C.green,4 + Math.min(4, availableShots),55);
   
   // Shockwave: fire a radial push on full-charge fire
@@ -1452,6 +1511,7 @@ function update(dt,ts){
 
   // ── Auto-fire: only while still, and always gated by SPS interval
   const isStill = !joy.active || joy.mag <= JOY_DEADZONE;
+  recordControlTelemetry(dt, isStill);
 
   if(!isStill){
     stillTimer = 0;
@@ -1616,7 +1676,7 @@ function update(dt,ts){
           e.hp -= 2;
           sparks(sx,sy,C.green,4,45);
           if(e.hp<=0){
-            score+=e.pts;kills++; recordKill();
+            score+=e.pts;kills++; recordKill('orbit');
             sparks(e.x,e.y,e.col,14,95);
             spawnGreyDrops(e.x,e.y,ts);
             if(UPG.finalForm && hp <= maxHp * 0.15){ gainCharge(0.5, 'finalForm'); }
@@ -2009,7 +2069,7 @@ function update(dt,ts){
             healPlayer(1, 'bloodPact');
           }
           if(e.hp<=0){
-            score+=e.pts*(b.crit?2:1);kills++; recordKill();
+            score+=e.pts*(b.crit?2:1);kills++; recordKill('output');
             sparks(e.x,e.y,e.col, e.isBoss ? 30 : 14, e.isBoss ? 160 : 95);
             // Death bullets scatter as grey
             spawnGreyDrops(e.x,e.y,ts);

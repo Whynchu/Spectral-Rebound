@@ -1,5 +1,17 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.21',
+    label: 'OFFENSE TELEMETRY',
+    summary: [
+      'This telemetry follow-up adds the missing context needed to identify intentionally suppressed offense and passive-clear loops. Runs now record shots fired, charge spent and wasted, kill source, and movement time while enemies are alive and charge is available.'
+    ],
+    highlights: [
+      'Room telemetry now records shots fired, charge spent, charge wasted at cap, output kills, and orbit kills.',
+      'Room telemetry now records movement/no-fire time so balance analysis can spot runs where the player is trying not to attack.',
+      'No gameplay balance values changed in this patch.'
+    ]
+  },
+  {
     version: '1.16.20',
     label: 'TELEMETRY TIMER FIX',
     summary: [
