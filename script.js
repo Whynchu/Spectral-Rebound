@@ -44,6 +44,8 @@ const NAME_KEY = 'phantom-rebound-runner-name';
 
 const nameInputStart = document.getElementById('name-input-start');
 const nameInputGo = document.getElementById('name-input-go');
+const startScreen = document.getElementById('s-start');
+const gameOverScreen = document.getElementById('s-go');
 const lbScreen = document.getElementById('s-lb');
 const lbOpenBtn = document.getElementById('btn-lb-open');
 const lbOpenBtnGo = document.getElementById('btn-lb-open-go');
@@ -64,11 +66,17 @@ const goBoonsBtn = document.getElementById('btn-go-boons');
 const goBoonsPanel = document.getElementById('go-boons-panel');
 const goBoonsList = document.getElementById('go-boons-list');
 const goBoonsCloseBtn = document.getElementById('btn-go-boons-close');
+const mainMenuBtn = document.getElementById('btn-main-menu');
 const wrap = document.getElementById('wrap');
 const topHud = document.getElementById('top-hud');
 const botHud = document.getElementById('bot-hud');
 const roomBadge = document.getElementById('room-badge');
 const legend = document.getElementById('legend');
+
+function setMenuChromeVisible(isVisible) {
+  document.body.classList.toggle('menu-chrome-visible', isVisible);
+  resize();
+}
 
 function resize() {
   const viewportWidth = window.visualViewport?.width || window.innerWidth;
@@ -1038,7 +1046,7 @@ function update(dt,ts){
       document.getElementById('go-note').textContent=`Room ${roomIndex+1} · ${kills} enemies eliminated`;
       if(goBoonsPanel) goBoonsPanel.classList.add('off');
       renderGameOverBoons();
-      document.getElementById('s-go').classList.remove('off');
+      gameOverScreen.classList.remove('off');
     }
     return;
   }
@@ -2401,16 +2409,28 @@ syncColorDrivenCopy();
 // Start game from name entry screen
 document.getElementById('btn-start').onclick=()=>{
   setPlayerName(nameInputStart.value, { syncInputs: true });
-  document.getElementById('s-start').classList.add('off');
+  setMenuChromeVisible(false);
+  startScreen.classList.add('off');
   init();gstate='playing';lastT=performance.now();raf=requestAnimationFrame(loop);
 };
 
 document.getElementById('btn-restart').onclick=()=>{
   setPlayerName(nameInputGo.value, { syncInputs: true });
-  document.getElementById('s-go').classList.add('off');
+  setMenuChromeVisible(false);
+  gameOverScreen.classList.add('off');
   if(goBoonsPanel) goBoonsPanel.classList.add('off');
   init();gstate='playing';lastT=performance.now();raf=requestAnimationFrame(loop);
 };
+
+mainMenuBtn?.addEventListener('click', () => {
+  setPlayerName(nameInputGo.value, { syncInputs: true });
+  gameOverScreen.classList.add('off');
+  if(goBoonsPanel) goBoonsPanel.classList.add('off');
+  lbScreen.classList.add('off');
+  setMenuChromeVisible(true);
+  startScreen.classList.remove('off');
+  gstate = 'start';
+});
 
 goBoonsBtn?.addEventListener('click', ()=>goBoonsPanel?.classList.toggle('off'));
 goBoonsCloseBtn?.addEventListener('click', ()=>goBoonsPanel?.classList.add('off'));

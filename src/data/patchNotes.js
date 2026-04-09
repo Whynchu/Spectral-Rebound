@@ -1,5 +1,16 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.15',
+    label: 'GAME VIEW RECLAIM',
+    summary: [
+      'This follow-up removes teaching chrome from active play so shorter phones can give more of the shell to the arena itself. The bottom room badge and threat legend now stay on the main menu where they are useful for onboarding, then step out of the way once a run begins.'
+    ],
+    highlights: [
+      'Room badge and danger legend now show on the main menu only, freeing more vertical space for gameplay and post-run screens.',
+      'Run-over flow now includes a direct Main Menu button instead of forcing a restart before returning to the front screen.'
+    ]
+  },
+  {
     version: '1.16.14',
     label: 'MENU FIT FOLLOW-UP',
     summary: [

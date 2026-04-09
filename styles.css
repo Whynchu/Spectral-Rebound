@@ -254,6 +254,10 @@ body.compact-viewport #wrap {
 #legend { display:flex; justify-content:center; gap:16px; font-size:9px; letter-spacing:.1em; color:var(--dim); text-transform:uppercase; }
 .leg { display:flex; align-items:center; gap:5px; }
 .leg-dot { width:7px; height:7px; border-radius:50%; }
+body:not(.menu-chrome-visible) #room-badge,
+body:not(.menu-chrome-visible) #legend {
+  display: none;
+}
 /* SCREENS */
 .screen {
   position:absolute; inset:0;

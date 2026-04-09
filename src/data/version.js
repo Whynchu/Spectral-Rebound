@@ -1,4 +1,4 @@
-const VERSION = { num: '1.16.14', label: 'MENU FIT FOLLOW-UP' };
+const VERSION = { num: '1.16.15', label: 'GAME VIEW RECLAIM' };
 
 function formatVersionTag(version = VERSION) {
   return `// prototype v${version.num} - ${version.label}`;
