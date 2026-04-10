@@ -19,10 +19,10 @@ const KINETIC_LOW_CAP_MAX_MULT = 1.75;
 
 function getLateBloomGrowth(roomIndex = 0) {
   const room = roomIndex || 0;
-  if(room <= 30) return 1;
-  if(room <= 60) return 1 + (room - 30) * 0.015;
-  if(room <= 90) return 1.45 + (room - 60) * 0.0075;
-  return 1.675 + (room - 90) * 0.00125;
+  if(room <= 15) return 1;
+  if(room <= 45) return 1 + (room - 15) * 0.015;
+  if(room <= 75) return 1.45 + (room - 45) * 0.0075;
+  return 1.675 + (room - 75) * 0.00125;
 }
 
 function getLateBloomBonusPct(roomIndex = 0) {
@@ -235,9 +235,9 @@ const BOONS = [
   {name:'Blood Rush',tag:'SURVIVE',icon:'🩸→',desc:'Kills grant +10% movement speed for 3s. Stacks to +50%.',requires:upg=>upg.vampiric,apply(upg){if(upg.bloodRush)return; upg.bloodRush=true;}},
   {name:'Crimson Harvest',tag:'SURVIVE',icon:'🩸+',desc:'Kills drop an extra grey bullet at the enemy position.',requires:upg=>upg.vampiric,apply(upg){if(upg.crimsonHarvest)return; upg.crimsonHarvest=true;}},
   {name:'Sanguine Burst',tag:'OFFENSE',icon:'💀',desc:'Every 8th kill fires a free 6-way output burst.',requires:upg=>upg.vampiric,apply(upg){if(upg.sanguineBurst)return; upg.sanguineBurst=true;},evolvesWith:['Predator\'s Instinct'],evolvedVersion:{name:'Rampage',icon:'💀+',desc:'Every 4th kill fires a free 8-way burst instead.',apply(upg){if(upg.sanguineBurst)return; upg.sanguineBurst=true; upg.rampageEvolved=true;}}},
-  {name:'Late Bloom',tag:'OFFENSE',icon:'🌱',desc:'+1.5% damage per room (30-60), +0.75% (60-90), +0.125% (90+). Soft-capped. Exclusive. -6% move speed.',apply(upg){if(hasLateBloomVariant(upg))return; upg.lateBloomVariant='power';}},
-  {name:'Swift Bloom',tag:'UTILITY',icon:'🍃',desc:'+1.5% move speed per room (30-60), +0.75% (60-90), +0.125% (90+). Soft-capped. Exclusive. +6% damage taken.',apply(upg){if(hasLateBloomVariant(upg))return; upg.lateBloomVariant='speed';}},
-  {name:'Guard Bloom',tag:'SURVIVE',icon:'🛡️',desc:'Reduces damage taken on the Late Bloom curve. Soft-capped. Exclusive. -6% damage.',apply(upg){if(hasLateBloomVariant(upg))return; upg.lateBloomVariant='defense';}},
+  {name:'Late Bloom',tag:'OFFENSE',icon:'🌱',desc:'+1.5% damage per room (15-45), +0.75% (45-75), +0.125% (75+). Soft-capped. Exclusive. -6% move speed.',apply(upg){if(hasLateBloomVariant(upg))return; upg.lateBloomVariant='power';}},
+  {name:'Swift Bloom',tag:'UTILITY',icon:'🍃',desc:'+1.5% move speed per room (15-45), +0.75% (45-75), +0.125% (75+). Soft-capped. Exclusive. +6% damage taken.',apply(upg){if(hasLateBloomVariant(upg))return; upg.lateBloomVariant='speed';}},
+  {name:'Guard Bloom',tag:'SURVIVE',icon:'🛡️',desc:'Reduces damage taken on the Late Bloom curve. Starts scaling at room 15. Soft-capped. Exclusive. -6% damage.',apply(upg){if(hasLateBloomVariant(upg))return; upg.lateBloomVariant='defense';}},
   {name:'Escalation',tag:'OFFENSE',icon:'📈',desc:'+3% damage per kill in current room. Resets between rooms. Max +60%.',apply(upg){if(upg.escalation)return; upg.escalation=true;}},
   {name:'Spread Shot',tag:'OFFENSE',icon:'⬄',desc:'Fire 3 bullets in a cone instead of 1. +2 charge cost per fire.',apply(upg){if(upg.spreadShot)return; upg.spreadShot=true;syncChargeCapacity(upg);}},
   {name:'Payload',tag:'OFFENSE',icon:'💣',desc:'Output bullets explode on final impact, damaging in a 48px radius.',requires:upg=>upg.biggerBulletsTier>0,apply(upg){if(upg.payload)return; upg.payload=true;}},

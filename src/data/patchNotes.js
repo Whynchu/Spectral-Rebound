@@ -1,5 +1,17 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.30',
+    label: 'BLOOM START 15',
+    summary: [
+      'Bloom variants now begin scaling earlier in runs. The growth curve starts at room 15 instead of room 30 so bloom choices matter sooner while keeping the same soft-cap shape.'
+    ],
+    highlights: [
+      'Late Bloom and Swift Bloom now scale from room 15-45, then 45-75, then 75+.',
+      'Guard Bloom uses the same earlier curve and now starts defensive scaling at room 15.',
+      'Boon descriptions were updated to match the new room breakpoints.'
+    ]
+  },
+  {
     version: '1.16.29',
     label: 'LOW CAP KINETIC',
     summary: [
