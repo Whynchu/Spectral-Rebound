@@ -266,6 +266,7 @@ let legendaryOffered = false;
 let roomIndex = 0;
 let roomPhase = 'intro';
 let roomTimer = 0;
+let runElapsedMs = 0;
 let spawnQueue = [];
 let activeWaveIndex = 0;
 let roomClearTimer = 0;
@@ -294,12 +295,36 @@ function roundTelemetryValue(value) {
   return Math.round(value * 100) / 100;
 }
 
+function formatRunTime(ms) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
 function getPostHitInvulnSeconds(kind = 'projectile') {
   const reduction = bossClears * BOSS_CLEAR_INVULN_REDUCTION_S;
   if(kind === 'contact') {
     return Math.max(MIN_CONTACT_INVULN_S, BASE_CONTACT_INVULN_S - reduction);
   }
   return Math.max(MIN_PROJECTILE_INVULN_S, BASE_PROJECTILE_INVULN_S - reduction);
+}
+
+function awardFiveRoomScoreBonus() {
+  if(!runTelemetry || runTelemetry.rooms.length < 5) return;
+  const recentRooms = runTelemetry.rooms.slice(-5);
+  if(recentRooms.some((room) => room.end !== 'clear')) return;
+  const lastRoom = recentRooms[recentRooms.length - 1];
+  if(lastRoom.room % 5 !== 0) return;
+  const totalClearMs = recentRooms.reduce((sum, room) => sum + (room.clearMs || 0), 0);
+  const totalHpLost = recentRooms.reduce((sum, room) => sum + (room.hpLost || 0), 0);
+  const damagelessCount = recentRooms.reduce((sum, room) => sum + (room.damageless ? 1 : 0), 0);
+  const avgClearSeconds = Math.max(6, (totalClearMs / recentRooms.length) / 1000);
+  const baseBonus = 260 + lastRoom.room * 26;
+  const paceMultiplier = Math.max(0.65, Math.min(1.75, 26 / avgClearSeconds));
+  const avoidanceMultiplier = Math.max(0.55, Math.min(1.4, 1.35 - totalHpLost / 320));
+  const consistencyBonus = damagelessCount * 40;
+  score += Math.round(baseBonus * paceMultiplier * avoidanceMultiplier + consistencyBonus);
 }
 
 function getViewportModeLabel() {
@@ -517,6 +542,7 @@ function finalizeCurrentRoomTelemetry(endState, clearMs = roomTimer) {
   currentRoomTelemetry.hpEnd = roundTelemetryValue(hp);
   currentRoomTelemetry.damageless = currentRoomTelemetry.damageless && !tookDamageThisRoom;
   runTelemetry.rooms.push(currentRoomTelemetry);
+  if(endState === 'clear') awardFiveRoomScoreBonus();
   currentRoomTelemetry = null;
 }
 
@@ -1393,6 +1419,7 @@ function buildScoreEntry() {
     name: playerName,
     score,
     room: roomIndex + 1,
+    runTimeMs: Math.round(runElapsedMs),
     ts: Date.now(),
     version: VERSION.num,
     color: playerColor,
@@ -1461,6 +1488,17 @@ function getVisibleLeaderboardRows() {
   return rows.slice(0, 10);
 }
 
+function getLeaderboardRowRunTimeMs(row) {
+  if(Number.isFinite(row.runTimeMs)) return row.runTimeMs;
+  const telemetry = row.boons?.telemetry;
+  if(!telemetry) return null;
+  const rooms = Array.isArray(telemetry.rooms) ? telemetry.rooms : [];
+  if(rooms.length > 0) {
+    return rooms.reduce((sum, room) => sum + (Number(room.clearMs) || 0), 0);
+  }
+  return null;
+}
+
 function setLeaderboardStatus(mode, text) {
   lbStatusMode = mode;
   lbStatusText = text;
@@ -1507,9 +1545,11 @@ function renderLeaderboard() {
     const borderColor = PLAYER_COLORS[playerColor]?.hex || PLAYER_COLORS.green.hex;
     
     li.style.borderLeft = `3px solid ${borderColor}`;
+    const runTimeMs = getLeaderboardRowRunTimeMs(row);
+    const runTimeLabel = runTimeMs ? ` · ${formatRunTime(runTimeMs)}` : '';
     li.innerHTML = `
       <span class="lb-rank">#${i + 1}</span>
-      <span class="lb-name">${row.name} · R${row.room}</span>
+      <span class="lb-name">${row.name} · R${row.room}${runTimeLabel}</span>
       <span class="lb-score">${row.score}</span>
       ${hasBoons ? '<button class="lb-boons-btn" type="button" title="View run loadout">📋</button>' : '<span></span>'}
     `;
@@ -1628,12 +1668,14 @@ function init() {
   clearLegacyRunRecovery();
   score=0; kills=0;
   charge=0; fireT=0; stillTimer=0; prevStill=false; hp=BASE_PLAYER_HP; maxHp=BASE_PLAYER_HP;
+  runElapsedMs = 0;
   gameOverShown = false;
   boonRerolls = 1;
   damagelessRooms = 0;
   tookDamageThisRoom = false;
   lastStallSpawnAt = -99999;
   enemyIdSeq = 1;
+  bossClears = 0;
   player={x:cv.width/2,y:cv.height/2,r:9,vx:0,vy:0,invincible:0,distort:0,deadAt:0,popAt:0,deadPop:false,deadPulse:0};
   player.shields=[];
   _barrierPulseTimer=0;
@@ -3019,7 +3061,7 @@ function drawGhost(ts){
 
 // ── HUD ───────────────────────────────────────────────────────────────────────
 function hudUpdate(){
-  document.getElementById('room-counter').textContent=`ROOM ${roomIndex+1}`;
+  document.getElementById('room-counter').textContent=`ROOM ${roomIndex+1} • ${formatRunTime(runElapsedMs)}`;
   document.getElementById('score-txt').textContent=score;
   document.getElementById('charge-fill').style.width=`${Math.max(0, Math.min(100, (charge / UPG.maxCharge) * 100))}%`;
   document.getElementById('charge-badge').textContent=`${Math.floor(charge)} / ${UPG.maxCharge}`;

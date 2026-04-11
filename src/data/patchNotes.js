@@ -1,5 +1,29 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.45',
+    label: 'RUN CLOCK',
+    summary: [
+      'The run timer is now surfaced wherever it helps compare pacing. The top HUD shows live elapsed time beside the room number, and leaderboard rows now show run duration when that data exists on the entry.'
+    ],
+    highlights: [
+      'Top HUD now shows room and live run time together.',
+      'Leaderboard entries now display recorded run time when available.',
+      'Older leaderboard rows remain compatible and simply omit the time if it was never stored.'
+    ]
+  },
+  {
+    version: '1.16.44',
+    label: 'SCORE CADENCE',
+    summary: [
+      'Scoring now rewards progression with cadence-based bonuses instead of only raw kill value. Every five cleared rooms grants a checkpoint bonus that blends pace and damage avoidance, and the top HUD now shows live run time beside the current room.'
+    ],
+    highlights: [
+      'Every 5-room checkpoint now grants a score bonus based on clear speed and avoided damage.',
+      'Damageless rooms inside that 5-room block add extra consistency score.',
+      'The top HUD now shows room number and live run time together.'
+    ]
+  },
+  {
     version: '1.16.43',
     label: 'BOSS SCAR TUNING',
     summary: [
