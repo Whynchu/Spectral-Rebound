@@ -67,21 +67,48 @@ function createEnemy(type, { width, height, margin, roomIndex, nextEnemyId, isBo
 
   const roomRamp = Math.min(1, roomIndex / 10);
   const hpScale = (0.28 + roomRamp * 0.72) * (1 + Math.log(roomIndex + 1) * 0.17);
-  const tierOver = Math.max(0, roomIndex - 29);
-  const room20Mult = roomIndex >= 20 ? 1.25 : 1;
-  // Stronger late-game scaling: 10% per room above 30
-  const lateTierMult = tierOver > 0 ? 1.18 + tierOver * 0.10 : 1;
-  const lateRoomHpMult = roomIndex >= 120 ? 1.35 : (roomIndex >= 100 ? 1.2 : (roomIndex >= 80 ? 1.1 : 1));
-  const hpMult = hpScale * room20Mult * lateTierMult * lateRoomHpMult;
+  const tierOver20 = Math.max(0, roomIndex - 19);
+  const tierOver40 = Math.max(0, roomIndex - 39);
+  const room20Mult = roomIndex >= 20 ? 1.45 : (roomIndex >= 10 ? 1.12 : 1);
+  const midTierHpMult = tierOver20 > 0 ? 1 + Math.min(1.8, tierOver20 * 0.085) : 1;
+  const lateTierHpMult = tierOver40 > 0 ? 1 + Math.min(2.8, tierOver40 * 0.06) : 1;
+  const lateRoomHpMult =
+    roomIndex >= 160 ? 3.1 :
+    roomIndex >= 120 ? 2.45 :
+    roomIndex >= 100 ? 2.05 :
+    roomIndex >= 80 ? 1.7 :
+    roomIndex >= 60 ? 1.4 :
+    roomIndex >= 40 ? 1.2 :
+    1;
+  const hpMult = hpScale * room20Mult * midTierHpMult * lateTierHpMult * lateRoomHpMult;
   // Speed and fire pressure step up again in deep late game.
-  const lateRoomSpdMult = roomIndex >= 120 ? 1.2 : (roomIndex >= 100 ? 1.12 : (roomIndex >= 80 ? 1.08 : 1));
-  const spdMult = (roomIndex >= 20 ? 1.12 : 1) * (tierOver > 0 ? 1.06 + Math.min(0.35, tierOver * 0.015) : 1) * lateRoomSpdMult;
-  const eliteChance = roomIndex >= 120 ? 0.6 : (roomIndex >= 100 ? 0.5 : (roomIndex >= 80 ? 0.45 : (roomIndex >= 40 ? 0.30 : 0)));
+  const lateRoomSpdMult =
+    roomIndex >= 160 ? 1.32 :
+    roomIndex >= 120 ? 1.24 :
+    roomIndex >= 100 ? 1.17 :
+    roomIndex >= 80 ? 1.12 :
+    roomIndex >= 60 ? 1.08 :
+    1;
+  const spdMult = (roomIndex >= 20 ? 1.15 : 1) * (tierOver20 > 0 ? 1.05 + Math.min(0.5, tierOver20 * 0.012) : 1) * lateRoomSpdMult;
+  const eliteChance =
+    roomIndex >= 160 ? 0.9 :
+    roomIndex >= 120 ? 0.78 :
+    roomIndex >= 100 ? 0.66 :
+    roomIndex >= 80 ? 0.54 :
+    roomIndex >= 60 ? 0.42 :
+    roomIndex >= 40 ? 0.3 :
+    0;
   // Bosses skip elite roll; normal enemies become increasingly elite-heavy after room 80.
   const isElite = !isBoss && eliteChance > 0 && Math.random() < eliteChance;
   const eliteCol = palette.elite.hex;
   const eliteGlowCol = hexToRgba(eliteCol, 0.82);
-  const fireRateMult = roomIndex >= 120 ? 0.76 : (roomIndex >= 100 ? 0.84 : (roomIndex >= 80 ? 0.88 : 1));
+  const fireRateMult =
+    roomIndex >= 160 ? 0.62 :
+    roomIndex >= 120 ? 0.7 :
+    roomIndex >= 100 ? 0.78 :
+    roomIndex >= 80 ? 0.84 :
+    roomIndex >= 60 ? 0.9 :
+    1;
   const effectiveFireRate = def.fRate >= 9000 ? def.fRate : Math.max(480, def.fRate * fireRateMult * (isElite ? 0.92 : 1));
 
   const hpVal = isBoss

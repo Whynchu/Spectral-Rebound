@@ -1,5 +1,41 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.35',
+    label: 'BOSS CADENCE PASS',
+    summary: [
+      'Generated room composition and post-50 boss pacing both needed cleanup. This pass removes the dead-feeling siphon-only room shape, favors more versatile mixed packs, and changes deep-run bosses to arrive every 20 rooms with layered escort waves instead of the old every-10 cadence.'
+    ],
+    highlights: [
+      'Generated waves now heavily downweight siphon spam and inject more versatile enemy mixes when siphons appear.',
+      'Spawn queue timing now respects delayed wave entries, enabling actual multi-wave boss rooms.',
+      'After room 50, bosses now appear every 20 rooms and bring larger, more complex escort waves.'
+    ]
+  },
+  {
+    version: '1.16.34',
+    label: 'LATE PRESSURE PASS',
+    summary: [
+      'Follow-up telemetry made it clear that late rooms were not compounding threat hard enough, even after the orb and vampiric fixes. This pass raises enemy health density earlier, expands generated wave budgets, and increases sustained concurrency so deep runs stop flattening into low-risk sustain loops.'
+    ],
+    highlights: [
+      'Enemy HP scaling now ramps much harder from room 20 onward and accelerates again in deep rooms.',
+      'Generated non-boss waves gain more budget and more enemy-type variety as rooms climb.',
+      'Late-room reinforcements, on-screen caps, and boss escort respawns all tighten to keep pressure active.'
+    ]
+  },
+  {
+    version: '1.16.33',
+    label: 'ORB DRAIN HOTFIX',
+    summary: [
+      'This telemetry fix closes two runaway sustain loops and hardens the live run update path. Charged Orbs now spend reserve before firing, Blood Pact can only restore a limited amount per projectile, and malformed bullet entries are pruned before they can crash the frame update.'
+    ],
+    highlights: [
+      'Charged Orbs now require available charge and log their reserve spend into telemetry.',
+      'Blood Pact is capped at 1 heal per piercing bullet, with Blood Moon raising that cap to 2.',
+      'The bullet update loop now removes invalid entries instead of crashing on `b.state` access.'
+    ]
+  },
+  {
     version: '1.16.32',
     label: 'ORB SHOT LINE',
     summary: [

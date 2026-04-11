@@ -229,6 +229,8 @@ const PHASE_DASH_DAMAGE_MULT = 0.05;
 const GLOBAL_SPEED_LIFT = 1.07;
 const VAMPIRIC_HEAL_PER_KILL = 4;
 const VAMPIRIC_CHARGE_PER_KILL = 0.25;
+const BLOOD_PACT_BASE_HEAL_CAP_PER_BULLET = 1;
+const BLOOD_PACT_BLOOD_MOON_BONUS_CAP = 1;
 let enemyIdSeq = 1;
 let playerName = 'RUNNER';
 let leaderboard = [];
@@ -572,23 +574,54 @@ function buildRunTelemetryPayload() {
 }
 
 function getRoomDef(idx) {
-  // Boss room every 10th room (0-indexed: 9, 19, 29, 39, 49...)
-  if ((idx + 1) % 10 === 0) {
+  const roomNumber = idx + 1;
+  const isLegacyBossRoom = roomNumber <= 50 && roomNumber % 10 === 0;
+  const isLateBossRoom = roomNumber >= 60 && roomNumber % 20 === 0;
+  if (isLegacyBossRoom || isLateBossRoom) {
     let bossConfig;
     if (BOSS_ROOMS[idx]) {
       bossConfig = BOSS_ROOMS[idx];
     } else {
-      // Rooms 50+ cycle through boss types
+      // Rooms 50+ cycle through boss types, but post-50 bosses only land every 20 rooms.
       const bossKeys = Object.keys(BOSS_ROOMS).map(Number).sort((a,b) => a-b);
-      const ci = Math.floor((idx - 9) / 10) % bossKeys.length;
+      const lateBossOrdinal = roomNumber <= 50
+        ? Math.floor((idx - 9) / 10)
+        : 4 + Math.floor((roomNumber - 60) / 20);
+      const ci = lateBossOrdinal % bossKeys.length;
       const baseConfig = BOSS_ROOMS[bossKeys[ci]];
-      bossConfig = { ...baseConfig, name: baseConfig.name + ' +' };
+      bossConfig = {
+        ...baseConfig,
+        name: roomNumber > 50 ? `${baseConfig.name} ++` : `${baseConfig.name} +`,
+      };
     }
     const wave = [{ t: bossConfig.bossType, n: 1, d: 0, isBoss: true }];
     for (let i = 0; i < bossConfig.escortCount; i++) {
       wave.push({ t: bossConfig.escortType, n: 1, d: 0 });
     }
-    return { name: bossConfig.name, chaos: bossConfig.chaos, waves: [wave], isBossRoom: true, bossType: bossConfig.bossType, escortType: bossConfig.escortType, escortCount: bossConfig.escortCount };
+    const lateBossWaves = roomNumber > 50
+      ? [
+          wave,
+          [
+            { t: bossConfig.escortType, n: bossConfig.escortCount + 1, d: 0 },
+            { t: 'sniper', n: 1, d: 350 },
+            { t: 'rusher', n: 1, d: 700 },
+          ],
+          [
+            { t: 'disruptor', n: 1 + Math.floor(bossConfig.escortCount / 2), d: 0 },
+            { t: 'chaser', n: bossConfig.escortCount + 1, d: 450 },
+          ],
+        ]
+      : [wave];
+    return {
+      name: bossConfig.name,
+      chaos: bossConfig.chaos,
+      waves: lateBossWaves,
+      isBossRoom: true,
+      bossType: bossConfig.bossType,
+      escortType: bossConfig.escortType,
+      escortCount: roomNumber > 50 ? bossConfig.escortCount + 1 : bossConfig.escortCount,
+      bossEscortRespawnBonus: roomNumber > 50 ? 1 : 0,
+    };
   }
 
   const name = idx < ROOM_NAMES.length
@@ -619,10 +652,14 @@ function generateWeightedWave(roomIdx) {
   const unlocked = getUnlockedEnemyTypes(roomIdx);
   const entries = new Map();
   const earlyRoomBudgetPenalty = roomIdx >= 12 && roomIdx <= 14 ? 2.25 : 0;
-  const budgetBase = 5.0 + roomIdx * 1.35 - earlyRoomBudgetPenalty;
+  const room20BudgetBonus = Math.max(0, roomIdx - 19) * 0.55;
+  const room40BudgetBonus = Math.max(0, roomIdx - 39) * 0.9;
+  const room80BudgetBonus = Math.max(0, roomIdx - 79) * 1.1;
+  const budgetBase = 5.0 + roomIdx * 1.35 + room20BudgetBonus + room40BudgetBonus + room80BudgetBonus - earlyRoomBudgetPenalty;
   let budget = budgetBase;
   let shooterCount = 0;
-  const MAX_TYPES = roomIdx >= 15 ? 3 : 2;
+  let siphonCount = 0;
+  const MAX_TYPES = roomIdx >= 60 ? 5 : (roomIdx >= 15 ? 4 : 2);
 
   if(roomIdx === 9) {
     entries.set('purple_chaser', 1);
@@ -638,6 +675,8 @@ function generateWeightedWave(roomIdx) {
       .filter((type) => ENEMY_TYPES[type].spawnValue <= budget + 0.5)
       .filter((type) => entries.size < MAX_TYPES || entries.has(type))
       .filter((type) => {
+        if(type === 'siphon' && entries.size === 0) return false;
+        if(type === 'siphon' && siphonCount >= (roomIdx >= 60 ? 2 : 1)) return false;
         if(roomIdx >= 12 && roomIdx <= 14 && ['zoner','disruptor','purple_chaser','purple_disruptor'].includes(type) && shooterCount >= 1) {
           return false;
         }
@@ -649,7 +688,7 @@ function generateWeightedWave(roomIdx) {
       })
       .map((type) => {
         const def = ENEMY_TYPES[type];
-        const pressureBias = def.ammoPressure > 0 ? 0.9 : 0.75;
+        const pressureBias = def.ammoPressure > 0 ? 1.15 : (def.isSiphon ? 0.28 : 0.78);
         const affordability = 1 / def.spawnValue;
         const roomBias = 1 + Math.min(1.2, Math.max(0, roomIdx - def.unlockRoom) * 0.08);
         return { type, weight: pressureBias * affordability * roomBias };
@@ -659,10 +698,20 @@ function generateWeightedWave(roomIdx) {
     entries.set(type, (entries.get(type) || 0) + 1);
     budget -= ENEMY_TYPES[type].spawnValue;
     if(ENEMY_TYPES[type].ammoPressure > 0) shooterCount++;
+    if(ENEMY_TYPES[type].isSiphon) siphonCount++;
   }
 
   if(shooterCount === 0) {
     entries.set('chaser', (entries.get('chaser') || 0) + 1);
+  }
+  if(entries.size === 1 && entries.has('siphon')) {
+    entries.delete('siphon');
+    entries.set('chaser', 2);
+    entries.set(roomIdx >= 20 ? 'disruptor' : 'sniper', 1);
+    if(roomIdx >= 8) entries.set('siphon', 1);
+  }
+  if(entries.has('siphon') && entries.size < 3) {
+    entries.set(roomIdx >= 20 ? 'disruptor' : 'sniper', (entries.get(roomIdx >= 20 ? 'disruptor' : 'sniper') || 0) + 1);
   }
 
   return [...entries.entries()].map(([t, n]) => ({ t, n, d:0 }));
@@ -670,13 +719,20 @@ function generateWeightedWave(roomIdx) {
 
 function buildSpawnQueue(roomDef) {
   const queue = [];
+  let waveStartAt = 0;
   for(const wave of roomDef.waves) {
+    let waveMaxDelay = 0;
     for(const entry of wave) {
       for(let i=0; i<entry.n; i++) {
-        queue.push({ t: entry.t, spawnAt: 0, isBoss: Boolean(entry.isBoss) });
+        const spawnDelay = (entry.d || 0) * i;
+        const spawnAt = waveStartAt + spawnDelay;
+        waveMaxDelay = Math.max(waveMaxDelay, spawnDelay);
+        queue.push({ t: entry.t, spawnAt, isBoss: Boolean(entry.isBoss) });
       }
     }
+    waveStartAt += waveMaxDelay + 1800;
   }
+  queue.sort((a, b) => a.spawnAt - b.spawnAt);
   return queue;
 }
 
@@ -722,18 +778,32 @@ function startRoom(idx) {
 
 function getRoomMaxOnScreen(idx, isBossRoom) {
   if(isBossRoom) return 99;
-  if(idx >= 120) return 18;
-  if(idx >= 100) return 16;
-  if(idx >= 80) return 15;
-  if(idx >= 40) return 12;
+  if(idx >= 160) return 24;
+  if(idx >= 120) return 22;
+  if(idx >= 100) return 20;
+  if(idx >= 80) return 18;
+  if(idx >= 60) return 16;
+  if(idx >= 40) return 14;
+  if(idx >= 20) return 12;
   return 99;
 }
 
 function getReinforcementIntervalMs(idx) {
-  if(idx >= 120) return 430;
-  if(idx >= 100) return 540;
-  if(idx >= 80) return 600;
+  if(idx >= 160) return 280;
+  if(idx >= 120) return 360;
+  if(idx >= 100) return 440;
+  if(idx >= 80) return 520;
+  if(idx >= 60) return 620;
   return 800;
+}
+
+function getBossEscortRespawnMs(idx) {
+  if(idx >= 160) return 2800;
+  if(idx >= 120) return 3400;
+  if(idx >= 100) return 4200;
+  if(idx >= 80) return 5000;
+  if(idx >= 40) return 5800;
+  return 7000;
 }
 
 function spawnEnemy(type, isBoss = false) {
@@ -978,6 +1048,10 @@ function getAegisBatteryDamageMult() {
   return 1 + getReadyShieldCount() * AEGIS_BATTERY_READY_PLATE_BONUS;
 }
 
+function getBloodPactHealCap() {
+  return BLOOD_PACT_BASE_HEAL_CAP_PER_BULLET + (UPG.bloodMoon ? BLOOD_PACT_BLOOD_MOON_BONUS_CAP : 0);
+}
+
 function firePlayer(tx,ty) {
   if(charge < 1) return;
   const base=Math.atan2(ty-player.y,tx-player.x);
@@ -1054,6 +1128,8 @@ function firePlayer(tx,ty) {
       hitIds: new Set(),
       isRing: shot.isRing || false,
       hasPayload: UPG.payload || false,
+      bloodPactHeals: 0,
+      bloodPactHealCap: getBloodPactHealCap(),
     });
   }
   charge=Math.max(0,charge-availableShots);
@@ -1084,7 +1160,7 @@ function firePlayer(tx,ty) {
         const a=shot.angle;
         const sideX=Math.cos(a+Math.PI/2)*shot.offset;
         const sideY=Math.sin(a+Math.PI/2)*shot.offset;
-        bullets.push({x:player.x+sideX,y:player.y+sideY,vx:Math.cos(a)*bspd,vy:Math.sin(a)*bspd,state:'output',r:baseRadius,decayStart:null,bounceLeft:UPG.bounceTier>0?2:0,pierceLeft:UPG.pierceTier + ((shot.isRing && UPG.corona) ? 1 : 0),homing:UPG.homingTier>0,crit:false,dmg:baseDmg * volleyPerBulletDamageMult,expireAt:eNow+lifeMs,hitIds:new Set(),isRing: shot.isRing || false,hasPayload: UPG.payload || false});
+        bullets.push({x:player.x+sideX,y:player.y+sideY,vx:Math.cos(a)*bspd,vy:Math.sin(a)*bspd,state:'output',r:baseRadius,decayStart:null,bounceLeft:UPG.bounceTier>0?2:0,pierceLeft:UPG.pierceTier + ((shot.isRing && UPG.corona) ? 1 : 0),homing:UPG.homingTier>0,crit:false,dmg:baseDmg * volleyPerBulletDamageMult,expireAt:eNow+lifeMs,hitIds:new Set(),isRing: shot.isRing || false,hasPayload: UPG.payload || false,bloodPactHeals:0,bloodPactHealCap:getBloodPactHealCap()});
       }
     }
   }
@@ -1635,7 +1711,7 @@ function update(dt,ts){
       const escortAlive = enemies.filter(e => !e.isBoss).length;
       if(escortAlive < escortMaxCount) {
         escortRespawnTimer += dt * 1000;
-        if(escortRespawnTimer >= 7000) {
+        if(escortRespawnTimer >= getBossEscortRespawnMs(roomIndex)) {
           escortRespawnTimer = 0;
           spawnEnemy(escortType);
         }
@@ -1725,7 +1801,7 @@ function update(dt,ts){
         if(hp<=0){
           if(UPG.lifeline && UPG.lifelineTriggerCount < (UPG.lifelineUses||1)){
             UPG.lifelineTriggerCount++; UPG.lifelineUsed=true; hp=1; player.invincible=2.0; sparks(player.x,player.y,C.lifelineEffect,16,100);
-            if(UPG.lastStand){ const lsNow=performance.now(); for(let la=0;la<Math.floor(UPG.maxCharge);la++){ const lang=(Math.PI*2/Math.max(1,Math.floor(UPG.maxCharge)))*la; bullets.push({x:player.x,y:player.y,vx:Math.cos(lang)*220*GLOBAL_SPEED_LIFT,vy:Math.sin(lang)*220*GLOBAL_SPEED_LIFT,state:'output',r:4.5,decayStart:null,bounceLeft:UPG.bounceTier>0?2:0,pierceLeft:UPG.pierceTier,homing:false,crit:false,dmg:(UPG.playerDamageMult||1)*(UPG.denseDamageMult||1),expireAt:lsNow+2000,hitIds:new Set()}); } }
+            if(UPG.lastStand){ const lsNow=performance.now(); for(let la=0;la<Math.floor(UPG.maxCharge);la++){ const lang=(Math.PI*2/Math.max(1,Math.floor(UPG.maxCharge)))*la; bullets.push({x:player.x,y:player.y,vx:Math.cos(lang)*220*GLOBAL_SPEED_LIFT,vy:Math.sin(lang)*220*GLOBAL_SPEED_LIFT,state:'output',r:4.5,decayStart:null,bounceLeft:UPG.bounceTier>0?2:0,pierceLeft:UPG.pierceTier,homing:false,crit:false,dmg:(UPG.playerDamageMult||1)*(UPG.denseDamageMult||1),expireAt:lsNow+2000,hitIds:new Set(),bloodPactHeals:0,bloodPactHealCap:getBloodPactHealCap()}); } }
           }
           else { gameOver(); return; }
         }
@@ -1863,12 +1939,14 @@ function update(dt,ts){
           const oNow=performance.now();
           const chargeRatio = getChargeRatio();
           const orbShotAngles = UPG.orbTwin ? [ang - 0.14, ang + 0.14] : [ang];
+          const orbShotsAvailable = Math.min(Math.floor(charge), orbShotAngles.length);
+          if(orbShotsAvailable <= 0) continue;
           let orbTotalDamage = 1.4;
           if(UPG.orbitalFocus) orbTotalDamage *= ORBITAL_FOCUS_CHARGED_ORB_DAMAGE_MULT * (1 + chargeRatio * 0.8);
           if(UPG.orbOvercharge) orbTotalDamage *= 1 + chargeRatio * ORB_OVERCHARGE_DAMAGE_MULT;
           if(UPG.orbTwin) orbTotalDamage *= ORB_TWIN_TOTAL_DAMAGE_MULT;
-          const orbPerShotDamage = orbTotalDamage / orbShotAngles.length;
-          for(const orbAngle of orbShotAngles){
+          const orbPerShotDamage = orbTotalDamage / orbShotsAvailable;
+          for(const orbAngle of orbShotAngles.slice(0, orbShotsAvailable)){
             bullets.push({
               x:ox,
               y:oy,
@@ -1883,9 +1961,13 @@ function update(dt,ts){
               crit:false,
               dmg:orbPerShotDamage,
               expireAt:oNow+1300,
-              hitIds:new Set()
+              hitIds:new Set(),
+              bloodPactHeals:0,
+              bloodPactHealCap:getBloodPactHealCap()
             });
           }
+          charge = Math.max(0, charge - orbShotsAvailable);
+          recordShotSpend(orbShotsAvailable);
         }
       }
     }
@@ -1922,6 +2004,10 @@ function update(dt,ts){
 
   for(let i=bullets.length-1;i>=0;i--){
     const b=bullets[i];
+    if(!b || typeof b !== 'object'){
+      bullets.splice(i,1);
+      continue;
+    }
 
     if(b.state==='output' && b.expireAt && ts>=b.expireAt){
       // Payload: explode on expiration, damaging enemies in AoE
@@ -2002,7 +2088,7 @@ function update(dt,ts){
             for(const delta of splitDeltas){
               const sa=Math.atan2(b.vy,b.vx)+delta;
               const sp=Math.hypot(b.vx,b.vy);
-              bullets.push({x:b.x,y:b.y,vx:Math.cos(sa)*sp,vy:Math.sin(sa)*sp,state:'output',r:b.r*0.8,decayStart:null,bounceLeft:0,pierceLeft:b.pierceLeft,homing:b.homing,crit:b.crit,dmg:b.dmg*splitDamageFactor,expireAt:splitNow+2000,hitIds:new Set(),hasSplit:true});
+              bullets.push({x:b.x,y:b.y,vx:Math.cos(sa)*sp,vy:Math.sin(sa)*sp,state:'output',r:b.r*0.8,decayStart:null,bounceLeft:0,pierceLeft:b.pierceLeft,homing:b.homing,crit:b.crit,dmg:b.dmg*splitDamageFactor,expireAt:splitNow+2000,hitIds:new Set(),hasSplit:true,bloodPactHeals:b.bloodPactHeals || 0,bloodPactHealCap:b.bloodPactHealCap || getBloodPactHealCap()});
             }
           }
         } else {
@@ -2248,7 +2334,7 @@ function update(dt,ts){
         if(hp<=0){
           if(UPG.lifeline && UPG.lifelineTriggerCount < (UPG.lifelineUses||1)){
             UPG.lifelineTriggerCount++; UPG.lifelineUsed=true; hp=1; player.invincible=2.0; sparks(player.x,player.y,C.lifelineEffect,16,100);
-            if(UPG.lastStand){ const lsNow=performance.now(); for(let la=0;la<Math.floor(UPG.maxCharge);la++){ const lang=(Math.PI*2/Math.max(1,Math.floor(UPG.maxCharge)))*la; bullets.push({x:player.x,y:player.y,vx:Math.cos(lang)*220*GLOBAL_SPEED_LIFT,vy:Math.sin(lang)*220*GLOBAL_SPEED_LIFT,state:'output',r:4.5,decayStart:null,bounceLeft:UPG.bounceTier>0?2:0,pierceLeft:UPG.pierceTier,homing:false,crit:false,dmg:(UPG.playerDamageMult||1)*(UPG.denseDamageMult||1),expireAt:lsNow+2000,hitIds:new Set()}); } }
+            if(UPG.lastStand){ const lsNow=performance.now(); for(let la=0;la<Math.floor(UPG.maxCharge);la++){ const lang=(Math.PI*2/Math.max(1,Math.floor(UPG.maxCharge)))*la; bullets.push({x:player.x,y:player.y,vx:Math.cos(lang)*220*GLOBAL_SPEED_LIFT,vy:Math.sin(lang)*220*GLOBAL_SPEED_LIFT,state:'output',r:4.5,decayStart:null,bounceLeft:UPG.bounceTier>0?2:0,pierceLeft:UPG.pierceTier,homing:false,crit:false,dmg:(UPG.playerDamageMult||1)*(UPG.denseDamageMult||1),expireAt:lsNow+2000,hitIds:new Set(),bloodPactHeals:0,bloodPactHealCap:getBloodPactHealCap()}); } }
           }
           else { gameOver(); return; }
         }
@@ -2279,8 +2365,9 @@ function update(dt,ts){
           e.hp-=dmg;
           sparks(b.x,b.y,b.crit?C.ghost:C.green,b.crit?8:5,b.crit?70:55);
           // Blood Pact: piercing shots restore 1 HP per enemy hit
-          if(UPG.bloodPact && b.pierceLeft > 0){
+          if(UPG.bloodPact && b.pierceLeft > 0 && (b.bloodPactHeals || 0) < (b.bloodPactHealCap || BLOOD_PACT_BASE_HEAL_CAP_PER_BULLET)){
             healPlayer(1, 'bloodPact');
+            b.bloodPactHeals = (b.bloodPactHeals || 0) + 1;
           }
           if(e.hp<=0){
             score+=e.pts*(b.crit?2:1);kills++; recordKill('output');
@@ -2328,7 +2415,7 @@ function update(dt,ts){
                     const ang = a * angleStep;
                     const vx = Math.cos(ang) * 220 * GLOBAL_SPEED_LIFT;
                     const vy = Math.sin(ang) * 220 * GLOBAL_SPEED_LIFT;
-                    bullets.push({x:player.x,y:player.y,vx,vy,state:'output',r:5.5,decayStart:null,bounceLeft:UPG.bounceTier,pierceLeft:UPG.pierceTier,homing:UPG.homingTier>0,crit:false,dmg:(UPG.playerDamageMult||1)*(UPG.denseDamageMult||1),expireAt:ts+2200,hitIds:new Set()});
+                    bullets.push({x:player.x,y:player.y,vx,vy,state:'output',r:5.5,decayStart:null,bounceLeft:UPG.bounceTier,pierceLeft:UPG.pierceTier,homing:UPG.homingTier>0,crit:false,dmg:(UPG.playerDamageMult||1)*(UPG.denseDamageMult||1),expireAt:ts+2200,hitIds:new Set(),bloodPactHeals:0,bloodPactHealCap:getBloodPactHealCap()});
                   }
                 }
               }
