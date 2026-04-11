@@ -1,5 +1,17 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.32',
+    label: 'ORB SHOT LINE',
+    summary: [
+      'Charged Orbs now have a small dedicated modifier line instead of depending entirely on their base shot. This gives orbit builds a clearer late-game growth path without handing orbs the full player gun package.'
+    ],
+    highlights: [
+      'Added Orb Twin for a 2-shot orb fork with controlled total-damage scaling.',
+      'Added Orb Pierce so charged orb shots can pass through one extra enemy.',
+      'Added Orb Overcharge so orb-shot damage scales much harder from current charge state.'
+    ]
+  },
+  {
     version: '1.16.31',
     label: 'BUILD DIVERSITY PASS',
     summary: [

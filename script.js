@@ -950,6 +950,8 @@ const VOLLEY_TOTAL_DAMAGE_MULTS = [1.00, 1.75, 2.40, 2.95, 3.40, 3.75, 4.00];
 const ORBITAL_FOCUS_CONTACT_BONUS = 1.5;
 const ORBITAL_FOCUS_CHARGED_ORB_DAMAGE_MULT = 1.6;
 const ORBITAL_FOCUS_CHARGED_ORB_INTERVAL_MULT = 0.65;
+const ORB_TWIN_TOTAL_DAMAGE_MULT = 1.6;
+const ORB_OVERCHARGE_DAMAGE_MULT = 1.1;
 const AEGIS_BATTERY_READY_PLATE_BONUS = 0.25;
 const AEGIS_BATTERY_BOLT_INTERVAL_MS = 1800;
 
@@ -1859,8 +1861,31 @@ function update(dt,ts){
         if(tgt){
           const ang=Math.atan2(tgt.e.y-oy,tgt.e.x-ox);
           const oNow=performance.now();
-          const orbDamage = 1.4 * (UPG.orbitalFocus ? ORBITAL_FOCUS_CHARGED_ORB_DAMAGE_MULT * (1 + getChargeRatio() * 0.8) : 1);
-          bullets.push({x:ox,y:oy,vx:Math.cos(ang)*220*GLOBAL_SPEED_LIFT,vy:Math.sin(ang)*220*GLOBAL_SPEED_LIFT,state:'output',r:3.8,decayStart:null,bounceLeft:0,pierceLeft:0,homing:UPG.orbitalFocus,crit:false,dmg:orbDamage,expireAt:oNow+1300,hitIds:new Set()});
+          const chargeRatio = getChargeRatio();
+          const orbShotAngles = UPG.orbTwin ? [ang - 0.14, ang + 0.14] : [ang];
+          let orbTotalDamage = 1.4;
+          if(UPG.orbitalFocus) orbTotalDamage *= ORBITAL_FOCUS_CHARGED_ORB_DAMAGE_MULT * (1 + chargeRatio * 0.8);
+          if(UPG.orbOvercharge) orbTotalDamage *= 1 + chargeRatio * ORB_OVERCHARGE_DAMAGE_MULT;
+          if(UPG.orbTwin) orbTotalDamage *= ORB_TWIN_TOTAL_DAMAGE_MULT;
+          const orbPerShotDamage = orbTotalDamage / orbShotAngles.length;
+          for(const orbAngle of orbShotAngles){
+            bullets.push({
+              x:ox,
+              y:oy,
+              vx:Math.cos(orbAngle)*220*GLOBAL_SPEED_LIFT,
+              vy:Math.sin(orbAngle)*220*GLOBAL_SPEED_LIFT,
+              state:'output',
+              r:UPG.orbOvercharge ? 4.1 : 3.8,
+              decayStart:null,
+              bounceLeft:0,
+              pierceLeft:UPG.orbPierce ? 1 : 0,
+              homing:UPG.orbitalFocus,
+              crit:false,
+              dmg:orbPerShotDamage,
+              expireAt:oNow+1300,
+              hitIds:new Set()
+            });
+          }
         }
       }
     }

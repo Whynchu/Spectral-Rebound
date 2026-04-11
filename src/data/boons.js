@@ -166,6 +166,7 @@ function getDefaultUpgrades() {
     aegisTitan: false, ghostFlow: false, corona: false, finalForm: false,
     colossus: false, lifelineUses: 1, lifelineTriggerCount: 0,
     volatileOrbs: false, chargedOrbs: false, absorbOrbs: false,
+    orbTwin: false, orbPierce: false, orbOvercharge: false,
     orbitalFocus: false,
     aegisBattery: false, aegisBatteryTimer: 0,
     bloodRush: false, bloodRushStacks: 0, bloodRushTimer: 0,
@@ -227,6 +228,9 @@ const BOONS = [
   {name:'Volatile Orbs',tag:'OFFENSE',icon:'💥',desc:'Orbit spheres explode on contact with a danger bullet, but only once per brief shared cooldown.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if(upg.volatileOrbs)return; upg.volatileOrbs=true;}},
   {name:'Charged Orbs',tag:'OFFENSE',icon:'⚡',desc:'Each orbit sphere fires a small shot at the nearest enemy every 1.4s.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if(upg.chargedOrbs)return; upg.chargedOrbs=true;}},
   {name:'Absorb Orbs',tag:'UTILITY',icon:'🌀',desc:'Grey bullets near an orbit sphere are absorbed automatically.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if(upg.absorbOrbs)return; upg.absorbOrbs=true;}},
+  {name:'Orb Twin',tag:'OFFENSE',icon:'⚡≫',desc:'Charged Orbs fire a 2-shot fork. Total orb-shot damage increases, then splits between both shots.',requires:upg=>upg.chargedOrbs,apply(upg){if(upg.orbTwin)return; upg.orbTwin=true;}},
+  {name:'Orb Pierce',tag:'OFFENSE',icon:'⚡→',desc:'Charged Orb shots pierce 1 extra enemy.',requires:upg=>upg.chargedOrbs,apply(upg){if(upg.orbPierce)return; upg.orbPierce=true;}},
+  {name:'Orb Overcharge',tag:'OFFENSE',icon:'⚡⬆',desc:'Charged Orb shots scale much harder from current charge.',requires:upg=>upg.chargedOrbs,apply(upg){if(upg.orbOvercharge)return; upg.orbOvercharge=true;}},
   {name:'Orbital Focus',tag:'OFFENSE',icon:'🌐',desc:'Orbits hit harder. Charged Orbs fire 35% faster and scale damage from current charge.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if(upg.orbitalFocus)return; upg.orbitalFocus=true;}},
   {name:'Aegis Battery',tag:'OFFENSE',icon:'🔋',desc:'Ready shields empower reflects and bursts. At full shields, fire a bolt at the nearest enemy every 1.8s.',requires:upg=>upg.shieldTier>0,apply(upg){if(upg.aegisBattery)return; upg.aegisBattery=true; upg.aegisBatteryTimer=0;}},
   {name:'Dense Core',tag:'OFFENSE',icon:'◈',desc:'Reduce charge cap −25%/−50%/−75% per tier. +35% damage per tier. Extreme at 1 cap. Max 3.',apply(upg){if(upg.denseTier>=3)return; upg.denseTier++; upg.denseDamageMult=1+upg.denseTier*0.35; syncChargeCapacity(upg);}},
@@ -282,7 +286,7 @@ function getBoonWeight(boon, upg) {
   if(boon.name === 'Twin Lance') return 1 / (1 + upg.forwardShotTier * 1.35);
   // Build-bias: boost modifier boons when the player already owns the base
   const SHIELD_MODS = new Set(['Tempered Shield','Mirror Shield','Shield Burst','Aegis Nova','Barrier Pulse','Swift Ward','Aegis Battery']);
-  const ORB_MODS    = new Set(['Volatile Orbs','Charged Orbs','Absorb Orbs','Orbital Focus']);
+  const ORB_MODS    = new Set(['Volatile Orbs','Charged Orbs','Absorb Orbs','Orb Twin','Orb Pierce','Orb Overcharge','Orbital Focus']);
   const BOUNCE_MODS = new Set(['Split Shot','Fracture']);
   const PIERCE_MODS = new Set(['Volatile Rounds','Chain Reaction']);
   if(SHIELD_MODS.has(boon.name) && upg.shieldTier > 0) return 3;
@@ -487,6 +491,9 @@ function getActiveBoonEntries(upg) {
   if(upg.bloodMoon) entries.push({icon:'🩸',name:'BLOOD MOON',detail:'Kills: +8 HP, +3 grey bullets'});
   if(upg.chargedOrbs) entries.push({icon:'⚡',name:'Charged Orbs',detail:`Orbs fire shot every ${(CHARGED_ORB_FIRE_INTERVAL_MS / 1000).toFixed(1)}s`});
   if(upg.absorbOrbs) entries.push({icon:'🌀',name:'Absorb Orbs',detail:'Orbs absorb nearby grey bullets'});
+  if(upg.orbTwin) entries.push({icon:'⚡≫',name:'Orb Twin',detail:'Charged Orbs fire a 2-shot fork'});
+  if(upg.orbPierce) entries.push({icon:'⚡→',name:'Orb Pierce',detail:'Orb shots pierce 1 enemy'});
+  if(upg.orbOvercharge) entries.push({icon:'⚡⬆',name:'Orb Overcharge',detail:'Orb shots scale harder from charge'});
   if(upg.orbitalFocus) entries.push({icon:'🌐',name:'Orbital Focus',detail:'Orbs scale from charge, faster orb fire'});
   return entries;
 }
