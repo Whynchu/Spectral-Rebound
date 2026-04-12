@@ -227,9 +227,12 @@ const AEGIS_NOVA_DAMAGE_FACTOR = 0.55;
 const VOLATILE_ORB_COOLDOWN = 8;
 const VOLATILE_ORB_SHARED_COOLDOWN = 1.0;
 const PHASE_DASH_DAMAGE_MULT = 0.05;
-const GLOBAL_SPEED_LIFT = 1.07;
+const GLOBAL_SPEED_LIFT = 1.20;
 const VAMPIRIC_HEAL_PER_KILL = 4;
 const VAMPIRIC_CHARGE_PER_KILL = 0.25;
+const VAMPIRIC_HEAL_CAP_BASE = 28;
+const VAMPIRIC_HEAL_CAP_PER_ROOM = 0.45;
+const VAMPIRIC_HEAL_CAP_MAX = 72;
 const BLOOD_PACT_BASE_HEAL_CAP_PER_BULLET = 1;
 const BLOOD_PACT_BLOOD_MOON_BONUS_CAP = 1;
 let enemyIdSeq = 1;
@@ -254,6 +257,7 @@ let _absorbComboCount = 0, _absorbComboTimer = 0;
 let _chainMagnetTimer = 0;
 let _echoCounter = 0;
 let _vampiricRestoresThisRoom = 0;
+let _killSustainHealedThisRoom = 0;
 let _colossusShockwaveCd = 0;
 let _orbFireTimers = [];
 let _orbCooldown = [];
@@ -288,6 +292,7 @@ let escortRespawnTimer = 0;
 let reinforceTimer = 0;
 let currentRoomIsBoss = false;
 let currentRoomMaxOnScreen = 99;
+let currentBossDamageMultiplier = 1;
 let runTelemetry = null;
 let currentRoomTelemetry = null;
 
@@ -308,6 +313,19 @@ function getPostHitInvulnSeconds(kind = 'projectile') {
     return Math.max(MIN_CONTACT_INVULN_S, BASE_CONTACT_INVULN_S - reduction);
   }
   return Math.max(MIN_PROJECTILE_INVULN_S, BASE_PROJECTILE_INVULN_S - reduction);
+}
+
+function getKillSustainCapForRoom(room = roomIndex || 0) {
+  return Math.min(VAMPIRIC_HEAL_CAP_MAX, Math.round(VAMPIRIC_HEAL_CAP_BASE + room * VAMPIRIC_HEAL_CAP_PER_ROOM));
+}
+
+function applyKillSustainHeal(amount, source) {
+  if(amount <= 0) return 0;
+  const remaining = Math.max(0, getKillSustainCapForRoom(roomIndex || 0) - _killSustainHealedThisRoom);
+  if(remaining <= 0) return 0;
+  const applied = healPlayer(Math.min(amount, remaining), source);
+  _killSustainHealedThisRoom += applied;
+  return applied;
 }
 
 function awardFiveRoomScoreBonus() {
@@ -617,8 +635,8 @@ function buildRunTelemetryPayload() {
 
 function getRoomDef(idx) {
   const roomNumber = idx + 1;
-  const isLegacyBossRoom = roomNumber <= 50 && roomNumber % 10 === 0;
-  const isLateBossRoom = roomNumber >= 60 && roomNumber % 20 === 0;
+  const isLegacyBossRoom = roomNumber <= 40 && roomNumber % 10 === 0;
+  const isLateBossRoom = [50, 70, 90, 100].includes(roomNumber) || (roomNumber >= 120 && (roomNumber - 120) % 20 === 0);
   if (isLegacyBossRoom || isLateBossRoom) {
     let bossConfig;
     if (BOSS_ROOMS[idx]) {
@@ -640,29 +658,34 @@ function getRoomDef(idx) {
     for (let i = 0; i < bossConfig.escortCount; i++) {
       wave.push({ t: bossConfig.escortType, n: 1, d: 0 });
     }
-    const lateBossWaves = roomNumber > 50
-      ? [
-          wave,
-          [
-            { t: bossConfig.escortType, n: bossConfig.escortCount + 1, d: 0 },
-            { t: 'sniper', n: 1, d: 350 },
-            { t: 'rusher', n: 1, d: 700 },
-          ],
-          [
-            { t: 'disruptor', n: 1 + Math.floor(bossConfig.escortCount / 2), d: 0 },
-            { t: 'chaser', n: bossConfig.escortCount + 1, d: 450 },
-          ],
-        ]
-      : [wave];
+    if(roomNumber >= 50) {
+      const strongerEscortType = roomNumber >= 90 ? 'orange_zoner' : 'purple_zoner';
+      wave.push({ t: strongerEscortType, n: roomNumber >= 90 ? 2 : 1, d: 0 });
+      wave.push({ t: 'purple_disruptor', n: 1 + Math.floor(bossConfig.escortCount / 2), d: 0 });
+      wave.push({ t: 'triangle', n: roomNumber >= 90 ? 2 : 1, d: 0 });
+      wave.push({ t: 'rusher', n: bossConfig.escortCount + 1, d: 0 });
+    }
+    if(roomNumber === 100) {
+      const bossKeys = Object.keys(BOSS_ROOMS).map(Number).sort((a,b) => a-b);
+      const ci = (4 + Math.floor((roomNumber - 60) / 20)) % bossKeys.length;
+      const secondaryConfig = BOSS_ROOMS[bossKeys[(ci + 1) % bossKeys.length]];
+      wave.push({ t: secondaryConfig.bossType, n: 1, d: 0, isBoss: true, bossScale: 2 });
+      wave[0].bossScale = 2;
+      wave.push({ t: 'orange_zoner', n: 2, d: 0 });
+      wave.push({ t: 'purple_disruptor', n: 2, d: 0 });
+      wave.push({ t: 'triangle', n: 2, d: 0 });
+      wave.push({ t: 'rusher', n: 3, d: 0 });
+    }
     return {
-      name: bossConfig.name,
+      name: roomNumber === 100 ? 'DOUBLE EXECUTION' : bossConfig.name,
       chaos: bossConfig.chaos,
-      waves: lateBossWaves,
+      waves: [wave],
       isBossRoom: true,
       bossType: bossConfig.bossType,
       escortType: bossConfig.escortType,
-      escortCount: roomNumber > 50 ? bossConfig.escortCount + 1 : bossConfig.escortCount,
-      bossEscortRespawnBonus: roomNumber > 50 ? 1 : 0,
+      escortCount: roomNumber >= 50 ? bossConfig.escortCount + (roomNumber >= 90 ? 2 : 1) : bossConfig.escortCount,
+      bossEscortRespawnBonus: roomNumber >= 50 ? 1 : 0,
+      bossDamageMultiplier: roomNumber === 100 ? 2 : 1,
     };
   }
 
@@ -769,7 +792,7 @@ function buildSpawnQueue(roomDef) {
         const spawnDelay = (entry.d || 0) * i;
         const spawnAt = waveStartAt + spawnDelay;
         waveMaxDelay = Math.max(waveMaxDelay, spawnDelay);
-        queue.push({ t: entry.t, spawnAt, isBoss: Boolean(entry.isBoss), waveIndex });
+        queue.push({ t: entry.t, spawnAt, isBoss: Boolean(entry.isBoss), waveIndex, bossScale: entry.bossScale || 1 });
       }
     }
     waveStartAt += waveMaxDelay + 1800;
@@ -794,6 +817,7 @@ function beginWaveIntro(nextWaveIndex) {
 function startRoom(idx) {
   tookDamageThisRoom = false;
   _vampiricRestoresThisRoom = 0;
+  _killSustainHealedThisRoom = 0;
   _orbFireTimers = []; _orbCooldown = [];
   _volatileOrbGlobalCooldown = 0;
   UPG.predatorKillStreak = 0; UPG.predatorKillStreakTime = 0;
@@ -820,6 +844,7 @@ function startRoom(idx) {
   // Boss room state
   currentRoomIsBoss = Boolean(def.isBossRoom);
   bossAlive = currentRoomIsBoss;
+  currentBossDamageMultiplier = def.bossDamageMultiplier || 1;
   escortType = def.escortType || '';
   escortMaxCount = def.escortCount || 2;
   escortRespawnTimer = 0;
@@ -863,7 +888,7 @@ function getBossEscortRespawnMs(idx) {
   return 7000;
 }
 
-function spawnEnemy(type, isBoss = false) {
+function spawnEnemy(type, isBoss = false, bossScale = 1) {
   const enemy = createEnemy(type, {
     width: cv.width,
     height: cv.height,
@@ -871,6 +896,7 @@ function spawnEnemy(type, isBoss = false) {
     roomIndex,
     nextEnemyId: enemyIdSeq++,
     isBoss,
+    bossScale,
   });
   if(enemy.forcePurpleShots) roomPurpleShooterAssigned = true;
   enemies.push(enemy);
@@ -945,7 +971,7 @@ function getProjectileHitDamage(multiplier = 1) {
   const dmgScale = (1 + Math.log(roomIndex + 1) * 0.24) * (tierOver > 0 ? 1 + tierOver * 0.04 : 1);
   const rawDamage = Math.ceil(18 * dmgScale * getProjectileDamageCurve(roomIndex || 0));
   const lateBloomDefenseMods = getLateBloomMods(roomIndex || 0);
-  return Math.max(1, Math.ceil(rawDamage * (UPG.damageTakenMult || 1) * lateBloomDefenseMods.damageTaken * multiplier));
+  return Math.max(1, Math.ceil(rawDamage * currentBossDamageMultiplier * (UPG.damageTakenMult || 1) * lateBloomDefenseMods.damageTaken * multiplier));
 }
 
 function getEliteBulletStagePalette() {
@@ -1680,7 +1706,7 @@ function init() {
   player.shields=[];
   _barrierPulseTimer=0;
   _slipCooldown=0; _absorbComboCount=0; _absorbComboTimer=0;
-  _chainMagnetTimer=0; _echoCounter=0; _vampiricRestoresThisRoom=0; _colossusShockwaveCd=0;
+  _chainMagnetTimer=0; _echoCounter=0; _vampiricRestoresThisRoom=0; _killSustainHealedThisRoom=0; _colossusShockwaveCd=0;
   _orbFireTimers=[]; _orbCooldown=[];
   boonHistory=[]; pendingLegendary=null; legendaryOffered=false;
   runTelemetry = createRunTelemetry();
@@ -1821,7 +1847,7 @@ function update(dt,ts){
     ){
       if(enemies.length >= currentRoomMaxOnScreen) break;
       const entry = spawnQueue.shift();
-      spawnEnemy(entry.t, entry.isBoss);
+      spawnEnemy(entry.t, entry.isBoss, entry.bossScale || 1);
     }
     if(spawnQueue.length===0 && enemies.length > 0) roomPhase='fighting';
     if(spawnQueue.length===0 && enemies.length === 0){
@@ -1893,7 +1919,7 @@ function update(dt,ts){
       if(reinforceTimer >= getReinforcementIntervalMs(roomIndex)) {
         reinforceTimer = 0;
         const entry = spawnQueue.shift();
-        spawnEnemy(entry.t, entry.isBoss);
+        spawnEnemy(entry.t, entry.isBoss, entry.bossScale || 1);
       }
     }
   }
@@ -2555,7 +2581,7 @@ function update(dt,ts){
             }
             // Vampiric Return: modest sustain per kill without fully funding the next volley.
             if(UPG.vampiric){ 
-              healPlayer(VAMPIRIC_HEAL_PER_KILL, 'vampiric');
+              applyKillSustainHeal(VAMPIRIC_HEAL_PER_KILL, 'vampiric');
               gainCharge(VAMPIRIC_CHARGE_PER_KILL, 'vampiric');
             }
               // Predator's Instinct: track kill streak (5s window)
@@ -2593,7 +2619,7 @@ function update(dt,ts){
               
               // BLOOD MOON: enhanced kill rewards
               if(UPG.bloodMoon){
-                healPlayer(8, 'bossReward');
+                applyKillSustainHeal(8, 'vampiric');
                 for(let i=0;i<3;i++){
                   const ang = (Math.PI*2/3)*i + Math.random()*0.3;
                   bullets.push({x:e.x,y:e.y,vx:Math.cos(ang)*120,vy:Math.sin(ang)*120,state:'grey',r:5,decayStart:ts,bounceLeft:0,pierceLeft:0,homing:false,crit:false,dmg:0,hitIds:new Set()});

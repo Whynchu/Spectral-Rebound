@@ -1,6 +1,6 @@
 import { getThreatPalette } from '../data/colorScheme.js';
 
-const GLOBAL_SPEED_LIFT = 1.07;
+const GLOBAL_SPEED_LIFT = 1.20;
 
 const ENEMY_TYPES = {
   chaser:         {colorRole:'danger',       r:12,hp:3, spd:55, fRate:1800,burst:1,spread:.22,pts:50,  flee:true,  fleeRange:110, strafeSpd:0.6, doubleBounce:false, spawnValue:2, unlockRoom:0, ammoPressure:1},
@@ -52,7 +52,7 @@ function getEnemyDefinition(type) {
   };
 }
 
-function createEnemy(type, { width, height, margin, roomIndex, nextEnemyId, isBoss = false }) {
+function createEnemy(type, { width, height, margin, roomIndex, nextEnemyId, isBoss = false, bossScale = 1 }) {
   const def = getEnemyDefinition(type);
   const palette = getThreatPalette();
   const effectiveR = isBoss ? def.r * 3 : def.r;
@@ -74,12 +74,12 @@ function createEnemy(type, { width, height, margin, roomIndex, nextEnemyId, isBo
   const midTierHpMult = tierOver20 > 0 ? 1 + Math.min(1.8, tierOver20 * 0.085) : 1;
   const lateTierHpMult = tierOver40 > 0 ? 1 + Math.min(2.8, tierOver40 * 0.06) : 1;
   const lateRoomHpMult =
-    roomIndex >= 160 ? 3.1 :
-    roomIndex >= 120 ? 2.45 :
-    roomIndex >= 100 ? 2.05 :
-    roomIndex >= 80 ? 1.7 :
-    roomIndex >= 60 ? 1.4 :
-    roomIndex >= 40 ? 1.2 :
+    roomIndex >= 160 ? 4.0 :
+    roomIndex >= 120 ? 3.15 :
+    roomIndex >= 100 ? 2.65 :
+    roomIndex >= 80 ? 2.2 :
+    roomIndex >= 60 ? 1.75 :
+    roomIndex >= 40 ? 1.4 :
     1;
   const hpMult = hpScale * earlyMidHpEase * room20Mult * midTierHpMult * lateTierHpMult * lateRoomHpMult;
   // Speed and fire pressure step up again in deep late game.
@@ -110,10 +110,10 @@ function createEnemy(type, { width, height, margin, roomIndex, nextEnemyId, isBo
     roomIndex >= 80 ? 0.84 :
     roomIndex >= 60 ? 0.9 :
     1;
-  const effectiveFireRate = def.fRate >= 9000 ? def.fRate : Math.max(480, def.fRate * fireRateMult * (isElite ? 0.92 : 1));
+  const effectiveFireRate = def.fRate >= 9000 ? def.fRate : Math.max(480, def.fRate * fireRateMult * (isElite ? 0.92 : 1) / (isBoss ? bossScale : 1));
 
   const hpVal = isBoss
-    ? Math.max(1, Math.round(def.hp * hpMult * 5))
+    ? Math.max(1, Math.round(def.hp * hpMult * 5 * bossScale))
     : Math.max(1, Math.round(def.hp * hpMult * (isElite ? 1.3 : 1)));
 
   return {

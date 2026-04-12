@@ -247,7 +247,7 @@ const BOONS = [
   {name:'Overcharge Vent',tag:'UTILITY',icon:'⬆',desc:'Firing at full charge gives +60% bullet damage.',apply(upg){if(upg.overchargeVent)return; upg.overchargeVent=true;}},
   {name:'Gravity Well',tag:'UTILITY',icon:'⊙',desc:'Danger bullets within 96px move 40% slower.',apply(upg){if(upg.gravityWell)return; upg.gravityWell=true;}},
   {name:'Sliver',tag:'SURVIVE',icon:'◌',desc:'At ≤25% HP: +40% speed, −25% size.',apply(upg){if(upg.sliver)return; upg.sliver=true;}},
-  {name:'Vampiric Return',tag:'SURVIVE',icon:'🩸',desc:'Each kill restores 4 HP and grants +0.25 charge. No limit.',apply(upg){if(upg.vampiric)return; upg.vampiric=true;}},
+  {name:'Vampiric Return',tag:'SURVIVE',icon:'🩸',desc:'Each kill restores 4 HP and grants +0.25 charge, but kill-heal is capped per room.',apply(upg){if(upg.vampiric)return; upg.vampiric=true;}},
   {name:'Predator\'s Instinct',tag:'OFFENSE',icon:'🐺',desc:'2+ kills within 5s grants +25% damage per kill (max +125%).',requires:upg=>upg.vampiric,apply(upg){if(upg.predatorInstinct)return; upg.predatorInstinct=true;}},
   {name:'Blood Pact',tag:'SURVIVE',icon:'🩸+',desc:'Piercing shots restore 1 HP, but only once per bullet. Blood Moon adds +1 more.',requires:upg=>upg.vampiric&&upg.pierceTier>0,apply(upg){if(upg.bloodPact)return; upg.bloodPact=true;}},
   {name:'Lifeline',tag:'SURVIVE',icon:'♾',desc:'Once per run: a killing blow leaves you at 1 HP.',apply(upg){if(upg.lifeline)return; upg.lifeline=true;},evolvesWith:['Berserker'],evolvedVersion:{name:'Last Stand',icon:'♾+',desc:'Lifeline triggers AND fires a full charge burst.',apply(upg){if(upg.lifeline)return; upg.lifeline=true; upg.lastStand=true;}}},
@@ -456,7 +456,7 @@ function getActiveBoonEntries(upg) {
   if(upg.overchargeVent) entries.push({icon:'⬆',name:'Overcharge Vent',detail:'+60% dmg at full charge'});
   if(upg.gravityWell) entries.push({icon:'⊙',name:'Gravity Well',detail:'Slows nearby danger bullets 40%'});
   if(upg.sliver) entries.push({icon:'◌',name:'Sliver',detail:'Low HP speed+size boost'});
-  if(upg.vampiric) entries.push({icon:'🩸',name:'Vampiric Return',detail:'+4 HP per kill, +0.25 charge'});
+  if(upg.vampiric) entries.push({icon:'🩸',name:'Vampiric Return',detail:'+4 HP per kill, +0.25 charge, capped per room'});
   if(upg.predatorInstinct) entries.push({icon:'🐺',name:'Predator\'s Instinct',detail:`Kill streak: +${Math.round((upg.predatorKillStreak||0)*25)}% damage (max +125%)`});
   if(upg.bloodPact) entries.push({icon:'🩸+',name:'Blood Pact',detail:`+1 HP per piercing bullet hit cap${upg.bloodMoon ? ' (+1 from Blood Moon)' : ''}`});
   if(upg.lifeline) entries.push({icon: upg.lastStand?'♾+':'♾', name: upg.lastStand?'Last Stand':'Lifeline', detail:upg.lifelineUsed?'SPENT':'1× death save'});

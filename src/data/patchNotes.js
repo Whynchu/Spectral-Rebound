@@ -1,5 +1,41 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.49',
+    label: 'LATE HP LIFT',
+    summary: [
+      'Enemy health is now pushed harder from room 40 onward. This is layered on top of the 120% speed lift and the deep-run sustain brake so late rooms stop evaporating under low-charge high-damage builds that were still overperforming deep into endless progression.'
+    ],
+    highlights: [
+      'Enemy HP scaling is increased specifically for rooms 40+.',
+      'Rooms 60, 80, 100, 120, and 160+ all get a stronger late-health multiplier than before.',
+      'This ships together with the unpushed deep-run sustain cap, late boss structure pass, and 120% gameplay speed lift.'
+    ]
+  },
+  {
+    version: '1.16.48',
+    label: 'SPEED LIFT',
+    summary: [
+      'Global gameplay speed is now lifted to 120%. This raises the overall tempo of movement, bullet travel, and encounter flow on top of the deep-run sustain and boss-room corrections.'
+    ],
+    highlights: [
+      'Global gameplay speed increased from 107% to 120%.',
+      'Player movement, enemy motion, and projectile pacing all inherit the faster lift.',
+      'This ships together with the unpushed deep-run sustain cap and late-boss structure pass.'
+    ]
+  },
+  {
+    version: '1.16.47',
+    label: 'DEEP RUN BRAKE',
+    summary: [
+      'This pass targets the late-run runaway you described: kill-heal sustain is now room-capped so giant HP pools cannot refill indefinitely, and post-50 boss rooms are rebuilt as single dense set-pieces instead of staged wave chains. Room 100 is now a special double-boss spike with doubled boss stats and damage.'
+    ],
+    highlights: [
+      'Vampiric and Blood Moon kill-heal now share a per-room sustain cap.',
+      'Boss rooms now land at 50, 70, 90, 100, then every 20 rooms from 120 onward.',
+      'Room 100 now spawns two bosses at once with double boss health, double fire speed, and double projectile damage.'
+    ]
+  },
+  {
     version: '1.16.46',
     label: 'RUN CLOCK FIX',
     summary: [
