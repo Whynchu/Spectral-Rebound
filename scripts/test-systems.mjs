@@ -20,6 +20,12 @@ import {
   applyLeaderboardSyncFailure,
   forceLocalLeaderboardFallback,
 } from '../src/platform/leaderboardController.js';
+import {
+  getRoomDef,
+  getRoomMaxOnScreen,
+  getReinforcementIntervalMs,
+  getBossEscortRespawnMs,
+} from '../src/core/roomFlow.js';
 
 function test(name, fn) {
   try {
@@ -195,6 +201,47 @@ test('leaderboard failure transition ignores stale request ids', () => {
   assert.equal(appliedFailure, true);
   assert.equal(state.statusMode, 'local');
   assert.equal(state.statusText, 'LOCAL FALLBACK');
+});
+
+test('room flow helpers keep threshold values', () => {
+  assert.equal(getRoomMaxOnScreen(0, true), 99);
+  assert.equal(getRoomMaxOnScreen(25, false), 12);
+  assert.equal(getRoomMaxOnScreen(85, false), 18);
+  assert.equal(getReinforcementIntervalMs(0), 800);
+  assert.equal(getReinforcementIntervalMs(120), 360);
+  assert.equal(getBossEscortRespawnMs(0), 7000);
+  assert.equal(getBossEscortRespawnMs(160), 2800);
+});
+
+test('room flow generates non-boss and room-100 special boss layouts', () => {
+  const roomScripts = ['ARRIVAL', 'PATROL', 'RUSH'];
+  const bossRooms = {
+    9: { name: 'MEGA ZONER', bossType: 'zoner', escortType: 'chaser', escortCount: 1, chaos: 0.24 },
+    19: { name: 'MEGA TRIANGLE', bossType: 'triangle', escortType: 'rusher', escortCount: 2, chaos: 0.4 },
+    29: { name: 'MEGA DISRUPTOR', bossType: 'purple_disruptor', escortType: 'purple_chaser', escortCount: 2, chaos: 0.5 },
+    39: { name: 'MEGA ZONER II', bossType: 'orange_zoner', escortType: 'sniper', escortCount: 2, chaos: 0.55 },
+  };
+  const generatedWave = [{ t: 'chaser', n: 2, d: 0 }];
+  const nonBoss = getRoomDef(3, {
+    roomNames: roomScripts,
+    bossRooms,
+    generateWeightedWave: () => generatedWave,
+  });
+  assert.equal(nonBoss.isBossRoom, undefined);
+  assert.equal(nonBoss.waves[0], generatedWave);
+
+  const room100 = getRoomDef(99, {
+    roomNames: roomScripts,
+    bossRooms,
+    generateWeightedWave: () => generatedWave,
+  });
+  assert.equal(room100.isBossRoom, true);
+  assert.equal(room100.name, 'DOUBLE EXECUTION');
+  assert.equal(room100.bossDamageMultiplier, 2);
+  const bossEntries = room100.waves[0].filter((entry) => entry.isBoss);
+  assert.equal(bossEntries.length, 2);
+  assert.equal(bossEntries[0].bossScale, 2);
+  assert.equal(bossEntries[1].bossScale, 2);
 });
 
 if (process.exitCode && process.exitCode !== 0) {
