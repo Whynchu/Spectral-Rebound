@@ -2,14 +2,36 @@ import { C, ROOM_SCRIPTS, BOSS_ROOMS, DECAY_BASE, M, VERSION } from './src/data/
 import { CHARGED_ORB_FIRE_INTERVAL_MS, ESCALATION_KILL_PCT, ESCALATION_MAX_BONUS, getActiveBoonEntries, getDefaultUpgrades, getRequiredShotCount, getKineticChargeRate, syncChargeCapacity, getEvolvedBoon, checkLegendarySequences, getLateBloomGrowth, LATE_BLOOM_SPEED_PENALTY, LATE_BLOOM_DAMAGE_TAKEN_PENALTY, LATE_BLOOM_DAMAGE_PENALTY } from './src/data/boons.js';
 import { ENEMY_TYPES, createEnemy, canEnemyUsePurpleShots } from './src/entities/enemyTypes.js';
 import { JOY_DEADZONE, JOY_MAX, createJoystickState, resetJoystickState, bindJoystickControls, tickJoystick } from './src/input/joystick.js';
-import { fetchRemoteLeaderboard, submitRemoteScore } from './src/platform/leaderboardService.js';
+import { fetchRemoteLeaderboard, submitRemoteScore, submitRunDiagnostic } from './src/platform/leaderboardService.js';
 import { bindResponsiveViewport } from './src/platform/viewport.js';
+import { readText, writeText, readJson, writeJson, removeKey } from './src/platform/storage.js';
+import {
+  createLeaderboardSyncState,
+  beginLeaderboardSync,
+  applyLeaderboardSyncSuccess,
+  applyLeaderboardSyncFailure,
+  forceLocalLeaderboardFallback,
+} from './src/platform/leaderboardController.js';
 import { showBoonSelection } from './src/ui/boonSelection.js';
 import { renderVersionTag } from './src/ui/versionTag.js';
-import { PLAYER_COLORS, getPlayerColor, getPlayerColorScheme, getThreatPalette } from './src/data/colorScheme.js';
+import { PLAYER_COLORS, getPlayerColor, getPlayerColorScheme, getThreatPalette, loadPlayerColorFromStorage } from './src/data/colorScheme.js';
 import { PATCH_NOTES, PATCH_NOTES_ARCHIVE_MESSAGE } from './src/data/patchNotes.js';
 import { renderColorSelector } from './src/ui/colorSelector.js';
+import { formatRunTime, renderHud } from './src/ui/hud.js';
+import { renderLeaderboard as renderLeaderboardView } from './src/ui/leaderboard.js';
+import {
+  getKillSustainCapForRoom as getKillSustainCapForRoomValue,
+  applyKillSustainHeal as applyKillSustainHealValue,
+} from './src/systems/sustain.js';
+import { computeKillScore, computeFiveRoomCheckpointBonus } from './src/systems/scoring.js';
+import { computeProjectileHitDamage } from './src/systems/damage.js';
+import {
+  generateWeightedWave as generateWeightedWaveValue,
+  buildSpawnQueue as buildSpawnQueueValue,
+} from './src/systems/spawnBudget.js';
+import { createInitialPlayerState, createInitialRunMetrics, createInitialRuntimeTimers } from './src/core/runState.js';
 
+loadPlayerColorFromStorage();
 renderVersionTag(VERSION);
 
 // 🐰 Easter seasonal flag — show bunny ears on Easter weekend
@@ -43,10 +65,6 @@ const LB_KEY = 'phantom-rebound-leaderboard-v1';
 const NAME_KEY = 'phantom-rebound-runner-name';
 const LEGACY_RUN_RECOVERY_KEY = 'phantom-rebound-run-recovery-v1';
 const RUN_CRASH_REPORT_KEY = 'phantom-rebound-crash-report-v1';
-const DIAGNOSTIC_REMOTE_CONFIG = {
-  url: 'https://rxeaizrnfbawrlnfveer.supabase.co',
-  publishableKey: 'sb_publishable_FHqBPGMvSa859vZASkzOzg_Zpp2GRcm',
-};
 
 const nameInputStart = document.getElementById('name-input-start');
 const nameInputGo = document.getElementById('name-input-go');
@@ -77,6 +95,11 @@ const wrap = document.getElementById('wrap');
 const topHud = document.getElementById('top-hud');
 const botHud = document.getElementById('bot-hud');
 const legend = document.getElementById('legend');
+const roomCounterEl = document.getElementById('room-counter');
+const scoreTextEl = document.getElementById('score-txt');
+const chargeFillEl = document.getElementById('charge-fill');
+const chargeBadgeEl = document.getElementById('charge-badge');
+const spsNumberEl = document.getElementById('sps-num');
 
 function setMenuChromeVisible(isVisible) {
   document.body.classList.toggle('menu-chrome-visible', isVisible);
@@ -233,6 +256,11 @@ const VAMPIRIC_CHARGE_PER_KILL = 0.25;
 const VAMPIRIC_HEAL_CAP_BASE = 14;
 const VAMPIRIC_HEAL_CAP_PER_ROOM = 0.22;
 const VAMPIRIC_HEAL_CAP_MAX = 34;
+const KILL_SUSTAIN_CAP_CONFIG = {
+  baseHealCap: VAMPIRIC_HEAL_CAP_BASE,
+  perRoomHealCap: VAMPIRIC_HEAL_CAP_PER_ROOM,
+  maxHealCap: VAMPIRIC_HEAL_CAP_MAX,
+};
 const BLOOD_PACT_BASE_HEAL_CAP_PER_BULLET = 1;
 const BLOOD_PACT_BLOOD_MOON_BONUS_CAP = 1;
 let enemyIdSeq = 1;
@@ -240,11 +268,7 @@ let playerName = 'RUNNER';
 let leaderboard = [];
 let lbPeriod = 'daily';
 let lbScope = 'everyone';
-let remoteLeaderboardRows = [];
-let useRemoteLeaderboardRows = false;
-let lbStatusMode = 'local';
-let lbStatusText = 'LOCAL ONLY';
-let lbRequestSeq = 0;
+const lbSync = createLeaderboardSyncState();
 let raf=0, lastT=0;
 let gameOverShown = false;
 let boonRerolls = 1;
@@ -300,13 +324,6 @@ function roundTelemetryValue(value) {
   return Math.round(value * 100) / 100;
 }
 
-function formatRunTime(ms) {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
 function getPostHitInvulnSeconds(kind = 'projectile') {
   const reduction = bossClears * BOSS_CLEAR_INVULN_REDUCTION_S;
   if(kind === 'contact') {
@@ -316,33 +333,25 @@ function getPostHitInvulnSeconds(kind = 'projectile') {
 }
 
 function getKillSustainCapForRoom(room = roomIndex || 0) {
-  return Math.min(VAMPIRIC_HEAL_CAP_MAX, Math.round(VAMPIRIC_HEAL_CAP_BASE + room * VAMPIRIC_HEAL_CAP_PER_ROOM));
+  return getKillSustainCapForRoomValue(room, KILL_SUSTAIN_CAP_CONFIG);
 }
 
 function applyKillSustainHeal(amount, source) {
-  if(amount <= 0) return 0;
-  const remaining = Math.max(0, getKillSustainCapForRoom(roomIndex || 0) - _killSustainHealedThisRoom);
-  if(remaining <= 0) return 0;
-  const applied = healPlayer(Math.min(amount, remaining), source);
-  _killSustainHealedThisRoom += applied;
-  return applied;
+  const result = applyKillSustainHealValue({
+    amount,
+    roomIndex: roomIndex || 0,
+    healedThisRoom: _killSustainHealedThisRoom,
+    healPlayer,
+    source,
+    config: KILL_SUSTAIN_CAP_CONFIG,
+  });
+  _killSustainHealedThisRoom = result.healedThisRoom;
+  return result.applied;
 }
 
 function awardFiveRoomScoreBonus() {
-  if(!runTelemetry || runTelemetry.rooms.length < 5) return;
-  const recentRooms = runTelemetry.rooms.slice(-5);
-  if(recentRooms.some((room) => room.end !== 'clear')) return;
-  const lastRoom = recentRooms[recentRooms.length - 1];
-  if(lastRoom.room % 5 !== 0) return;
-  const totalClearMs = recentRooms.reduce((sum, room) => sum + (room.clearMs || 0), 0);
-  const totalHpLost = recentRooms.reduce((sum, room) => sum + (room.hpLost || 0), 0);
-  const damagelessCount = recentRooms.reduce((sum, room) => sum + (room.damageless ? 1 : 0), 0);
-  const avgClearSeconds = Math.max(6, (totalClearMs / recentRooms.length) / 1000);
-  const baseBonus = 260 + lastRoom.room * 26;
-  const paceMultiplier = Math.max(0.65, Math.min(1.75, 26 / avgClearSeconds));
-  const avoidanceMultiplier = Math.max(0.55, Math.min(1.4, 1.35 - totalHpLost / 320));
-  const consistencyBonus = damagelessCount * 40;
-  score += Math.round(baseBonus * paceMultiplier * avoidanceMultiplier + consistencyBonus);
+  if(!runTelemetry) return;
+  score += computeFiveRoomCheckpointBonus(runTelemetry.rooms);
 }
 
 function getViewportModeLabel() {
@@ -697,108 +706,12 @@ function getRoomDef(idx) {
   return { name, chaos, waves:[generateWeightedWave(idx)] };
 }
 
-function getUnlockedEnemyTypes(roomIdx) {
-  return Object.entries(ENEMY_TYPES)
-    .filter(([, def]) => roomIdx >= def.unlockRoom)
-    .map(([type]) => type);
-}
-
-function weightedPick(candidates) {
-  const total = candidates.reduce((sum, candidate) => sum + candidate.weight, 0);
-  let roll = Math.random() * total;
-  for(const candidate of candidates) {
-    roll -= candidate.weight;
-    if(roll <= 0) return candidate.type;
-  }
-  return candidates[candidates.length - 1].type;
-}
-
 function generateWeightedWave(roomIdx) {
-  const unlocked = getUnlockedEnemyTypes(roomIdx);
-  const entries = new Map();
-  const earlyRoomBudgetPenalty = roomIdx >= 12 && roomIdx <= 14 ? 2.25 : 0;
-  const room20BudgetBonus = Math.max(0, roomIdx - 19) * 0.55;
-  const room40BudgetBonus = Math.max(0, roomIdx - 39) * 0.9;
-  const room80BudgetBonus = Math.max(0, roomIdx - 79) * 1.1;
-  const budgetBase = 5.0 + roomIdx * 1.35 + room20BudgetBonus + room40BudgetBonus + room80BudgetBonus - earlyRoomBudgetPenalty;
-  let budget = budgetBase;
-  let shooterCount = 0;
-  let siphonCount = 0;
-  const MAX_TYPES = roomIdx >= 60 ? 5 : (roomIdx >= 15 ? 4 : 2);
-
-  if(roomIdx === 9) {
-    entries.set('purple_chaser', 1);
-    budget -= ENEMY_TYPES.purple_chaser.spawnValue;
-    shooterCount += 1;
-  }
-
-  while(budget >= 2) {
-    const candidates = unlocked
-      .filter((type) => roomIdx > 9 || (type !== 'purple_chaser' && type !== 'purple_disruptor'))
-      .filter((type) => type !== 'purple_chaser' || roomIdx >= 14)
-      .filter((type) => type !== 'purple_disruptor' || roomIdx >= 15)
-      .filter((type) => ENEMY_TYPES[type].spawnValue <= budget + 0.5)
-      .filter((type) => entries.size < MAX_TYPES || entries.has(type))
-      .filter((type) => {
-        if(type === 'siphon' && entries.size === 0) return false;
-        if(type === 'siphon' && siphonCount >= (roomIdx >= 60 ? 2 : 1)) return false;
-        if(roomIdx >= 12 && roomIdx <= 14 && ['zoner','disruptor','purple_chaser','purple_disruptor'].includes(type) && shooterCount >= 1) {
-          return false;
-        }
-        // Rooms 20-29: once a triangle is in the wave, reduce bullet pressure from other heavy shooters
-        if(roomIdx >= 20 && roomIdx < 30 && entries.has('triangle')) {
-          return !['zoner','purple_disruptor','purple_chaser','disruptor'].includes(type);
-        }
-        return true;
-      })
-      .map((type) => {
-        const def = ENEMY_TYPES[type];
-        const pressureBias = def.ammoPressure > 0 ? 1.15 : (def.isSiphon ? 0.28 : 0.78);
-        const affordability = 1 / def.spawnValue;
-        const roomBias = 1 + Math.min(1.2, Math.max(0, roomIdx - def.unlockRoom) * 0.08);
-        return { type, weight: pressureBias * affordability * roomBias };
-      });
-    if(candidates.length === 0) break;
-    const type = weightedPick(candidates);
-    entries.set(type, (entries.get(type) || 0) + 1);
-    budget -= ENEMY_TYPES[type].spawnValue;
-    if(ENEMY_TYPES[type].ammoPressure > 0) shooterCount++;
-    if(ENEMY_TYPES[type].isSiphon) siphonCount++;
-  }
-
-  if(shooterCount === 0) {
-    entries.set('chaser', (entries.get('chaser') || 0) + 1);
-  }
-  if(entries.size === 1 && entries.has('siphon')) {
-    entries.delete('siphon');
-    entries.set('chaser', 2);
-    entries.set(roomIdx >= 20 ? 'disruptor' : 'sniper', 1);
-    if(roomIdx >= 8) entries.set('siphon', 1);
-  }
-  if(entries.has('siphon') && entries.size < 3) {
-    entries.set(roomIdx >= 20 ? 'disruptor' : 'sniper', (entries.get(roomIdx >= 20 ? 'disruptor' : 'sniper') || 0) + 1);
-  }
-
-  return [...entries.entries()].map(([t, n]) => ({ t, n, d:0 }));
+  return generateWeightedWaveValue(roomIdx, ENEMY_TYPES);
 }
 
 function buildSpawnQueue(roomDef) {
-  const queue = [];
-  let waveStartAt = 0;
-  roomDef.waves.forEach((wave, waveIndex) => {
-    let waveMaxDelay = 0;
-    for(const entry of wave) {
-      for(let i=0; i<entry.n; i++) {
-        const spawnDelay = (entry.d || 0) * i;
-        const spawnAt = waveStartAt + spawnDelay;
-        waveMaxDelay = Math.max(waveMaxDelay, spawnDelay);
-        queue.push({ t: entry.t, spawnAt, isBoss: Boolean(entry.isBoss), waveIndex, bossScale: entry.bossScale || 1 });
-      }
-    }
-    waveStartAt += waveMaxDelay + 1800;
-  });
-  queue.sort((a, b) => a.spawnAt - b.spawnAt);
-  return queue;
+  return buildSpawnQueueValue(roomDef);
 }
 
 function beginWaveIntro(nextWaveIndex) {
@@ -958,20 +871,15 @@ function getLateBloomMods(room = roomIndex || 0) {
   }
 }
 
-function getProjectileDamageCurve(room = roomIndex || 0) {
-  if(room <= 5) return 0.9;
-  if(room <= 10) return 0.9 + (room - 5) * 0.01;
-  if(room <= 20) return 0.95;
-  if(room <= 30) return 0.95 + (room - 20) * 0.005;
-  return 1;
-}
-
 function getProjectileHitDamage(multiplier = 1) {
-  const tierOver = Math.max(0, roomIndex - 29);
-  const dmgScale = (1 + Math.log(roomIndex + 1) * 0.24) * (tierOver > 0 ? 1 + tierOver * 0.04 : 1);
-  const rawDamage = Math.ceil(18 * dmgScale * getProjectileDamageCurve(roomIndex || 0));
   const lateBloomDefenseMods = getLateBloomMods(roomIndex || 0);
-  return Math.max(1, Math.ceil(rawDamage * currentBossDamageMultiplier * (UPG.damageTakenMult || 1) * lateBloomDefenseMods.damageTaken * multiplier));
+  return computeProjectileHitDamage({
+    roomIndex,
+    bossDamageMultiplier: currentBossDamageMultiplier,
+    damageTakenMultiplier: UPG.damageTakenMult || 1,
+    lateBloomDamageTakenMultiplier: lateBloomDefenseMods.damageTaken,
+    multiplier,
+  });
 }
 
 function getEliteBulletStagePalette() {
@@ -1411,30 +1319,23 @@ function sanitizeName(v) {
 }
 
 function loadLeaderboard() {
-  try {
-    const raw = localStorage.getItem(LB_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    if(Array.isArray(parsed)) {
-      leaderboard = parsed
-        .filter((x)=>x && typeof x.name==='string' && Number.isFinite(x.score) && Number.isFinite(x.ts) && x.version === VERSION.num)
-        .slice(0, 500);
-      leaderboard.sort((a,b)=>b.score-a.score || b.ts-a.ts);
-    }
-  } catch {
+  const parsed = readJson(LB_KEY, []);
+  if(Array.isArray(parsed)) {
+    leaderboard = parsed
+      .filter((x)=>x && typeof x.name==='string' && Number.isFinite(x.score) && Number.isFinite(x.ts) && x.version === VERSION.num)
+      .slice(0, 500);
+    leaderboard.sort((a,b)=>b.score-a.score || b.ts-a.ts);
+  } else {
     leaderboard = [];
   }
 }
 
 function loadSavedPlayerName() {
-  try {
-    return sanitizeName(localStorage.getItem(NAME_KEY) || '');
-  } catch {
-    return '';
-  }
+  return sanitizeName(readText(NAME_KEY, ''));
 }
 
 function saveLeaderboard() {
-  localStorage.setItem(LB_KEY, JSON.stringify(leaderboard.slice(0, 500)));
+  writeJson(LB_KEY, leaderboard.slice(0, 500));
 }
 
 function buildScoreEntry() {
@@ -1460,77 +1361,17 @@ function buildScoreEntry() {
 }
 
 function clearLegacyRunRecovery() {
-  try {
-    localStorage.removeItem(LEGACY_RUN_RECOVERY_KEY);
-  } catch {}
+  removeKey(LEGACY_RUN_RECOVERY_KEY);
 }
 
 function saveCrashReport(report) {
-  try {
-    localStorage.setItem(RUN_CRASH_REPORT_KEY, JSON.stringify(report));
-  } catch {}
+  writeJson(RUN_CRASH_REPORT_KEY, report);
 }
 
-async function submitRunDiagnostic({ playerName, score, room, gameVersion, report, playerColor = 'green' }) {
-  const { url, publishableKey } = DIAGNOSTIC_REMOTE_CONFIG;
-  if(!url || !publishableKey) throw new Error('Remote diagnostics not configured');
-
-  const response = await fetch(`${url}/rest/v1/rpc/submit_run_diagnostic`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: publishableKey,
-      Authorization: `Bearer ${publishableKey}`,
-    },
-    body: JSON.stringify({
-      p_player_name: playerName,
-      p_score: score,
-      p_room: room,
-      p_game_version: gameVersion,
-      p_report: report || null,
-      p_player_color: playerColor,
-    }),
-  });
-
-  if(!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || `submit_run_diagnostic failed (${response.status})`);
-  }
-
-  return response.json();
-}
-
-function isSameLocalDay(ts, nowTs = Date.now()) {
-  const a = new Date(ts);
-  const b = new Date(nowTs);
-  return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
-}
-
-function getVisibleLeaderboardRows() {
-  let rows = leaderboard.slice();
-  if(lbPeriod === 'daily') rows = rows.filter((row)=>isSameLocalDay(row.ts));
-  if(lbScope === 'personal') rows = rows.filter((row)=>row.name === playerName);
-  rows.sort((a,b)=>b.score-a.score || b.ts-a.ts);
-  return rows.slice(0, 10);
-}
-
-function getLeaderboardRowRunTimeMs(row) {
-  if(Number.isFinite(row.runTimeMs)) return row.runTimeMs;
-  const telemetry = row.boons?.telemetry;
-  if(!telemetry) return null;
-  const rooms = Array.isArray(telemetry.rooms) ? telemetry.rooms : [];
-  if(rooms.length > 0) {
-    return rooms.reduce((sum, room) => sum + (Number(room.clearMs) || 0), 0);
-  }
-  return null;
-}
-
-function setLeaderboardStatus(mode, text) {
-  lbStatusMode = mode;
-  lbStatusText = text;
-  lbStatus.textContent = text;
+function syncLeaderboardStatusBadge() {
+  lbStatus.textContent = lbSync.statusText;
   lbStatus.classList.remove('syncing', 'synced', 'local', 'error');
-  lbStatus.classList.add(mode);
+  lbStatus.classList.add(lbSync.statusMode);
 }
 
 function updateLeaderboardToggleStates() {
@@ -1539,59 +1380,28 @@ function updateLeaderboardToggleStates() {
 }
 
 function renderLeaderboard() {
-  const periodLabel = lbPeriod === 'daily' ? 'DAILY' : 'ALL TIME';
-  const scopeLabel = lbScope === 'personal' ? 'PERSONAL' : 'EVERYONE';
-  lbCurrent.textContent = `RUNNER: ${playerName} · ${periodLabel} · ${scopeLabel}`;
-  lbStatus.textContent = lbStatusText;
-  lbList.innerHTML = '';
-  const rows = lbStatusMode === 'syncing'
-    ? []
-    : (useRemoteLeaderboardRows ? remoteLeaderboardRows : getVisibleLeaderboardRows());
-  if(rows.length===0){
-    const li = document.createElement('li');
-    li.className = 'lb-empty';
-    li.textContent = lbStatusMode === 'syncing' ? 'Syncing records...' : 'No runs match this view yet.';
-    lbList.appendChild(li);
-    updateLeaderboardToggleStates();
-    return;
-  }
-  for(let i=0;i<rows.length;i++){
-    const row = rows[i];
-    const li = document.createElement('li');
-    
-    // Handle backwards compatibility: extract boon data
-    const boonData = Array.isArray(row.boons) 
-      ? { picks: row.boons, color: row.color || 'green', order: row.boonOrder || '' }
-      : (row.boons || { picks: [], color: row.color || 'green', order: row.boonOrder || '' });
-    const hasBoons = boonData.picks && boonData.picks.length > 0;
-    const playerColor = boonData.color || row.color || 'green';
-    const boonOrder = boonData.order || row.boonOrder || '';
-    
-    // Color-coded border based on player color
-    const borderColor = PLAYER_COLORS[playerColor]?.hex || PLAYER_COLORS.green.hex;
-    
-    li.style.borderLeft = `3px solid ${borderColor}`;
-    const runTimeMs = getLeaderboardRowRunTimeMs(row);
-    const runTimeLabel = runTimeMs ? ` · ${formatRunTime(runTimeMs)}` : '';
-    li.innerHTML = `
-      <span class="lb-rank">#${i + 1}</span>
-      <span class="lb-name">${row.name} · R${row.room}${runTimeLabel}</span>
-      <span class="lb-score">${row.score}</span>
-      ${hasBoons ? '<button class="lb-boons-btn" type="button" title="View run loadout">📋</button>' : '<span></span>'}
-    `;
-    if(hasBoons) {
-      li.querySelector('.lb-boons-btn').addEventListener('click', () => showLbBoonsPopup(row.name, boonData.picks, boonOrder));
-    }
-    lbList.appendChild(li);
-  }
-  updateLeaderboardToggleStates();
+  renderLeaderboardView({
+    lbCurrent,
+    lbStatus,
+    lbList,
+    lbPeriod,
+    lbScope,
+    playerName,
+    lbStatusMode: lbSync.statusMode,
+    lbStatusText: lbSync.statusText,
+    useRemoteLeaderboardRows: lbSync.useRemoteRows,
+    remoteLeaderboardRows: lbSync.remoteRows,
+    leaderboard,
+    playerColors: PLAYER_COLORS,
+    formatRunTime,
+    onOpenBoons: showLbBoonsPopup,
+    updateToggleStates: updateLeaderboardToggleStates,
+  });
 }
 
 async function refreshLeaderboardView() {
-  const requestId = ++lbRequestSeq;
-  remoteLeaderboardRows = [];
-  useRemoteLeaderboardRows = false;
-  setLeaderboardStatus('syncing', 'SYNCING');
+  const requestId = beginLeaderboardSync(lbSync);
+  syncLeaderboardStatusBadge();
   renderLeaderboard();
   try {
     const rows = await fetchRemoteLeaderboard({
@@ -1601,16 +1411,11 @@ async function refreshLeaderboardView() {
       gameVersion: VERSION.num,
       limit: 10,
     });
-    if(requestId !== lbRequestSeq) return;
-    remoteLeaderboardRows = rows;
-    useRemoteLeaderboardRows = true;
-    setLeaderboardStatus('synced', 'SUPABASE LIVE');
+    if(!applyLeaderboardSyncSuccess(lbSync, requestId, rows)) return;
   } catch (error) {
-    if(requestId !== lbRequestSeq) return;
-    remoteLeaderboardRows = [];
-    useRemoteLeaderboardRows = false;
-    setLeaderboardStatus('local', 'LOCAL FALLBACK');
+    if(!applyLeaderboardSyncFailure(lbSync, requestId)) return;
   }
+  syncLeaderboardStatusBadge();
   renderLeaderboard();
 }
 
@@ -1632,8 +1437,8 @@ function pushLeaderboardEntry() {
       refreshLeaderboardView();
     }
   }).catch(() => {
-    useRemoteLeaderboardRows = false;
-    setLeaderboardStatus('local', 'LOCAL FALLBACK');
+    forceLocalLeaderboardFallback(lbSync, 'LOCAL FALLBACK');
+    syncLeaderboardStatusBadge();
     renderLeaderboard();
   });
   clearLegacyRunRecovery();
@@ -1691,22 +1496,30 @@ function gameOver(){
 }
 
 function init() {
+  const runMetrics = createInitialRunMetrics(BASE_PLAYER_HP);
+  const runtimeTimers = createInitialRuntimeTimers();
   clearLegacyRunRecovery();
-  score=0; kills=0;
-  charge=0; fireT=0; stillTimer=0; prevStill=false; hp=BASE_PLAYER_HP; maxHp=BASE_PLAYER_HP;
-  runElapsedMs = 0;
-  gameOverShown = false;
-  boonRerolls = 1;
-  damagelessRooms = 0;
-  tookDamageThisRoom = false;
-  lastStallSpawnAt = -99999;
-  enemyIdSeq = 1;
-  bossClears = 0;
-  player={x:cv.width/2,y:cv.height/2,r:9,vx:0,vy:0,invincible:0,distort:0,deadAt:0,popAt:0,deadPop:false,deadPulse:0};
-  player.shields=[];
-  _barrierPulseTimer=0;
-  _slipCooldown=0; _absorbComboCount=0; _absorbComboTimer=0;
-  _chainMagnetTimer=0; _echoCounter=0; _vampiricRestoresThisRoom=0; _killSustainHealedThisRoom=0; _colossusShockwaveCd=0;
+  score = runMetrics.score; kills = runMetrics.kills;
+  charge = runMetrics.charge; fireT = runMetrics.fireT; stillTimer = runMetrics.stillTimer; prevStill = runMetrics.prevStill;
+  hp = runMetrics.hp; maxHp = runMetrics.maxHp;
+  runElapsedMs = runMetrics.runElapsedMs;
+  gameOverShown = runMetrics.gameOverShown;
+  boonRerolls = runMetrics.boonRerolls;
+  damagelessRooms = runMetrics.damagelessRooms;
+  tookDamageThisRoom = runMetrics.tookDamageThisRoom;
+  lastStallSpawnAt = runMetrics.lastStallSpawnAt;
+  enemyIdSeq = runMetrics.enemyIdSeq;
+  bossClears = runMetrics.bossClears;
+  player = createInitialPlayerState(cv.width, cv.height);
+  _barrierPulseTimer = runtimeTimers.barrierPulseTimer;
+  _slipCooldown = runtimeTimers.slipCooldown;
+  _absorbComboCount = runtimeTimers.absorbComboCount;
+  _absorbComboTimer = runtimeTimers.absorbComboTimer;
+  _chainMagnetTimer = runtimeTimers.chainMagnetTimer;
+  _echoCounter = runtimeTimers.echoCounter;
+  _vampiricRestoresThisRoom = runtimeTimers.vampiricRestoresThisRoom;
+  _killSustainHealedThisRoom = runtimeTimers.killSustainHealedThisRoom;
+  _colossusShockwaveCd = runtimeTimers.colossusShockwaveCd;
   _orbFireTimers=[]; _orbCooldown=[];
   boonHistory=[]; pendingLegendary=null; legendaryOffered=false;
   runTelemetry = createRunTelemetry();
@@ -2102,7 +1915,9 @@ function update(dt,ts){
           e.hp -= orbitContactDamage;
           sparks(sx,sy,C.green,4,45);
           if(e.hp<=0){
-            score+=e.pts;kills++; recordKill('orbit');
+            score += computeKillScore(e.pts, false);
+            kills++;
+            recordKill('orbit');
             sparks(e.x,e.y,e.col,14,95);
             spawnGreyDrops(e.x,e.y,ts);
             if(UPG.finalForm && hp <= maxHp * 0.15){ gainCharge(0.5, 'finalForm'); }
@@ -2566,7 +2381,9 @@ function update(dt,ts){
             b.bloodPactHeals = (b.bloodPactHeals || 0) + 1;
           }
           if(e.hp<=0){
-            score+=e.pts*(b.crit?2:1);kills++; recordKill('output');
+            score += computeKillScore(e.pts, b.crit);
+            kills++;
+            recordKill('output');
             sparks(e.x,e.y,e.col, e.isBoss ? 30 : 14, e.isBoss ? 160 : 95);
             // Death bullets scatter as grey
             spawnGreyDrops(e.x,e.y,ts);
@@ -3088,11 +2905,21 @@ function drawGhost(ts){
 
 // ── HUD ───────────────────────────────────────────────────────────────────────
 function hudUpdate(){
-  document.getElementById('room-counter').textContent=`ROOM ${roomIndex+1} • ${formatRunTime(runElapsedMs)}`;
-  document.getElementById('score-txt').textContent=score;
-  document.getElementById('charge-fill').style.width=`${Math.max(0, Math.min(100, (charge / UPG.maxCharge) * 100))}%`;
-  document.getElementById('charge-badge').textContent=`${Math.floor(charge)} / ${UPG.maxCharge}`;
-  document.getElementById('sps-num').textContent=UPG.sps.toFixed(1);
+  renderHud({
+    roomIndex,
+    runElapsedMs,
+    score,
+    charge,
+    maxCharge: UPG.maxCharge,
+    sps: UPG.sps,
+    elements: {
+      roomCounter: roomCounterEl,
+      scoreText: scoreTextEl,
+      chargeFill: chargeFillEl,
+      chargeBadge: chargeBadgeEl,
+      spsNumber: spsNumberEl,
+    },
+  });
 }
 
 bindJoystickControls({
@@ -3140,9 +2967,7 @@ lbScopeBtns.forEach((btn) => {
 function setPlayerName(v, { syncInputs = false } = {}){
   const sanitized = sanitizeName(v);
   playerName = sanitized || 'RUNNER';
-  try {
-    localStorage.setItem(NAME_KEY, sanitized);
-  } catch {}
+  writeText(NAME_KEY, sanitized);
   if(syncInputs){
     nameInputStart.value = sanitized;
     nameInputGo.value = sanitized;
@@ -3224,7 +3049,8 @@ function showLbBoonsPopup(runnerName, boons, boonOrder = '') {
 
 loadLeaderboard();
 clearLegacyRunRecovery();
-setLeaderboardStatus('local', 'LOCAL FALLBACK');
+forceLocalLeaderboardFallback(lbSync, 'LOCAL FALLBACK');
+syncLeaderboardStatusBadge();
 setPlayerName(loadSavedPlayerName(), { syncInputs: true });
 renderLeaderboard();
 revealAppShell();

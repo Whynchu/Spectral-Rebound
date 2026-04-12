@@ -1,0 +1,475 @@
+# Phantom Rebound Engineering Stabilization Roadmap
+
+Status: active repo audit after `1.16.50`
+
+## Purpose
+
+This document turns the current codebase state into a practical gameplan for making *Phantom Rebound* sustainable, expandable, and safe to evolve with AI agents.
+
+This is not a rewrite brief.
+
+The goal is to:
+
+- reduce regression risk as the game grows
+- make features land in clear ownership slices
+- make balance and room logic testable outside the browser
+- make release/version safety enforceable
+- give AI agents a repo shape they can work in without repeatedly touching the whole game
+
+## Executive Summary
+
+The repo already has the right direction documented in [docs/ownership.md](C:/Development/Phantom-Rebound/docs/ownership.md:1), but the runtime has not caught up to that structure.
+
+The main issue is that `script.js` is still the actual game engine surface:
+
+- simulation
+- room generation
+- score flow
+- telemetry
+- local storage
+- remote submission
+- HUD updates
+- overlays
+- input wiring
+- render loop
+- game-over handling
+
+That is fast for prototype iteration, but it is the main reason feature work is fragile. AI agents can help most when the repo has clean, narrow write surfaces. Right now many features still require modifying the same large entrypoint, which increases merge conflicts, missed side effects, and accidental behavior drift.
+
+## Current Repo Snapshot
+
+Observed structure:
+
+- `script.js` is about 3,010 lines and remains the dominant runtime surface.
+- `src/` exists and matches the intended ownership model, but several ownership folders are mostly placeholders.
+- `src/core/` is effectively empty while the true core logic remains in `script.js`.
+- `src/data/` is real and valuable, especially `boons.js`, `gameData.js`, `enemyTypes.js`, `patchNotes.js`, and `version.js`.
+- `src/ui/`, `src/input/`, and `src/platform/` exist, but only partial responsibilities have moved into them.
+- Supabase is present for leaderboard and diagnostics, but platform/network handling is still split between service modules and `script.js`.
+
+Relevant files:
+
+- [script.js](C:/Development/Phantom-Rebound/script.js:1)
+- [src/data/gameData.js](C:/Development/Phantom-Rebound/src/data/gameData.js:1)
+- [src/data/colorScheme.js](C:/Development/Phantom-Rebound/src/data/colorScheme.js:1)
+- [src/platform/leaderboardService.js](C:/Development/Phantom-Rebound/src/platform/leaderboardService.js:1)
+- [scripts/bump-version.ps1](C:/Development/Phantom-Rebound/scripts/bump-version.ps1:1)
+- [docs/release.md](C:/Development/Phantom-Rebound/docs/release.md:1)
+
+## Critical Findings
+
+### 1. The ownership model is documented but not enforced
+
+`docs/ownership.md` says `src/core/` should own game loop, state progression, collision orchestration, and room flow. In practice, that logic is still in `script.js`.
+
+Impact:
+
+- most gameplay features still touch the same file
+- AI-assisted work is harder to parallelize
+- unrelated systems are coupled through shared mutable globals
+
+### 2. Data modules still have browser-side effects at import time
+
+[src/data/gameData.js](C:/Development/Phantom-Rebound/src/data/gameData.js:1) imports color logic and immediately calls `loadPlayerColorFromStorage()`, which depends on browser globals and local storage.
+
+Impact:
+
+- pure gameplay/data modules are not reliably importable in Node
+- headless tests and balance simulations are harder than they should be
+- agents cannot safely reuse runtime logic in scripts without browser assumptions leaking in
+
+### 3. Platform logic is duplicated
+
+`submit_run_diagnostic` exists in [src/platform/leaderboardService.js](C:/Development/Phantom-Rebound/src/platform/leaderboardService.js:66), but `script.js` also carries its own `DIAGNOSTIC_REMOTE_CONFIG` and direct fetch path.
+
+Impact:
+
+- platform/network behavior can drift
+- fixes have to be made twice
+- diagnostics become less trustworthy over time
+
+### 4. Release tooling is out of date with the actual release gate
+
+[scripts/bump-version.ps1](C:/Development/Phantom-Rebound/scripts/bump-version.ps1:1) still parses an older version shape and only updates part of the required release surface. [docs/release.md](C:/Development/Phantom-Rebound/docs/release.md:1) is also stale relative to the current push requirements.
+
+Impact:
+
+- version drift remains possible
+- pushes rely on manual discipline instead of validation
+- release safety depends too much on memory
+
+### 5. There is no real headless regression harness yet
+
+The game has useful telemetry and Supabase score archives, but there is no first-class test harness around:
+
+- charge economy
+- room generation
+- sustain ceilings
+- projectile damage
+- score calculation
+- version consistency
+
+Impact:
+
+- balancing remains reactive
+- regressions are discovered in live play instead of pre-merge
+- AI agents cannot verify isolated systems cleanly
+
+### 6. The repo lacks a stable feature pipeline for larger systems
+
+The game is growing into features like identity, cloud state, and possibly co-op. The current runtime shape is not yet ready for those without heavy friction.
+
+Impact:
+
+- every major feature risks becoming another `script.js` expansion
+- architecture debt compounds exactly where future systems want clean seams
+
+## What "Stable To Work On With AI Agents" Should Mean
+
+For this repo, agent-friendly engineering does not mean "many agents at once." It means:
+
+- each feature has an obvious owning slice
+- pure gameplay logic can be tested without DOM or local storage
+- browser and network concerns live behind narrow interfaces
+- game balance changes mostly touch `src/data/` and isolated systems
+- versioning and release checks are automated
+- docs describe the intended write boundaries so agents do not invent new ones
+
+The target is a repo where an AI worker can safely own one of these tasks without editing the entrypoint:
+
+- add a boon
+- tune room pacing
+- add a projectile mechanic
+- change leaderboard payloads
+- add a HUD panel
+- add a new network-backed feature
+
+## Target Architecture
+
+This is the recommended runtime split.
+
+### `src/core/`
+
+Owns:
+
+- run state
+- room phase progression
+- state resets
+- room start/end transitions
+- deterministic step ordering
+
+Target files:
+
+- `src/core/runState.js`
+- `src/core/roomFlow.js`
+- `src/core/resetRun.js`
+
+### `src/systems/`
+
+Owns pure gameplay rules that can be tested headlessly.
+
+Target files:
+
+- `src/systems/damage.js`
+- `src/systems/chargeEconomy.js`
+- `src/systems/sustain.js`
+- `src/systems/scoring.js`
+- `src/systems/telemetry.js`
+- `src/systems/spawnBudget.js`
+
+### `src/entities/`
+
+Owns runtime actor definitions and actor-specific helpers.
+
+Current anchor:
+
+- [src/entities/enemyTypes.js](C:/Development/Phantom-Rebound/src/entities/enemyTypes.js:1)
+
+Future additions:
+
+- `src/entities/player.js`
+- `src/entities/projectiles.js`
+- `src/entities/orbits.js`
+
+### `src/data/`
+
+Owns static definitions and balance constants only.
+
+Working rule:
+
+- no browser reads
+- no local storage
+- no DOM writes
+- no import-time side effects
+
+### `src/ui/`
+
+Owns DOM rendering and overlays only.
+
+Target files:
+
+- `src/ui/hud.js`
+- `src/ui/gameOver.js`
+- `src/ui/leaderboard.js`
+- `src/ui/patchNotes.js`
+
+### `src/platform/`
+
+Owns browser and service adapters only.
+
+Target files:
+
+- `src/platform/storage.js`
+- `src/platform/leaderboardService.js`
+- `src/platform/diagnostics.js`
+- `src/platform/auth.js`
+- `src/platform/viewport.js`
+
+## Implementation Strategy
+
+Do not rewrite the game in one pass.
+
+Use a staged extraction plan that converts unstable surfaces into narrow modules while keeping gameplay live.
+
+## Phase 0: Release Safety First
+
+This is the first required step because it protects every later change.
+
+Tasks:
+
+- rewrite [scripts/bump-version.ps1](C:/Development/Phantom-Rebound/scripts/bump-version.ps1:1) for `major.minor.patch`
+- add `scripts/verify-version.ps1`
+- validate:
+  - `src/data/version.js`
+  - `version.json`
+  - `index.html` fallback banner
+  - `window.__APP_BUILD__`
+  - `script.js` cache-busting query string
+  - `styles.css` cache-busting query string
+- update [docs/release.md](C:/Development/Phantom-Rebound/docs/release.md:1) to match the real hard gate
+
+Definition of done:
+
+- one command bumps all required version surfaces
+- one command fails the build when version fields drift
+
+## Phase 1: Remove Import-Time Browser Coupling
+
+This is the highest-leverage engineering cleanup after release safety.
+
+Tasks:
+
+- remove `loadPlayerColorFromStorage()` from import-time execution in [src/data/gameData.js](C:/Development/Phantom-Rebound/src/data/gameData.js:1)
+- move color loading into app boot or a platform init function
+- ensure `src/data/` modules can load in Node without DOM/local storage
+
+Definition of done:
+
+- core data modules can be imported in Node
+- simulation helpers no longer depend on browser initialization
+
+## Phase 2: Extract Pure Systems From `script.js`
+
+This phase is the main architecture unlock.
+
+Priority order:
+
+1. scoring
+2. sustain
+3. projectile damage
+4. telemetry aggregation
+5. room/spawn budget math
+
+Why this order:
+
+- these systems are high-churn
+- they are mostly rules, not rendering
+- they matter to balance and future content
+- they are the easiest to test once isolated
+
+Definition of done:
+
+- new balance work mostly happens in `src/systems/*`
+- `script.js` becomes orchestration, not rule storage
+
+## Phase 3: Consolidate Platform Boundaries
+
+Tasks:
+
+- move diagnostics submission out of `script.js`
+- use one service surface for leaderboard and diagnostics
+- create explicit storage helpers for:
+  - runner name
+  - leaderboard cache
+  - crash reports
+  - pending submissions
+
+Definition of done:
+
+- no direct leaderboard/diagnostic fetch calls remain in `script.js`
+- local storage keys are managed in one place
+
+## Phase 4: Build A Real Test Harness
+
+Use a lightweight Node-based harness first. Do not wait for a full framework rewrite.
+
+Minimum test set:
+
+- version surface consistency
+- required shot count math
+- charge cap synchronization
+- sustain cap behavior
+- projectile damage scaling
+- room generation constraints
+- score checkpoint calculations
+- telemetry summary rollups
+
+Definition of done:
+
+- balance changes can be checked before manual play
+- AI agents can run deterministic verification on the touched system
+
+## Phase 5: Telemetry And Balance Pipeline
+
+The repo already has useful score archives under `supabase/scores/`. Turn that into a repeatable report path.
+
+Tasks:
+
+- document whether `supabase/scores/` is fixture data, working analysis input, or generated output
+- add a telemetry report script for exported runs
+- define target metrics by room band:
+  - clear time
+  - HP lost
+  - sustain by source
+  - score pacing
+  - damage source distribution
+
+Definition of done:
+
+- balance conversations are driven by reports, not memory
+- regressions like runaway sustain or dead-room pacing show up quickly
+
+## Phase 6: UI And Entry Point Cleanup
+
+Once the core rules are extracted, clean the remaining entrypoint responsibilities.
+
+Tasks:
+
+- move HUD writing out of `script.js`
+- move leaderboard rendering out of `script.js`
+- move patch notes rendering out of `script.js`
+- keep `script.js` focused on bootstrapping, wiring, and frame stepping
+
+Definition of done:
+
+- the entrypoint becomes readable
+- UI work and gameplay work stop colliding
+
+## Phase 7: Prepare For Real Feature Expansion
+
+Only after the previous phases should the game grow into heavier systems like:
+
+- authenticated identity
+- cloud-synced progression
+- challenge seeds
+- asynchronous social features
+- true multiplayer/co-op
+
+At that point the repo will have the boundaries needed to add large systems without collapsing back into one giant runtime file.
+
+## AI Agent Workflow Rules
+
+These are the repo rules I recommend adopting explicitly.
+
+### Rule 1: New features must declare an owner slice first
+
+Before adding code, the feature must name its home:
+
+- `src/data`
+- `src/systems`
+- `src/entities`
+- `src/ui`
+- `src/platform`
+- `src/core`
+
+If the answer is "script.js," that should be treated as a temporary exception, not the default.
+
+### Rule 2: Pure logic goes in pure modules
+
+If code does not need:
+
+- DOM
+- `window`
+- `document`
+- `localStorage`
+- `fetch`
+
+then it should not live in browser-bound files.
+
+### Rule 3: `src/data/` is static
+
+No side effects.
+No browser initialization.
+No persistence reads.
+
+This is essential for testing and simulation.
+
+### Rule 4: Platform code must be behind adapters
+
+Supabase, auth, storage, diagnostics, and viewport handling should never be spread through gameplay files.
+
+### Rule 5: Every push must pass a release gate
+
+Version drift should be impossible to miss.
+
+### Rule 6: Balance work should be telemetry-backed
+
+If a balance change is deep enough to affect room pacing, sustain, damage, or scoring, it should either:
+
+- add telemetry
+- use existing telemetry
+- or add a focused regression test
+
+## Immediate Recommended Backlog
+
+This is the practical order I would execute next.
+
+1. Fix version tooling and add `verify-version`.
+2. Remove import-time browser coupling from `src/data/gameData.js`.
+3. Extract sustain and scoring into `src/systems/`.
+4. Consolidate diagnostics into `src/platform/leaderboardService.js` or a new `src/platform/diagnostics.js`.
+5. Add a minimal Node test harness for version, sustain, scoring, and room generation.
+6. Move HUD and leaderboard rendering out of `script.js`.
+
+## What Not To Do
+
+Avoid these traps:
+
+- do not rewrite the full game loop all at once
+- do not split files by size alone
+- do not move browser-coupled code into `src/data/`
+- do not add major new systems before release safety and testability
+- do not treat documentation as done unless it matches the real code path
+
+## Success Criteria
+
+This roadmap is working when:
+
+- `script.js` stops being the only meaningful write surface
+- at least the highest-risk gameplay rules are testable in Node
+- release/version checks are automatic
+- AI agents can land isolated features without touching unrelated runtime systems
+- large future features have obvious insertion points
+
+## First Concrete Patch Set
+
+If you want the highest-value first engineering pass, it should be:
+
+1. rewrite `bump-version.ps1`
+2. add `verify-version.ps1`
+3. update `docs/release.md`
+4. remove import-time color loading from `src/data/gameData.js`
+5. add a platform init path for player color
+6. extract sustain and score calculation into `src/systems/`
+
+That sequence improves release safety, testability, and future feature velocity without freezing gameplay iteration.

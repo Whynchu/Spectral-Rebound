@@ -1,5 +1,17 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.51',
+    label: 'ENGINEERING STABILIZATION',
+    summary: [
+      'This release is an architecture checkpoint focused on long-term development velocity. Core gameplay math and runtime state handling were split into dedicated system modules, UI rendering responsibilities were moved out of the main entrypoint, and platform concerns are now routed through explicit adapters.'
+    ],
+    highlights: [
+      'Added dedicated systems modules for sustain, scoring, projectile damage, and spawn-budget generation.',
+      'Moved HUD and leaderboard rendering into isolated UI modules to reduce `script.js` blast radius.',
+      'Added release verification scripts and centralized storage/leaderboard controller adapters for safer pushes.'
+    ]
+  },
+  {
     version: '1.16.50',
     label: 'SUSTAIN BRAKE',
     summary: [

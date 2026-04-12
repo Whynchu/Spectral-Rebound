@@ -3,8 +3,14 @@
 ## Version policy
 
 - Every push to `main` must ship a new game version.
-- `src/data/version.js` is the source of truth for the runtime version.
-- `index.html` keeps a static fallback version string for `file://` testing and must match the runtime version.
+- `src/data/version.js` is the source of truth for version and label.
+- The following must always match on release:
+  - `src/data/version.js`
+  - `version.json`
+  - `index.html` fallback banner (`#version-tag`)
+  - `window.__APP_BUILD__` in `index.html`
+  - `styles.css?v=...` in `index.html`
+  - `script.js?v=...` in `index.html`
 
 ## Bump process
 
@@ -16,11 +22,32 @@ powershell -ExecutionPolicy Bypass -File .\scripts\bump-version.ps1 "Short label
 
 The script:
 
-- increments the numeric version,
+- increments patch version (`major.minor.patch`),
 - updates `src/data/version.js`,
-- updates the fallback version banner in `index.html`.
+- updates `version.json`,
+- updates `window.__APP_BUILD__`,
+- updates cache-busting query strings for `styles.css` and `script.js`,
+- updates the fallback banner in `index.html`.
 
 ## Validation
 
-- Load `index.html` through a local HTTP server for normal module behavior.
-- If you open the file directly from disk, the fallback label in `index.html` should still show the current version.
+Run the version gate check before commit/push:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-version.ps1
+```
+
+This command fails if any required version surface drifts.
+
+Then:
+
+- run `node --check script.js`
+- run `node .\scripts\test-systems.mjs`
+- load `index.html` through a local HTTP server for module/runtime behavior
+- optionally open from `file://` and verify fallback banner still matches
+
+Or run the combined gate in one command:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-all.ps1
+```

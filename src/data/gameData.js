@@ -3,10 +3,7 @@
  */
 
 import { VERSION } from './version.js';
-import { getPlayerColorScheme, getThreatPalette, loadPlayerColorFromStorage } from './colorScheme.js';
-
-// Initialize player color on module load
-loadPlayerColorFromStorage();
+import { getPlayerColorScheme, getThreatPalette } from './colorScheme.js';
 
 function _rgb(hex) {
   return { r: parseInt(hex.slice(1,3), 16), g: parseInt(hex.slice(3,5), 16), b: parseInt(hex.slice(5,7), 16) };
