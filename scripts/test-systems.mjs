@@ -58,6 +58,11 @@ import { orderBoonsForDisplay } from '../src/ui/boonsPanel.js';
 import { buildPatchNoteCardHtml } from '../src/ui/patchNotes.js';
 import { syncLeaderboardStatusBadge, syncLeaderboardToggleStates } from '../src/ui/leaderboard.js';
 import { showGameOverScreen } from '../src/ui/gameOver.js';
+import {
+  revealAppShell,
+  syncColorDrivenCopy,
+  setMenuChromeVisible,
+} from '../src/ui/shell.js';
 
 const pendingTests = [];
 
@@ -467,6 +472,34 @@ test('showGameOverScreen populates score/note and opens panel', () => {
   assert.equal(panelClasses.has('off'), false);
   assert.equal(boonsClasses.has('off'), true);
   assert.equal(rendered, true);
+});
+
+test('shell ui helpers update class state and copy text', () => {
+  const classes = new Set(['app-loading']);
+  const doc = {
+    body: {
+      classList: {
+        add: (name) => classes.add(name),
+        remove: (name) => classes.delete(name),
+        toggle: (name, enabled) => {
+          if(enabled) classes.add(name);
+          else classes.delete(name);
+        },
+      },
+    },
+  };
+  revealAppShell({ doc, raf: (fn) => fn() });
+  assert.equal(classes.has('app-loading'), false);
+  assert.equal(classes.has('app-ready'), true);
+
+  const copyEl = { textContent: '' };
+  syncColorDrivenCopy(copyEl, 'CRIMSON');
+  assert.equal(copyEl.textContent, 'CRIMSON rounds');
+
+  let resized = false;
+  setMenuChromeVisible({ doc, isVisible: true, onResize: () => { resized = true; } });
+  assert.equal(classes.has('menu-chrome-visible'), true);
+  assert.equal(resized, true);
 });
 
 test('room flow helpers keep threshold values', () => {

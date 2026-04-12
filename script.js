@@ -38,6 +38,11 @@ import { renderGameOverBoonsList, showLeaderboardBoonsPopup } from './src/ui/boo
 import { renderPatchNotesPanel, setPatchNotesVisibility } from './src/ui/patchNotes.js';
 import { showGameOverScreen } from './src/ui/gameOver.js';
 import {
+  revealAppShell as revealAppShellView,
+  syncColorDrivenCopy as syncColorDrivenCopyView,
+  setMenuChromeVisible as setMenuChromeVisibleView,
+} from './src/ui/shell.js';
+import {
   getKillSustainCapForRoom as getKillSustainCapForRoomValue,
   applyKillSustainHeal as applyKillSustainHealValue,
 } from './src/systems/sustain.js';
@@ -85,14 +90,11 @@ document.addEventListener('dblclick', (e) => e.preventDefault());
 let startDangerCopy;
 
 function revealAppShell() {
-  requestAnimationFrame(() => {
-    document.body.classList.remove('app-loading');
-    document.body.classList.add('app-ready');
-  });
+  revealAppShellView({ doc: document, raf: requestAnimationFrame });
 }
 
 function syncColorDrivenCopy() {
-  if(startDangerCopy) startDangerCopy.textContent = `${getThreatPalette().dangerKey} rounds`;
+  syncColorDrivenCopyView(startDangerCopy, getThreatPalette().dangerKey);
 }
 
 window.addEventListener('phantom:player-color-change', (event) => {
@@ -143,8 +145,7 @@ const chargeBadgeEl = document.getElementById('charge-badge');
 const spsNumberEl = document.getElementById('sps-num');
 
 function setMenuChromeVisible(isVisible) {
-  document.body.classList.toggle('menu-chrome-visible', isVisible);
-  resize();
+  setMenuChromeVisibleView({ doc: document, isVisible, onResize: resize });
 }
 
 function resize() {
