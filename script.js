@@ -31,6 +31,7 @@ import {
 } from './src/ui/leaderboard.js';
 import { renderGameOverBoonsList, showLeaderboardBoonsPopup } from './src/ui/boonsPanel.js';
 import { renderPatchNotesPanel, setPatchNotesVisibility } from './src/ui/patchNotes.js';
+import { showGameOverScreen } from './src/ui/gameOver.js';
 import {
   getKillSustainCapForRoom as getKillSustainCapForRoomValue,
   applyKillSustainHeal as applyKillSustainHealValue,
@@ -123,6 +124,8 @@ const goBoonsBtn = document.getElementById('btn-go-boons');
 const goBoonsPanel = document.getElementById('go-boons-panel');
 const goBoonsList = document.getElementById('go-boons-list');
 const goBoonsCloseBtn = document.getElementById('btn-go-boons-close');
+const goScoreEl = document.getElementById('go-score');
+const goNoteEl = document.getElementById('go-note');
 const mainMenuBtn = document.getElementById('btn-main-menu');
 const wrap = document.getElementById('wrap');
 const topHud = document.getElementById('top-hud');
@@ -1264,11 +1267,15 @@ function handleGameLoopCrash(error) {
   } catch {}
   gstate = 'gameover';
   cancelAnimationFrame(raf);
-  if(goBoonsPanel) goBoonsPanel.classList.add('off');
-  document.getElementById('go-score').textContent=score;
-  document.getElementById('go-note').textContent=`Crash captured at Room ${roomIndex+1} · diagnostic saved, score not submitted`;
-  renderGameOverBoons();
-  gameOverScreen.classList.remove('off');
+  showGameOverScreen({
+    panelEl: gameOverScreen,
+    boonsPanelEl: goBoonsPanel,
+    scoreEl: goScoreEl,
+    noteEl: goNoteEl,
+    score,
+    note: `Crash captured at Room ${roomIndex+1} · diagnostic saved, score not submitted`,
+    renderBoons: renderGameOverBoons,
+  });
 }
 
 function gameOver(){
@@ -1351,11 +1358,15 @@ function update(dt,ts){
     if(ts - player.deadAt >= GAME_OVER_ANIM_MS){
       gstate='gameover';
       cancelAnimationFrame(raf);
-      document.getElementById('go-score').textContent=score;
-      document.getElementById('go-note').textContent=`Room ${roomIndex+1} · ${kills} enemies eliminated`;
-      if(goBoonsPanel) goBoonsPanel.classList.add('off');
-      renderGameOverBoons();
-      gameOverScreen.classList.remove('off');
+      showGameOverScreen({
+        panelEl: gameOverScreen,
+        boonsPanelEl: goBoonsPanel,
+        scoreEl: goScoreEl,
+        noteEl: goNoteEl,
+        score,
+        note: `Room ${roomIndex+1} · ${kills} enemies eliminated`,
+        renderBoons: renderGameOverBoons,
+      });
     }
     return;
   }

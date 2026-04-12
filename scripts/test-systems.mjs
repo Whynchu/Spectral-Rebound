@@ -52,6 +52,7 @@ import { applyDamagelessRoomProgression } from '../src/systems/progression.js';
 import { orderBoonsForDisplay } from '../src/ui/boonsPanel.js';
 import { buildPatchNoteCardHtml } from '../src/ui/patchNotes.js';
 import { syncLeaderboardStatusBadge, syncLeaderboardToggleStates } from '../src/ui/leaderboard.js';
+import { showGameOverScreen } from '../src/ui/gameOver.js';
 
 function test(name, fn) {
   try {
@@ -342,6 +343,38 @@ test('leaderboard ui helpers sync badge class and toggle state', () => {
   assert.equal(periodBtnB.active, true);
   assert.equal(scopeBtnA.active, false);
   assert.equal(scopeBtnB.active, true);
+});
+
+test('showGameOverScreen populates score/note and opens panel', () => {
+  const panelClasses = new Set(['off']);
+  const boonsClasses = new Set();
+  const panelEl = {
+    classList: {
+      remove: (name) => panelClasses.delete(name),
+    },
+  };
+  const boonsPanelEl = {
+    classList: {
+      add: (name) => boonsClasses.add(name),
+    },
+  };
+  const scoreEl = { textContent: '' };
+  const noteEl = { textContent: '' };
+  let rendered = false;
+  showGameOverScreen({
+    panelEl,
+    boonsPanelEl,
+    scoreEl,
+    noteEl,
+    score: 1234,
+    note: 'Room 10',
+    renderBoons: () => { rendered = true; },
+  });
+  assert.equal(scoreEl.textContent, 1234);
+  assert.equal(noteEl.textContent, 'Room 10');
+  assert.equal(panelClasses.has('off'), false);
+  assert.equal(boonsClasses.has('off'), true);
+  assert.equal(rendered, true);
 });
 
 test('room flow helpers keep threshold values', () => {
