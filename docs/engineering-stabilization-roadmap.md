@@ -13,6 +13,9 @@ Recent stabilization stages landed after `1.16.51`:
 - `15b9a6c` Extracted damageless room progression into [src/systems/progression.js](C:/Development/Phantom-Rebound/src/systems/progression.js:1) and unified both room-clear paths to one rule.
 - `a3680e2` Extracted local leaderboard sanitize/parse/upsert/entry logic into [src/platform/leaderboardLocal.js](C:/Development/Phantom-Rebound/src/platform/leaderboardLocal.js:1).
 - `a60c0a2` Extracted crash diagnostics report construction/persistence into [src/platform/diagnostics.js](C:/Development/Phantom-Rebound/src/platform/diagnostics.js:1).
+- `ba9ec96` Extracted patch-notes rendering/visibility helpers into [src/ui/patchNotes.js](C:/Development/Phantom-Rebound/src/ui/patchNotes.js:1).
+- `9f09a50` Extracted leaderboard badge/toggle UI helpers into [src/ui/leaderboard.js](C:/Development/Phantom-Rebound/src/ui/leaderboard.js:1) and removed duplicate script-side UI state wiring.
+- `cd8191a` Extracted game-over panel rendering helper into [src/ui/gameOver.js](C:/Development/Phantom-Rebound/src/ui/gameOver.js:1).
 
 Validation status:
 
