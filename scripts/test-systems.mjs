@@ -36,6 +36,11 @@ import {
   pullReinforcementSpawn,
   advanceClearPhase,
 } from '../src/core/roomRuntime.js';
+import {
+  createRunTelemetry,
+  createRoomTelemetry,
+  buildRunTelemetryPayload,
+} from '../src/systems/telemetry.js';
 
 function test(name, fn) {
   try {
@@ -324,6 +329,128 @@ test('room runtime escort and reinforcement timing helpers are deterministic', (
   assert.equal(reinforce.spawnEntry.t, 'chaser');
   assert.equal(reinforce.reinforceTimer, 0);
   assert.equal(reinforce.remainingQueue.length, 0);
+});
+
+test('telemetry builders create baseline structures', () => {
+  const run = createRunTelemetry({
+    build: '1.0.0',
+    playerColor: 'cyan',
+    viewportMode: 'tight',
+    canvasWidth: 400,
+    canvasHeight: 600,
+  });
+  assert.equal(run.meta.build, '1.0.0');
+  assert.equal(run.meta.playerColor, 'cyan');
+  assert.equal(run.rooms.length, 0);
+  assert.equal(run.snapshots.length, 0);
+
+  const room = createRoomTelemetry({
+    roomNumber: 10,
+    roomDef: { name: 'MEGA ZONER', isBossRoom: true },
+    viewportMode: 'tight',
+    canvasWidth: 400,
+    canvasHeight: 600,
+    hpStart: 200,
+  });
+  assert.equal(room.room, 10);
+  assert.equal(room.name, 'MEGA ZONER');
+  assert.equal(room.boss, true);
+  assert.equal(room.hpStart, 200);
+  assert.equal(room.end, 'active');
+  assert.equal(room.heal.vampiric, 0);
+  assert.equal(room.charge.wasted, 0);
+  assert.equal(room.offense.shotsFired, 0);
+});
+
+test('buildRunTelemetryPayload includes active snapshot and summary totals', () => {
+  const runTelemetry = {
+    meta: {
+      build: '1.0.0',
+      playerColor: 'blue',
+      viewportMode: 'compact',
+      canvasWidth: 398,
+      canvasHeight: 533,
+    },
+    snapshots: [{ room: 1 }],
+    rooms: [
+      {
+        room: 1,
+        end: 'clear',
+        hpLost: 12.1,
+        kills: 3,
+        heal: { roomRegen: 5 },
+        charge: { kinetic: 2.55, wasted: 1.2 },
+        offense: { shotsFired: 9, chargeSpent: 9, outputKills: 3, orbitKills: 1 },
+        control: { movingNoFireMs: 100, firingReadyMs: 80, fullChargeMs: 20 },
+        safety: { shieldBlocks: 2, phaseDashProcs: 1, mirrorTideProcs: 0 },
+        pressure: { dangerBulletsSpawned: 25 },
+      },
+    ],
+  };
+  const payload = buildRunTelemetryPayload({
+    runTelemetry,
+    currentRoomTelemetry: {
+      room: 2,
+      end: 'active',
+      hpLost: 3,
+      kills: 4,
+      damageless: true,
+      heal: { vampiric: 8 },
+      charge: { kinetic: 0.33, wasted: 0.75 },
+      offense: { shotsFired: 5, chargeSpent: 5, outputKills: 4, orbitKills: 0 },
+      control: { movingNoFireMs: 40, firingReadyMs: 30, fullChargeMs: 10 },
+      safety: { shieldBlocks: 1, phaseDashProcs: 0, mirrorTideProcs: 1 },
+      pressure: { dangerBulletsSpawned: 10 },
+    },
+    hp: 87.126,
+    tookDamageThisRoom: true,
+    roomTimer: 1234.4,
+    roomIndex: 9,
+    score: 4200,
+    roundTelemetryValue: (value) => Math.round(value * 100) / 100,
+  });
+
+  assert.equal(payload.meta.finalRoom, 10);
+  assert.equal(payload.meta.finalScore, 4200);
+  assert.equal(payload.rooms.length, 2);
+  assert.equal(payload.rooms[1].end, 'snapshot');
+  assert.equal(payload.rooms[1].clearMs, 1234);
+  assert.equal(payload.rooms[1].hpEnd, 87.13);
+  assert.equal(payload.rooms[1].damageless, false);
+  assert.equal(payload.summary.roomsTracked, 2);
+  assert.equal(payload.summary.roomsCleared, 1);
+  assert.equal(payload.summary.totalHpLost, 15.1);
+  assert.equal(payload.summary.totalKills, 7);
+  assert.equal(payload.summary.totalDangerBulletsSpawned, 35);
+  assert.equal(payload.summary.totalShieldBlocks, 3);
+  assert.equal(payload.summary.totalPhaseDashProcs, 1);
+  assert.equal(payload.summary.totalMirrorTideProcs, 1);
+  assert.equal(payload.summary.totalShotsFired, 14);
+  assert.equal(payload.summary.totalChargeSpent, 14);
+  assert.equal(payload.summary.totalChargeWasted, 1.95);
+  assert.equal(payload.summary.totalOutputKills, 7);
+  assert.equal(payload.summary.totalOrbitKills, 1);
+  assert.equal(payload.summary.totalMovingNoFireMs, 140);
+  assert.equal(payload.summary.totalFiringReadyMs, 110);
+  assert.equal(payload.summary.totalFullChargeMs, 30);
+  assert.equal(payload.summary.heal.roomRegen, 5);
+  assert.equal(payload.summary.heal.vampiric, 8);
+  assert.equal(payload.summary.charge.kinetic, 2.88);
+  assert.equal(payload.summary.charge.wasted, 1.95);
+});
+
+test('buildRunTelemetryPayload returns null without run state', () => {
+  const payload = buildRunTelemetryPayload({
+    runTelemetry: null,
+    currentRoomTelemetry: null,
+    hp: 100,
+    tookDamageThisRoom: false,
+    roomTimer: 0,
+    roomIndex: 0,
+    score: 0,
+    roundTelemetryValue: (value) => value,
+  });
+  assert.equal(payload, null);
 });
 
 if (process.exitCode && process.exitCode !== 0) {
