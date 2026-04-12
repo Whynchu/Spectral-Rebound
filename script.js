@@ -27,6 +27,7 @@ import { renderColorSelector } from './src/ui/colorSelector.js';
 import { formatRunTime, renderHud } from './src/ui/hud.js';
 import { renderLeaderboard as renderLeaderboardView } from './src/ui/leaderboard.js';
 import { renderGameOverBoonsList, showLeaderboardBoonsPopup } from './src/ui/boonsPanel.js';
+import { renderPatchNotesPanel, setPatchNotesVisibility } from './src/ui/patchNotes.js';
 import {
   getKillSustainCapForRoom as getKillSustainCapForRoomValue,
   applyKillSustainHeal as applyKillSustainHealValue,
@@ -208,37 +209,20 @@ function syncPlayerScale() {
 }
 
 function renderPatchNotes() {
-  if(!patchNotesCurrent || !patchNotesList || !patchNotesArchiveNote) return;
-  patchNotesCurrent.textContent = `Current live build: v${VERSION.num} — ${VERSION.label}`;
-  patchNotesArchiveNote.textContent = PATCH_NOTES_ARCHIVE_MESSAGE;
-  patchNotesList.innerHTML = '';
-  for(const note of PATCH_NOTES) {
-    const card = document.createElement('section');
-    card.className = 'patch-note-entry';
-    const paragraphs = note.summary
-      .map((paragraph) => `<p class="patch-note-paragraph">${paragraph}</p>`)
-      .join('');
-    const highlights = (note.highlights || [])
-      .map((item) => `<div class="patch-note-highlight">${item}</div>`)
-      .join('');
-    card.innerHTML = `
-      <div class="patch-note-meta">
-        <div class="patch-note-version">v${note.version}</div>
-        <div class="patch-note-label">${note.label}</div>
-      </div>
-      <div class="patch-note-copy">
-        ${paragraphs}
-        <div class="patch-note-highlights">${highlights}</div>
-      </div>
-    `;
-    patchNotesList.appendChild(card);
-  }
+  renderPatchNotesPanel({
+    currentEl: patchNotesCurrent,
+    listEl: patchNotesList,
+    archiveEl: patchNotesArchiveNote,
+    versionNumber: VERSION.num,
+    versionLabel: VERSION.label,
+    notes: PATCH_NOTES,
+    archiveMessage: PATCH_NOTES_ARCHIVE_MESSAGE,
+    doc: document,
+  });
 }
 
 function setPatchNotesOpen(isOpen) {
-  if(!patchNotesPanel) return;
-  patchNotesPanel.classList.toggle('off', !isOpen);
-  patchNotesPanel.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+  setPatchNotesVisibility(patchNotesPanel, isOpen);
 }
 
 // ── STATE ─────────────────────────────────────────────────────────────────────

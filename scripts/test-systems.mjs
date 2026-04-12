@@ -50,6 +50,7 @@ import {
 } from '../src/systems/telemetry.js';
 import { applyDamagelessRoomProgression } from '../src/systems/progression.js';
 import { orderBoonsForDisplay } from '../src/ui/boonsPanel.js';
+import { buildPatchNoteCardHtml } from '../src/ui/patchNotes.js';
 
 function test(name, fn) {
   try {
@@ -302,6 +303,19 @@ test('orderBoonsForDisplay respects recorded boon pick order', () => {
   assert.equal(ordered[0].name, 'Rapid Fire');
   assert.equal(ordered[1].name, 'Critical Hit');
   assert.equal(ordered[2].name, 'Shield Burst');
+});
+
+test('buildPatchNoteCardHtml includes versioned summary and highlights markup', () => {
+  const html = buildPatchNoteCardHtml({
+    version: '1.2.3',
+    label: 'BALANCE PASS',
+    summary: ['One', 'Two'],
+    highlights: ['A', 'B'],
+  });
+  assert.ok(html.includes('v1.2.3'));
+  assert.ok(html.includes('BALANCE PASS'));
+  assert.ok(html.includes('patch-note-paragraph'));
+  assert.ok(html.includes('patch-note-highlight'));
 });
 
 test('room flow helpers keep threshold values', () => {
