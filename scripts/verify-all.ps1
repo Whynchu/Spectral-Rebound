@@ -11,6 +11,16 @@ powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "verify-versio
 Step "Checking script.js syntax"
 node --check (Join-Path $PSScriptRoot "..\\script.js")
 
+Step "Checking script.js browser-module syntax"
+$scriptPath = Join-Path $PSScriptRoot "..\\script.js"
+$moduleCheckPath = Join-Path $env:TEMP "phantom-rebound-script-module-check.mjs"
+Copy-Item -Path $scriptPath -Destination $moduleCheckPath -Force
+try {
+  node --check $moduleCheckPath
+} finally {
+  Remove-Item -LiteralPath $moduleCheckPath -ErrorAction SilentlyContinue
+}
+
 Step "Running systems tests"
 node (Join-Path $PSScriptRoot "test-systems.mjs")
 
