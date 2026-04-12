@@ -1522,7 +1522,6 @@ function update(dt,ts){
       applyRoomClearProgression();
       showRoomClear();
     }
-  }
 
   if(roomPhase==='fighting' || roomPhase==='spawning'){
     ensureShooterPressure();
