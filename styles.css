@@ -710,8 +710,14 @@ body:not(.menu-chrome-visible) #legend {
     min-height: calc(var(--vh, 1vh) * 100);
   }
   body {
+    align-items: flex-start;
+    justify-content: flex-start;
     min-height: -webkit-fill-available;
     min-height: calc(var(--vh, 1vh) * 100);
+  }
+  #wrap {
+    min-height: 100%;
+    justify-content: flex-start;
   }
   .screen { gap: 12px; padding: 24px; }
   .eyebrow { letter-spacing: .2em; }

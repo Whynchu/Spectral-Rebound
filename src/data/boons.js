@@ -197,83 +197,83 @@ function getDefaultUpgrades() {
 }
 
 const BOONS = [
-  {name:'Rapid Fire', tag:'OFFENSE', icon:'⚡', desc:'Advance to the next fire rate tier.', apply(upg){ if(upg.spsTier<SPS_LADDER.length-1){upg.spsTier++;upg.sps=SPS_LADDER[upg.spsTier];}}},
-  {name:'Ring Blast',tag:'OFFENSE',icon:'◎',desc:'+1 radial bullet per fire cycle. Max 8.',apply(upg){upg.ringShots=Math.min(8,upg.ringShots+1);syncChargeCapacity(upg);}},
-  {name:'Front+Back',tag:'OFFENSE',icon:'↕',desc:'Fire an extra shot directly behind you.',apply(upg){upg.dualShot=1;syncChargeCapacity(upg);}},
-  {name:'Snipe Shot',tag:'OFFENSE',icon:'🎯',desc:'+size, +speed & +damage on all output bullets.',apply(upg){upg.snipePower=Math.min(3,upg.snipePower+1);}},
-  {name:'Twin Lance',tag:'OFFENSE',icon:'≫',desc:'+1 forward shot. Rarity drops each repeat.',apply(upg){upg.forwardShotTier++;syncChargeCapacity(upg);}},
-  {name:'Bigger Bullets',tag:'OFFENSE',icon:'🔵',desc:'Output bullets grow larger. Diminishes per pick.',apply(upg){upg.biggerBulletsTier++;upg.shotSize=getHyperbolicScale(upg.biggerBulletsTier);}},
-  {name:'Faster Bullets',tag:'OFFENSE',icon:'💨',desc:'Output bullets travel faster. Diminishes per pick.',apply(upg){upg.fasterBulletsTier++;upg.shotSpd=getHyperbolicScale(upg.fasterBulletsTier);}},
-  {name:'Critical Hit',tag:'OFFENSE',icon:'💥',desc:'+25% crit chance. Crits hit harder. Max 3.',apply(upg){upg.critTier=Math.min(3,upg.critTier+1);upg.critChance=Math.min(0.75,0.25*upg.critTier);}},
-  {name:'Ricochet',tag:'UTILITY',icon:'↯',desc:'Output bullets bounce off walls twice.',apply(upg){upg.bounceTier=Math.max(1,upg.bounceTier);}},
-  {name:'Homing',tag:'UTILITY',icon:'🌀',desc:'Output bullets curve toward the nearest enemy.',apply(upg){upg.homingTier=1;}},
-  {name:'Pierce',tag:'UTILITY',icon:'→',desc:'Bullets pierce one extra enemy per tier. Max 3.',apply(upg){upg.pierceTier=Math.min(3,upg.pierceTier+1);}},
-  {name:'Quick Harvest',tag:'UTILITY',icon:'⬇',desc:'Grey bullet absorbs grant more charge. Diminishes.',apply(upg){upg.absorbTier++;upg.absorbValue=1+0.40*getHyperbolicScale(upg.absorbTier);}},
-  {name:'Decay Extension',tag:'UTILITY',icon:'⏳',desc:'Grey bullets linger +1s longer. Max +3s.',apply(upg){upg.decayBonus=Math.min(3000,upg.decayBonus+1000);}},
-  {name:'Charge Cap Up',tag:'UTILITY',icon:'◆',desc:'+12% base charge capacity per pick. Caps at +100%. Reserve adds after scaling.',apply(upg){if((upg.chargeCapMult||1) >= MAX_CHARGE_CAP_MULT)return; upg.chargeCapTier++;upg.chargeCapMult = Math.min(MAX_CHARGE_CAP_MULT, 1 + upg.chargeCapTier * CHARGE_CAP_PCT);syncChargeCapacity(upg);}},
-  {name:'Deep Reserve',tag:'UTILITY',icon:'▣',desc:'+flat charge pool. Starts at +16, diminishes harder. Caps at +120. Added after scaling.',apply(upg){if((upg.chargeCapFlatBonus||0) >= MAX_DEEP_RESERVE_BONUS)return; upg.chargeCapFlatTier++;upg.chargeCapFlatBonus = Math.min(MAX_DEEP_RESERVE_BONUS, (upg.chargeCapFlatBonus||0) + getFlatChargeGain(upg.chargeCapFlatTier));syncChargeCapacity(upg);}},
-  {name:'Wider Absorb',tag:'UTILITY',icon:'🧲',desc:'Extends grey bullet pull range. Max +60.',apply(upg){upg.absorbRange=Math.min(60,upg.absorbRange+15);}},
-  {name:'Long Reach',tag:'UTILITY',icon:'➶',desc:'Output shots travel farther and last longer.',apply(upg){upg.shotLifeTier++;upg.shotLifeMult=getHyperbolicScale(upg.shotLifeTier);}},
-  {name:'Kinetic Harvest',tag:'UTILITY',icon:'🌀',desc:'Gain charge while moving. The front of the bar refills faster; bigger pools get a smaller fast-fill window.',apply(upg){upg.kineticTier++;upg.moveChargeRate=getHyperbolicScale(upg.kineticTier)*0.45;}},
-  {name:'Extra Life',tag:'SURVIVE',icon:'◉',desc:'+max HP, restored on pickup. Front-loaded so early picks matter.',apply(upg, state){upg.extraLifeTier++;const idx=Math.min(EXTRA_LIFE_GAINS.length-1, upg.extraLifeTier-1);const heal=EXTRA_LIFE_GAINS[idx];state.maxHp+=heal;state.hp=Math.min(state.hp+heal,state.maxHp);}},
-  {name:'Ghost Velocity',tag:'SURVIVE',icon:'👻',desc:'Move faster through the arena. Diminishes per pick.',apply(upg){upg.speedTier++;upg.speedMult=getHyperbolicScale(upg.speedTier);}},
-  {name:'Room Regen',tag:'SURVIVE',icon:'💚',desc:'+18 HP on room clear per pick. Max 54/room.',apply(upg){upg.regenTick=Math.min(ROOM_REGEN_MAX,upg.regenTick+ROOM_REGEN_PER_PICK);}},
-  {name:'Armor Weave',tag:'SURVIVE',icon:'🧱',desc:'Reduces damage taken: 18% / 36% / 50% per tier.',apply(upg){const multipliers=[1,0.82,0.64,0.5];upg.armorTier=Math.min(3,upg.armorTier+1);upg.damageTakenMult=multipliers[upg.armorTier];},evolvesWith:['Titan Heart'],evolvedVersion:{name:'Living Fortress',icon:'🧱+',desc:'Armor scales with HP% — full HP = double reduction.',apply(upg){const multipliers=[1,0.82,0.64,0.5];upg.armorTier=Math.min(3,upg.armorTier+1);upg.damageTakenMult=multipliers[upg.armorTier];upg.livingFortress=true;}}},
-  {name:'Emergency Capacitor',tag:'SURVIVE',icon:'⚕️',desc:'Taking damage grants instant charge. Max 3 picks.',apply(upg){upg.capacitorTier=Math.min(3,upg.capacitorTier+1);upg.hitChargeGain=Math.min(6,upg.hitChargeGain+2);}},
+  {name:'Rapid Fire', tag:'OFFENSE', icon:'⚡', desc:'Next fire-rate tier.', apply(upg){ if(upg.spsTier<SPS_LADDER.length-1){upg.spsTier++;upg.sps=SPS_LADDER[upg.spsTier];}}},
+  {name:'Ring Blast',tag:'OFFENSE',icon:'◎',desc:'+1 radial shot. Max 8.',apply(upg){upg.ringShots=Math.min(8,upg.ringShots+1);syncChargeCapacity(upg);}},
+  {name:'Backshot',tag:'OFFENSE',icon:'↕',desc:'Adds a rear shot.',apply(upg){upg.dualShot=1;syncChargeCapacity(upg);}},
+  {name:'Snipe Shot',tag:'OFFENSE',icon:'🎯',desc:'+shot size, speed, and damage.',apply(upg){upg.snipePower=Math.min(3,upg.snipePower+1);}},
+  {name:'Twin Lance',tag:'OFFENSE',icon:'≫',desc:'+1 forward lane.',apply(upg){upg.forwardShotTier++;syncChargeCapacity(upg);}},
+  {name:'Bigger Bullets',tag:'OFFENSE',icon:'🔵',desc:'Larger shots. Diminishing returns.',apply(upg){upg.biggerBulletsTier++;upg.shotSize=getHyperbolicScale(upg.biggerBulletsTier);}},
+  {name:'Faster Bullets',tag:'OFFENSE',icon:'💨',desc:'Faster shots. Diminishing returns.',apply(upg){upg.fasterBulletsTier++;upg.shotSpd=getHyperbolicScale(upg.fasterBulletsTier);}},
+  {name:'Critical Hit',tag:'OFFENSE',icon:'💥',desc:'+25% crit chance. Max 3.',apply(upg){upg.critTier=Math.min(3,upg.critTier+1);upg.critChance=Math.min(0.75,0.25*upg.critTier);}},
+  {name:'Ricochet',tag:'UTILITY',icon:'↯',desc:'Shots bounce off walls.',apply(upg){upg.bounceTier=Math.max(1,upg.bounceTier);}},
+  {name:'Homing',tag:'UTILITY',icon:'🌀',desc:'Shots curve into enemies.',apply(upg){upg.homingTier=1;}},
+  {name:'Pierce',tag:'UTILITY',icon:'→',desc:'+1 pierce per tier. Max 3.',apply(upg){upg.pierceTier=Math.min(3,upg.pierceTier+1);}},
+  {name:'Quick Harvest',tag:'UTILITY',icon:'⬇',desc:'Grey absorbs grant more charge.',apply(upg){upg.absorbTier++;upg.absorbValue=1+0.40*getHyperbolicScale(upg.absorbTier);}},
+  {name:'Decay Extension',tag:'UTILITY',icon:'⏳',desc:'+1s grey linger. Max +3s.',apply(upg){upg.decayBonus=Math.min(3000,upg.decayBonus+1000);}},
+  {name:'Capacity Boost',tag:'UTILITY',icon:'◆',desc:'+12% base charge cap. Max +100%.',apply(upg){if((upg.chargeCapMult||1) >= MAX_CHARGE_CAP_MULT)return; upg.chargeCapTier++;upg.chargeCapMult = Math.min(MAX_CHARGE_CAP_MULT, 1 + upg.chargeCapTier * CHARGE_CAP_PCT);syncChargeCapacity(upg);}},
+  {name:'Deep Reserve',tag:'UTILITY',icon:'▣',desc:'+flat charge. Starts at +16, caps at +120.',apply(upg){if((upg.chargeCapFlatBonus||0) >= MAX_DEEP_RESERVE_BONUS)return; upg.chargeCapFlatTier++;upg.chargeCapFlatBonus = Math.min(MAX_DEEP_RESERVE_BONUS, (upg.chargeCapFlatBonus||0) + getFlatChargeGain(upg.chargeCapFlatTier));syncChargeCapacity(upg);}},
+  {name:'Wider Absorb',tag:'UTILITY',icon:'🧲',desc:'More absorb range. Max +60.',apply(upg){upg.absorbRange=Math.min(60,upg.absorbRange+15);}},
+  {name:'Long Reach',tag:'UTILITY',icon:'➶',desc:'Shots last longer.',apply(upg){upg.shotLifeTier++;upg.shotLifeMult=getHyperbolicScale(upg.shotLifeTier);}},
+  {name:'Kinetic Harvest',tag:'UTILITY',icon:'🌀',desc:'Gain charge while moving. Low charge refills faster.',apply(upg){upg.kineticTier++;upg.moveChargeRate=getHyperbolicScale(upg.kineticTier)*0.45;}},
+  {name:'Extra Life',tag:'SURVIVE',icon:'◉',desc:'+max HP and heal on pickup.',apply(upg, state){upg.extraLifeTier++;const idx=Math.min(EXTRA_LIFE_GAINS.length-1, upg.extraLifeTier-1);const heal=EXTRA_LIFE_GAINS[idx];state.maxHp+=heal;state.hp=Math.min(state.hp+heal,state.maxHp);}},
+  {name:'Ghost Velocity',tag:'SURVIVE',icon:'👻',desc:'Move faster. Diminishing returns.',apply(upg){upg.speedTier++;upg.speedMult=getHyperbolicScale(upg.speedTier);}},
+  {name:'Room Regen',tag:'SURVIVE',icon:'💚',desc:'+18 HP on room clear. Max 54.',apply(upg){upg.regenTick=Math.min(ROOM_REGEN_MAX,upg.regenTick+ROOM_REGEN_PER_PICK);}},
+  {name:'Armor Weave',tag:'SURVIVE',icon:'🧱',desc:'Damage taken: -18% / -36% / -50%.',apply(upg){const multipliers=[1,0.82,0.64,0.5];upg.armorTier=Math.min(3,upg.armorTier+1);upg.damageTakenMult=multipliers[upg.armorTier];},evolvesWith:['Titan Heart'],evolvedVersion:{name:'Living Fortress',icon:'🧱+',desc:'Armor scales with missing HP.',apply(upg){const multipliers=[1,0.82,0.64,0.5];upg.armorTier=Math.min(3,upg.armorTier+1);upg.damageTakenMult=multipliers[upg.armorTier];upg.livingFortress=true;}}},
+  {name:'Hit Battery',tag:'SURVIVE',icon:'⚕️',desc:'Getting hit grants charge. Max 3.',apply(upg){upg.capacitorTier=Math.min(3,upg.capacitorTier+1);upg.hitChargeGain=Math.min(6,upg.hitChargeGain+2);}},
   {name:'MINI',tag:'SURVIVE',icon:'·',desc:'−50% size, −25% max HP. Exclusive with Titan Heart.',apply(upg, state){if(upg.miniTaken || upg.titanTier > 0) return; upg.miniTaken = true; upg.playerSizeMult *= 0.5; state.maxHp = Math.max(10, Math.round(state.maxHp * 0.75)); state.hp = Math.min(state.maxHp, Math.max(1, Math.round(state.hp * 0.75)));}},
-  {name:'Titan Heart',tag:'SURVIVE',icon:'⬢',desc:'+25% size & +max HP per pick. +5% dmg, −5% spd. Excl. MINI.',apply(upg, state){if(upg.miniTaken || upg.titanTier >= TITAN_HP_PCT.length) return; const hpPct = TITAN_HP_PCT[upg.titanTier]; upg.titanTier++; upg.playerSizeMult = 1 + upg.titanTier * 0.25; upg.playerDamageMult = 1 + upg.titanTier * 0.05; upg.titanSlowMult = Math.max(0.7, 1 - upg.titanTier * TITAN_SLOW_PCT); const gain = Math.max(1, Math.round(state.maxHp * hpPct)); state.maxHp += gain; state.hp = Math.min(state.hp, state.maxHp);}},
-  {name:'Protective Shield',tag:'SURVIVE',icon:'🛡️',desc:`Blocks one danger bullet then recharges. +1 per pick. Max ${MAX_SHIELD_TIER}.`,apply(upg){upg.shieldTier=Math.min(MAX_SHIELD_TIER,upg.shieldTier+1);}},
-  {name:'Tempered Shield',tag:'SURVIVE',icon:'🛡️+',desc:'Shields become 2-stage: purple absorbs first hit.',apply(upg){if(upg.shieldTempered||upg.shieldTier===0)return; upg.shieldTempered=true;}},
-  {name:'Mirror Shield',tag:'SURVIVE',icon:'🪞',desc:'Shields reflect absorbed bullets as 60% damage countershots.',isActive:upg=>upg.shieldMirror,apply(upg){if(upg.shieldMirror||upg.shieldTier===0)return; upg.shieldMirror=true;}},
-  {name:'Shield Burst',tag:'SURVIVE',icon:'💠',desc:'When a shield breaks, fire a 4-way 55% damage burst.',requires:upg=>upg.shieldTier>0,apply(upg){if(upg.shieldBurst)return; upg.shieldBurst=true;},evolvesWith:['Mirror Shield'],evolvedVersion:{name:'Aegis Nova',icon:'💠+',desc:'Reflected bullets also trigger the 4-way 55% damage burst.',apply(upg){if(upg.shieldBurst)return; upg.shieldBurst=true; upg.aegisNova=true;}}},
-  {name:'Barrier Pulse',tag:'SURVIVE',icon:'⬡',desc:'Shield break grants 2 charge + magnet pulse.',requires:upg=>upg.shieldTier>0,apply(upg){if(upg.barrierPulse)return; upg.barrierPulse=true;}},
-  {name:'Swift Ward',tag:'SURVIVE',icon:'⚡🛡️',desc:'Shields recharge faster. −2.0s per pick. Max 2.',requires:upg=>upg.shieldTier>0,apply(upg){if(upg.shieldRegenTier>=2)return; upg.shieldRegenTier++;}},
+  {name:'Titan Heart',tag:'SURVIVE',icon:'⬢',desc:'+HP, +5% dmg, -5% spd. No MINI.',apply(upg, state){if(upg.miniTaken || upg.titanTier >= TITAN_HP_PCT.length) return; const hpPct = TITAN_HP_PCT[upg.titanTier]; upg.titanTier++; upg.playerSizeMult = 1 + upg.titanTier * 0.25; upg.playerDamageMult = 1 + upg.titanTier * 0.05; upg.titanSlowMult = Math.max(0.7, 1 - upg.titanTier * TITAN_SLOW_PCT); const gain = Math.max(1, Math.round(state.maxHp * hpPct)); state.maxHp += gain; state.hp = Math.min(state.hp, state.maxHp);}},
+  {name:'Shield Plate',tag:'SURVIVE',icon:'🛡️',desc:`+1 shield plate. Max ${MAX_SHIELD_TIER}.`,apply(upg){upg.shieldTier=Math.min(MAX_SHIELD_TIER,upg.shieldTier+1);}},
+  {name:'Tempered Shield',tag:'SURVIVE',icon:'🛡️+',desc:'Shields gain a purple first layer.',apply(upg){if(upg.shieldTempered||upg.shieldTier===0)return; upg.shieldTempered=true;}},
+  {name:'Mirror Shield',tag:'SURVIVE',icon:'🪞',desc:'Blocked shots fire 60% countershots.',isActive:upg=>upg.shieldMirror,apply(upg){if(upg.shieldMirror||upg.shieldTier===0)return; upg.shieldMirror=true;}},
+  {name:'Shield Burst',tag:'SURVIVE',icon:'💠',desc:'Shield break fires a 4-way burst.',requires:upg=>upg.shieldTier>0,apply(upg){if(upg.shieldBurst)return; upg.shieldBurst=true;},evolvesWith:['Mirror Shield'],evolvedVersion:{name:'Aegis Nova',icon:'💠+',desc:'Mirror shots also trigger Shield Burst.',apply(upg){if(upg.shieldBurst)return; upg.shieldBurst=true; upg.aegisNova=true;}}},
+  {name:'Barrier Pulse',tag:'SURVIVE',icon:'⬡',desc:'Shield break: +2 charge and magnet.',requires:upg=>upg.shieldTier>0,apply(upg){if(upg.barrierPulse)return; upg.barrierPulse=true;}},
+  {name:'Swift Ward',tag:'SURVIVE',icon:'⚡🛡️',desc:'Shields recharge faster. Max 2.',requires:upg=>upg.shieldTier>0,apply(upg){if(upg.shieldRegenTier>=2)return; upg.shieldRegenTier++;}},
   {name:'Orbit Spheres',tag:'UTILITY',icon:'🔮',desc:'+1 orbiting sphere per pick. Max 5.',apply(upg){upg.orbitSphereTier=Math.min(5,upg.orbitSphereTier+1);}},
-  {name:'Volatile Orbs',tag:'OFFENSE',icon:'💥',desc:'Orbit spheres explode on contact with a danger bullet, but only once per brief shared cooldown.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if(upg.volatileOrbs)return; upg.volatileOrbs=true;}},
-  {name:'Charged Orbs',tag:'OFFENSE',icon:'⚡',desc:'Each orbit sphere spends charge to fire a small shot at the nearest enemy every 1.4s.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if(upg.chargedOrbs)return; upg.chargedOrbs=true;}},
-  {name:'Absorb Orbs',tag:'UTILITY',icon:'🌀',desc:'Grey bullets near an orbit sphere are absorbed automatically.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if(upg.absorbOrbs)return; upg.absorbOrbs=true;}},
-  {name:'Orb Twin',tag:'OFFENSE',icon:'⚡≫',desc:'Charged Orbs fire a 2-shot fork. Total orb-shot damage increases, then splits between both shots.',requires:upg=>upg.chargedOrbs,apply(upg){if(upg.orbTwin)return; upg.orbTwin=true;}},
+  {name:'Volatile Orbs',tag:'OFFENSE',icon:'💥',desc:'Orbs explode on contact. Shared cooldown.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if(upg.volatileOrbs)return; upg.volatileOrbs=true;}},
+  {name:'Charged Orbs',tag:'OFFENSE',icon:'⚡',desc:'Orbs spend charge to fire at nearby enemies.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if(upg.chargedOrbs)return; upg.chargedOrbs=true;}},
+  {name:'Absorb Orbs',tag:'UTILITY',icon:'🌀',desc:'Orbs auto-absorb nearby grey bullets.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if(upg.absorbOrbs)return; upg.absorbOrbs=true;}},
+  {name:'Orb Twin',tag:'OFFENSE',icon:'⚡≫',desc:'Charged Orbs fire a 2-shot fork.',requires:upg=>upg.chargedOrbs,apply(upg){if(upg.orbTwin)return; upg.orbTwin=true;}},
   {name:'Orb Pierce',tag:'OFFENSE',icon:'⚡→',desc:'Charged Orb shots pierce 1 extra enemy.',requires:upg=>upg.chargedOrbs,apply(upg){if(upg.orbPierce)return; upg.orbPierce=true;}},
   {name:'Orb Overcharge',tag:'OFFENSE',icon:'⚡⬆',desc:'Charged Orb shots scale much harder from current charge.',requires:upg=>upg.chargedOrbs,apply(upg){if(upg.orbOvercharge)return; upg.orbOvercharge=true;}},
-  {name:'Orbital Focus',tag:'OFFENSE',icon:'🌐',desc:'Orbits hit harder. Charged Orbs fire 35% faster and scale damage from current charge.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if(upg.orbitalFocus)return; upg.orbitalFocus=true;}},
-  {name:'Aegis Battery',tag:'OFFENSE',icon:'🔋',desc:'Ready shields empower reflects and bursts. At full shields, fire a bolt at the nearest enemy every 1.8s.',requires:upg=>upg.shieldTier>0,apply(upg){if(upg.aegisBattery)return; upg.aegisBattery=true; upg.aegisBatteryTimer=0;}},
-  {name:'Dense Core',tag:'OFFENSE',icon:'◈',desc:'Reduce charge cap −25%/−50%/−75% per tier. +35% damage per tier. Extreme at 1 cap. Max 3.',apply(upg){if(upg.denseTier>=3)return; upg.denseTier++; upg.denseDamageMult=1+upg.denseTier*0.35; syncChargeCapacity(upg);}},
-  {name:'Echo Fire',tag:'OFFENSE',icon:'↺',desc:'Every 5th shot fires a free echo burst.',apply(upg){if(upg.echoFire)return; upg.echoFire=true;}},
-  {name:'Split Shot',tag:'OFFENSE',icon:'⋔',desc:'Output bullets split on first wall bounce.',apply(upg){if(upg.splitShot||upg.bounceTier===0)return; upg.splitShot=true;},evolvesWith:['Ricochet'],evolvedVersion:{name:'Fracture',icon:'⋔+',desc:'Bullets split into 3 on bounce, +20% damage.',apply(upg){if(upg.splitShot||upg.bounceTier===0)return; upg.splitShot=true; upg.splitShotEvolved=true; upg.denseDamageMult=(upg.denseDamageMult||1)*1.2;}}},
-  {name:'Volatile Rounds',tag:'OFFENSE',icon:'💢',desc:'Piercing shots burst on their final target.',apply(upg){if(upg.volatileRounds||upg.pierceTier===0)return; upg.volatileRounds=true;},evolvesWith:['Pierce'],evolvedVersion:{name:'Chain Reaction',icon:'💢+',desc:'Pierce bursts fire from each enemy hit, not just last.',apply(upg){if(upg.volatileRounds||upg.pierceTier===0)return; upg.volatileRounds=true; upg.volatileAllTargets=true;}}},
-  {name:'Slipstream',tag:'UTILITY',icon:'〜',desc:'Near-miss a danger bullet to gain charge. Max 3.',apply(upg){if(upg.slipTier>=3)return; upg.slipTier++; upg.slipChargeGain=getHyperbolicScale(upg.slipTier)*0.4;},evolvesWith:['Kinetic Harvest'],evolvedVersion:{name:'Flux State',icon:'〜+',desc:'Near-miss AND moving gives 2× charge tick.',apply(upg){if(upg.slipTier>=3)return; upg.slipTier++; upg.slipChargeGain=getHyperbolicScale(upg.slipTier)*0.4; upg.fluxState=true;}}},
-  {name:'Resonant Absorb',tag:'UTILITY',icon:'≋',desc:'Absorb 3 bullets in 1.5s — last gives 1.5× charge.',apply(upg){if(upg.resonantAbsorb)return; upg.resonantAbsorb=true;},evolvesWith:['Quick Harvest'],evolvedVersion:{name:'Surge Harvest',icon:'≋+',desc:'Combo window 2.5s, multiplier ×2.',apply(upg){if(upg.resonantAbsorb)return; upg.resonantAbsorb=true; upg.surgeHarvest=true;}}},
-  {name:'Chain Magnet',tag:'UTILITY',icon:'⤥',desc:'Absorbing a bullet doubles pull range for 0.7s.',apply(upg){if(upg.chainMagnetTier>=2)return; upg.chainMagnetTier++;}},
-  {name:'Overcharge Vent',tag:'UTILITY',icon:'⬆',desc:'Firing at full charge gives +60% bullet damage.',apply(upg){if(upg.overchargeVent)return; upg.overchargeVent=true;}},
-  {name:'Gravity Well',tag:'UTILITY',icon:'⊙',desc:'Danger bullets within 96px move 40% slower.',apply(upg){if(upg.gravityWell)return; upg.gravityWell=true;}},
-  {name:'Sliver',tag:'SURVIVE',icon:'◌',desc:'At ≤25% HP: +40% speed, −25% size.',apply(upg){if(upg.sliver)return; upg.sliver=true;}},
-  {name:'Vampiric Return',tag:'SURVIVE',icon:'🩸',desc:'Each kill restores 4 HP and grants +0.25 charge, but kill-heal is capped per room.',apply(upg){if(upg.vampiric)return; upg.vampiric=true;}},
-  {name:'Predator\'s Instinct',tag:'OFFENSE',icon:'🐺',desc:'2+ kills within 5s grants +25% damage per kill (max +125%).',requires:upg=>upg.vampiric,apply(upg){if(upg.predatorInstinct)return; upg.predatorInstinct=true;}},
-  {name:'Blood Pact',tag:'SURVIVE',icon:'🩸+',desc:'Piercing shots restore 1 HP, but only once per bullet and within the room sustain cap. Blood Moon adds +1 more.',requires:upg=>upg.vampiric&&upg.pierceTier>0,apply(upg){if(upg.bloodPact)return; upg.bloodPact=true;}},
-  {name:'Lifeline',tag:'SURVIVE',icon:'♾',desc:'Once per run: a killing blow leaves you at 1 HP.',apply(upg){if(upg.lifeline)return; upg.lifeline=true;},evolvesWith:['Berserker'],evolvedVersion:{name:'Last Stand',icon:'♾+',desc:'Lifeline triggers AND fires a full charge burst.',apply(upg){if(upg.lifeline)return; upg.lifeline=true; upg.lastStand=true;}}},
+  {name:'Orbital Focus',tag:'OFFENSE',icon:'🌐',desc:'Orbs hit harder and fire faster.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if(upg.orbitalFocus)return; upg.orbitalFocus=true;}},
+  {name:'Aegis Battery',tag:'OFFENSE',icon:'🔋',desc:'Ready shields boost returns; full set fires bolts.',requires:upg=>upg.shieldTier>0,apply(upg){if(upg.aegisBattery)return; upg.aegisBattery=true; upg.aegisBatteryTimer=0;}},
+  {name:'Dense Core',tag:'OFFENSE',icon:'◈',desc:'Less max charge, more damage. Max 3.',apply(upg){if(upg.denseTier>=3)return; upg.denseTier++; upg.denseDamageMult=1+upg.denseTier*0.35; syncChargeCapacity(upg);}},
+  {name:'Echo Fire',tag:'OFFENSE',icon:'↺',desc:'Every 5th shot fires a free echo.',apply(upg){if(upg.echoFire)return; upg.echoFire=true;}},
+  {name:'Split Shot',tag:'OFFENSE',icon:'⋔',desc:'Shots split on first wall bounce.',apply(upg){if(upg.splitShot||upg.bounceTier===0)return; upg.splitShot=true;},evolvesWith:['Ricochet'],evolvedVersion:{name:'Fracture',icon:'⋔+',desc:'Bounce splits into 3 and gains damage.',apply(upg){if(upg.splitShot||upg.bounceTier===0)return; upg.splitShot=true; upg.splitShotEvolved=true; upg.denseDamageMult=(upg.denseDamageMult||1)*1.2;}}},
+  {name:'Volatile Rounds',tag:'OFFENSE',icon:'💢',desc:'Pierce shots burst on the last hit.',apply(upg){if(upg.volatileRounds||upg.pierceTier===0)return; upg.volatileRounds=true;},evolvesWith:['Pierce'],evolvedVersion:{name:'Chain Reaction',icon:'💢+',desc:'Every pierced hit bursts.',apply(upg){if(upg.volatileRounds||upg.pierceTier===0)return; upg.volatileRounds=true; upg.volatileAllTargets=true;}}},
+  {name:'Slipstream',tag:'UTILITY',icon:'〜',desc:'Near-misses grant charge. Max 3.',apply(upg){if(upg.slipTier>=3)return; upg.slipTier++; upg.slipChargeGain=getHyperbolicScale(upg.slipTier)*0.4;},evolvesWith:['Kinetic Harvest'],evolvedVersion:{name:'Flux State',icon:'〜+',desc:'Moving near-misses grant 2x charge.',apply(upg){if(upg.slipTier>=3)return; upg.slipTier++; upg.slipChargeGain=getHyperbolicScale(upg.slipTier)*0.4; upg.fluxState=true;}}},
+  {name:'Resonant Absorb',tag:'UTILITY',icon:'≋',desc:'3 quick absorbs give bonus charge.',apply(upg){if(upg.resonantAbsorb)return; upg.resonantAbsorb=true;},evolvesWith:['Quick Harvest'],evolvedVersion:{name:'Surge Harvest',icon:'≋+',desc:'Longer combo window, bigger bonus.',apply(upg){if(upg.resonantAbsorb)return; upg.resonantAbsorb=true; upg.surgeHarvest=true;}}},
+  {name:'Chain Magnet',tag:'UTILITY',icon:'⤥',desc:'Absorbs briefly double pull range.',apply(upg){if(upg.chainMagnetTier>=2)return; upg.chainMagnetTier++;}},
+  {name:'Overcharge Vent',tag:'UTILITY',icon:'⬆',desc:'+60% damage at full charge.',apply(upg){if(upg.overchargeVent)return; upg.overchargeVent=true;}},
+  {name:'Gravity Well',tag:'UTILITY',icon:'⊙',desc:'Nearby danger bullets slow down.',apply(upg){if(upg.gravityWell)return; upg.gravityWell=true;}},
+  {name:'Sliver',tag:'SURVIVE',icon:'◌',desc:'Low HP: faster and smaller.',apply(upg){if(upg.sliver)return; upg.sliver=true;}},
+  {name:'Vampiric Return',tag:'SURVIVE',icon:'🩸',desc:'Kills heal and grant charge. Room-capped.',apply(upg){if(upg.vampiric)return; upg.vampiric=true;}},
+  {name:'Predator\'s Instinct',tag:'OFFENSE',icon:'🐺',desc:'Kill streak grants damage. Max +125%.',requires:upg=>upg.vampiric,apply(upg){if(upg.predatorInstinct)return; upg.predatorInstinct=true;}},
+  {name:'Blood Pact',tag:'SURVIVE',icon:'🩸+',desc:'Pierce hits heal once per bullet.',requires:upg=>upg.vampiric&&upg.pierceTier>0,apply(upg){if(upg.bloodPact)return; upg.bloodPact=true;}},
+  {name:'Lifeline',tag:'SURVIVE',icon:'♾',desc:'Once per run, lethal damage leaves 1 HP.',apply(upg){if(upg.lifeline)return; upg.lifeline=true;},evolvesWith:['Berserker'],evolvedVersion:{name:'Last Stand',icon:'♾+',desc:'Lifeline also fires a full burst.',apply(upg){if(upg.lifeline)return; upg.lifeline=true; upg.lastStand=true;}}},
   {name:'Berserker',tag:'SURVIVE',icon:'🔴',desc:`Max HP→${BERSERKER_HP}, +3 SPS tiers, +30% speed. Exclusive.`,isActive:upg=>upg.berserker,apply(upg,state){if(upg.berserker||upg.titanTier>0||upg.extraLifeTier>0||upg.regenTick>0)return; upg.berserker=true; state.maxHp=BERSERKER_HP; state.hp=Math.min(state.hp,BERSERKER_HP); upg.spsTier=Math.min(SPS_LADDER.length-1,upg.spsTier+3); upg.sps=SPS_LADDER[upg.spsTier]; upg.speedMult*=1.3;}},
-  {name:"Dead Man's Trigger",tag:'SURVIVE',icon:'☠',desc:'At ≤15% HP: ×2 damage and free pierce. Risk for reward.',apply(upg){if(upg.deadManTrigger)return; upg.deadManTrigger=true;}},
-  {name:'Blood Rush',tag:'SURVIVE',icon:'🩸→',desc:'Kills grant +10% movement speed for 3s. Stacks to +50%.',requires:upg=>upg.vampiric,apply(upg){if(upg.bloodRush)return; upg.bloodRush=true;}},
-  {name:'Crimson Harvest',tag:'SURVIVE',icon:'🩸+',desc:'Kills drop an extra grey bullet at the enemy position.',requires:upg=>upg.vampiric,apply(upg){if(upg.crimsonHarvest)return; upg.crimsonHarvest=true;}},
-  {name:'Sanguine Burst',tag:'OFFENSE',icon:'💀',desc:'Every 8th kill fires a free 6-way output burst.',requires:upg=>upg.vampiric,apply(upg){if(upg.sanguineBurst)return; upg.sanguineBurst=true;},evolvesWith:['Predator\'s Instinct'],evolvedVersion:{name:'Rampage',icon:'💀+',desc:'Every 4th kill fires a free 8-way burst instead.',apply(upg){if(upg.sanguineBurst)return; upg.sanguineBurst=true; upg.rampageEvolved=true;}}},
-  {name:'Late Bloom',tag:'OFFENSE',icon:'🌱',desc:'+1.5% damage per room (15-45), +0.75% (45-75), +0.125% (75+). Soft-capped. Exclusive. -6% move speed.',apply(upg){if(hasLateBloomVariant(upg))return; upg.lateBloomVariant='power';}},
-  {name:'Swift Bloom',tag:'UTILITY',icon:'🍃',desc:'+1.5% move speed per room (15-45), +0.75% (45-75), +0.125% (75+). Soft-capped. Exclusive. +6% damage taken.',apply(upg){if(hasLateBloomVariant(upg))return; upg.lateBloomVariant='speed';}},
-  {name:'Guard Bloom',tag:'SURVIVE',icon:'🛡️',desc:'Reduces damage taken on the Late Bloom curve. Starts scaling at room 15. Soft-capped. Exclusive. -6% damage.',apply(upg){if(hasLateBloomVariant(upg))return; upg.lateBloomVariant='defense';}},
-  {name:'Escalation',tag:'OFFENSE',icon:'📈',desc:'+3% damage per kill in current room. Resets between rooms. Max +60%.',apply(upg){if(upg.escalation)return; upg.escalation=true;}},
-  {name:'Spread Shot',tag:'OFFENSE',icon:'⬄',desc:'Fire 3 bullets in a cone instead of 1. +2 charge cost per fire.',apply(upg){if(upg.spreadShot)return; upg.spreadShot=true;syncChargeCapacity(upg);}},
-  {name:'Payload',tag:'OFFENSE',icon:'💣',desc:'Output bullets explode on final impact, damaging in a 48px radius.',requires:upg=>upg.biggerBulletsTier>0,apply(upg){if(upg.payload)return; upg.payload=true;}},
-  {name:'Shockwave',tag:'OFFENSE',icon:'⚡',desc:'Firing at full charge releases a radial enemy push. 2.25s cooldown.',apply(upg){if(upg.shockwave)return; upg.shockwave=true;}},
+  {name:"Dead Man's Trigger",tag:'SURVIVE',icon:'☠',desc:'At 15% HP: x2 damage and free pierce.',apply(upg){if(upg.deadManTrigger)return; upg.deadManTrigger=true;}},
+  {name:'Blood Rush',tag:'SURVIVE',icon:'🩸→',desc:'Kills grant stacking speed.',requires:upg=>upg.vampiric,apply(upg){if(upg.bloodRush)return; upg.bloodRush=true;}},
+  {name:'Crimson Harvest',tag:'SURVIVE',icon:'🩸+',desc:'Kills drop an extra grey bullet.',requires:upg=>upg.vampiric,apply(upg){if(upg.crimsonHarvest)return; upg.crimsonHarvest=true;}},
+  {name:'Sanguine Burst',tag:'OFFENSE',icon:'💀',desc:'Every 8th kill fires a free 6-way burst.',requires:upg=>upg.vampiric,apply(upg){if(upg.sanguineBurst)return; upg.sanguineBurst=true;},evolvesWith:['Predator\'s Instinct'],evolvedVersion:{name:'Rampage',icon:'💀+',desc:'Every 4th kill fires a free 8-way burst.',apply(upg){if(upg.sanguineBurst)return; upg.sanguineBurst=true; upg.rampageEvolved=true;}}},
+  {name:'Late Bloom',tag:'OFFENSE',icon:'🌱',desc:'Scales damage by room. -6% speed.',apply(upg){if(hasLateBloomVariant(upg))return; upg.lateBloomVariant='power';}},
+  {name:'Swift Bloom',tag:'UTILITY',icon:'🍃',desc:'Scales speed by room. +6% damage taken.',apply(upg){if(hasLateBloomVariant(upg))return; upg.lateBloomVariant='speed';}},
+  {name:'Guard Bloom',tag:'SURVIVE',icon:'🛡️',desc:'Scales defense by room. -6% damage.',apply(upg){if(hasLateBloomVariant(upg))return; upg.lateBloomVariant='defense';}},
+  {name:'Escalation',tag:'OFFENSE',icon:'📈',desc:'+3% damage per kill this room. Max +60%.',apply(upg){if(upg.escalation)return; upg.escalation=true;}},
+  {name:'Spread Shot',tag:'OFFENSE',icon:'⬄',desc:'3-shot cone. +2 charge cost.',apply(upg){if(upg.spreadShot)return; upg.spreadShot=true;syncChargeCapacity(upg);}},
+  {name:'Payload',tag:'OFFENSE',icon:'💣',desc:'Shots explode on impact.',requires:upg=>upg.biggerBulletsTier>0,apply(upg){if(upg.payload)return; upg.payload=true;}},
+  {name:'Shockwave',tag:'OFFENSE',icon:'⚡',desc:'Full charge releases a push wave.',apply(upg){if(upg.shockwave)return; upg.shockwave=true;}},
   // Null Zone removed — unfun invincibility loop
   {name:'Gravity Well',tag:'UTILITY',icon:'⊙',desc:'Picking this a 2nd time adds: enemies move 20% slower within 90px.',evolvesWith:['Gravity Well'],evolvedVersion:{name:'Gravity Well II',icon:'⊙+',desc:'Slows both danger bullets AND enemies 30%.'},apply(upg){if(!upg.gravityWell)return; if(upg.gravityWell2)return; upg.gravityWell2=true;}},
   
   // Phase 5: Bullet Alchemy
-  {name:'Refraction',tag:'OFFENSE',icon:'💡',desc:'Absorbed grey bullets fire weak homing shots (0.75× dmg). Max 4/sec.',requires:upg=>upg.absorbTier>0,apply(upg){if(upg.refraction)return; upg.refraction=true;}},
-  {name:'Mirror Tide',tag:'OFFENSE',icon:'🪞',desc:'Reflects the next danger hit. Starts at 1 use/room, repeats add +1 use/room. 1.5s cooldown.',requires:upg=>upg.armorTier>0,apply(upg){if(upg.mirrorTideTier>=3)return; upg.mirrorTide=true; upg.mirrorTideTier++; upg.mirrorTideRoomLimit=upg.mirrorTideTier;}},
+  {name:'Refraction',tag:'OFFENSE',icon:'💡',desc:'Absorbs fire weak homing shots.',requires:upg=>upg.absorbTier>0,apply(upg){if(upg.refraction)return; upg.refraction=true;}},
+  {name:'Mirror Tide',tag:'OFFENSE',icon:'🪞',desc:'Reflect the next hit. More picks = more room uses.',requires:upg=>upg.armorTier>0,apply(upg){if(upg.mirrorTideTier>=3)return; upg.mirrorTide=true; upg.mirrorTideTier++; upg.mirrorTideRoomLimit=upg.mirrorTideTier;}},
   
   // Phase 6: Active Abilities
-  {name:'Phase Dash',tag:'SURVIVE',icon:'💨',desc:'Auto-dash when hit and take only 5% damage. Starts at 1 use/room, repeats add +1 use/room. 0.45s invincibility, 3.5s cooldown.',apply(upg){if(upg.phaseDashTier>=3)return; upg.phaseDash=true; upg.phaseDashTier++; upg.phaseDashRoomLimit=upg.phaseDashTier;}},
-  {name:'Overload',tag:'OFFENSE',icon:'⚡',desc:'Full charge auto-triggers: next shot ×2.5 damage, empties charge, 3s cooldown.',apply(upg){if(upg.overload)return; upg.overload=true;}},
-  {name:'EMP Burst',tag:'SURVIVE',icon:'💥',desc:'At ≤30% HP + take damage: destroy all danger bullets. Once per room.',requires:upg=>upg.capacitorTier>0,apply(upg){if(upg.empBurst)return; upg.empBurst=true;}},
+  {name:'Phase Dash',tag:'SURVIVE',icon:'💨',desc:'On hit, auto-dash and take 5% damage.',apply(upg){if(upg.phaseDashTier>=3)return; upg.phaseDash=true; upg.phaseDashTier++; upg.phaseDashRoomLimit=upg.phaseDashTier;}},
+  {name:'Overload',tag:'OFFENSE',icon:'⚡',desc:'Full charge primes a x2.5 shot.',apply(upg){if(upg.overload)return; upg.overload=true;}},
+  {name:'EMP Burst',tag:'SURVIVE',icon:'💥',desc:'Low-HP hit clears danger bullets.',requires:upg=>upg.capacitorTier>0,apply(upg){if(upg.empBurst)return; upg.empBurst=true;}},
 ];
 
 function boonHasEffect(boon, upg, hp, maxHp) {
@@ -406,7 +406,7 @@ function getActiveBoonEntries(upg) {
   const entries = [];
   if(upg.spsTier > 0) entries.push({ icon:'⚡', name:'Rapid Fire', detail:`Tier ${upg.spsTier} - ${upg.sps.toFixed(1)} SPS` });
   if(upg.ringShots > 0) entries.push({ icon:'◎', name:'Ring Blast', detail:`${upg.ringShots} radial shot${upg.ringShots === 1 ? '' : 's'}` });
-  if(upg.dualShot > 0) entries.push({ icon:'↕', name:'Front+Back', detail:'Rear shot enabled' });
+  if(upg.dualShot > 0) entries.push({ icon:'↕', name:'Backshot', detail:'Rear shot enabled' });
   if(upg.snipePower > 0) entries.push({ icon:'🎯', name:'Snipe Shot', detail:`Tier ${upg.snipePower}` });
   if(upg.forwardShotTier > 0) entries.push({ icon:'≫', name:'Twin Lance', detail:`+${upg.forwardShotTier} forward lane${upg.forwardShotTier === 1 ? '' : 's'}` });
   if(upg.biggerBulletsTier > 0) entries.push({ icon:'🔵', name:'Bigger Bullets', detail:`Tier ${upg.biggerBulletsTier}` });
@@ -417,7 +417,7 @@ function getActiveBoonEntries(upg) {
   if(upg.pierceTier > 0) entries.push({ icon:'→', name:'Pierce', detail:`Tier ${upg.pierceTier}` });
   if(upg.absorbTier > 0) entries.push({ icon:'⬇', name:'Quick Harvest', detail:`+${Math.round((upg.absorbValue - 1) * 100)}% absorb value` });
   if(upg.decayBonus > 0) entries.push({ icon:'⏳', name:'Decay Extension', detail:`+${Math.round(upg.decayBonus / 1000)}s linger` });
-  if(upg.chargeCapTier > 0) entries.push({ icon:'◆', name:'Charge Cap Up', detail:`+${Math.round((upg.chargeCapMult - 1) * 100)}% capacity` });
+  if(upg.chargeCapTier > 0) entries.push({ icon:'◆', name:'Capacity Boost', detail:`+${Math.round((upg.chargeCapMult - 1) * 100)}% cap` });
   if(upg.chargeCapFlatTier > 0) entries.push({ icon:'▣', name:'Deep Reserve', detail:`+${upg.chargeCapFlatBonus} flat charge` });
   if(upg.absorbRange > 0) entries.push({ icon:'🧲', name:'Wider Absorb', detail:`+${upg.absorbRange} absorb range` });
   if(upg.kineticTier > 0) {
@@ -438,30 +438,30 @@ function getActiveBoonEntries(upg) {
   if(upg.speedTier > 0) entries.push({ icon:'👻', name:'Ghost Velocity', detail:`+${Math.round((upg.speedMult - 1) * 100)}% move speed` });
   if(upg.regenTick > 0) entries.push({ icon:'💚', name:'Room Regen', detail:`${upg.regenTick} HP per room clear` });
   if(upg.armorTier > 0) entries.push({ icon: upg.livingFortress?'🧱+':'🧱', name: upg.livingFortress?'Living Fortress':'Armor Weave', detail:`${Math.round((1 - upg.damageTakenMult) * 100)}% damage reduction` });
-  if(upg.capacitorTier > 0) entries.push({ icon:'⚕️', name:'Emergency Capacitor', detail:`+${upg.hitChargeGain.toFixed(1)} charge on hit` });
+  if(upg.capacitorTier > 0) entries.push({ icon:'⚕️', name:'Hit Battery', detail:`+${upg.hitChargeGain.toFixed(1)} charge on hit` });
   if(upg.miniTaken) entries.push({ icon:'·', name:'MINI', detail:'50% smaller, 25% less max HP' });
   if(upg.titanTier > 0) entries.push({ icon:'⬢', name:'Titan Heart', detail:`Tier ${upg.titanTier} - +${Math.round((upg.playerDamageMult - 1) * 100)}% dmg, -${Math.round((1 - upg.titanSlowMult) * 100)}% speed` });
-  if(upg.shieldTier > 0) entries.push({ icon:'🛡️', name:'Protective Shield', detail:`${upg.shieldTier} shield plate${upg.shieldTier === 1 ? '' : 's'}` });
+  if(upg.shieldTier > 0) entries.push({ icon:'🛡️', name:'Shield Plate', detail:`${upg.shieldTier} plate${upg.shieldTier === 1 ? '' : 's'}` });
   if(upg.shieldTempered) entries.push({ icon:'🛡️+', name:'Tempered Shield', detail:'2-stage shields' });
-  if(upg.shieldMirror) entries.push({ icon:'🪞', name:'Mirror Shield', detail:'60% damage countershots' });
+  if(upg.shieldMirror) entries.push({ icon:'🪞', name:'Mirror Shield', detail:'60% countershots' });
   if(upg.shieldBurst) entries.push({ icon: upg.aegisNova?'💠+':'💠', name: upg.aegisNova?'Aegis Nova':'Shield Burst', detail:'Break fires 4-way 55% burst' });
   if(upg.barrierPulse) entries.push({ icon:'⬡', name:'Barrier Pulse', detail:'+2 charge + magnet on break' });
   if(upg.shieldRegenTier>0) entries.push({ icon:'⚡🛡️', name:'Swift Ward', detail:`Shields recharge in ${Math.max(1.5, 4.5-upg.shieldRegenTier*2).toFixed(1)}s` });
-  if(upg.aegisBattery) entries.push({ icon:'🔋', name:'Aegis Battery', detail:'Ready shields boost retaliation and full set fires bolts' });
+  if(upg.aegisBattery) entries.push({ icon:'🔋', name:'Aegis Battery', detail:'Ready shields boost returns; full set fires bolts' });
   if(upg.orbitSphereTier > 0) entries.push({ icon:'🔮', name:'Orbit Spheres', detail:`${upg.orbitSphereTier} sphere${upg.orbitSphereTier === 1 ? '' : 's'}` });
   if(upg.denseTier > 0) entries.push({ icon:'◈', name:'Dense Core', detail:`Tier ${upg.denseTier} — ×${upg.denseDamageMult.toFixed(2)} dmg, cap: ${upg.maxCharge}` });
   if(upg.slipTier>0) entries.push({icon: upg.fluxState?'〜+':'〜', name: upg.fluxState?'Flux State':'Slipstream', detail:`+${upg.slipChargeGain.toFixed(2)} charge/near-miss`});
-  if(upg.resonantAbsorb) entries.push({icon: upg.surgeHarvest?'≋+':'≋', name: upg.surgeHarvest?'Surge Harvest':'Resonant Absorb', detail:'Combo absorbs give 1.5× charge'});
+  if(upg.resonantAbsorb) entries.push({icon: upg.surgeHarvest?'≋+':'≋', name: upg.surgeHarvest?'Surge Harvest':'Resonant Absorb', detail:'Quick combos give bonus charge'});
   if(upg.chainMagnetTier>0) entries.push({icon:'⤥',name:'Chain Magnet',detail:`${(700+350*(upg.chainMagnetTier-1))}ms double pull`});
   if(upg.overchargeVent) entries.push({icon:'⬆',name:'Overcharge Vent',detail:'+60% dmg at full charge'});
   if(upg.gravityWell) entries.push({icon:'⊙',name:'Gravity Well',detail:'Slows nearby danger bullets 40%'});
   if(upg.sliver) entries.push({icon:'◌',name:'Sliver',detail:'Low HP speed+size boost'});
-  if(upg.vampiric) entries.push({icon:'🩸',name:'Vampiric Return',detail:'+4 HP per kill, +0.25 charge, capped per room'});
+  if(upg.vampiric) entries.push({icon:'🩸',name:'Vampiric Return',detail:'+4 HP and +0.25 charge per kill'});
   if(upg.predatorInstinct) entries.push({icon:'🐺',name:'Predator\'s Instinct',detail:`Kill streak: +${Math.round((upg.predatorKillStreak||0)*25)}% damage (max +125%)`});
   if(upg.bloodPact) entries.push({icon:'🩸+',name:'Blood Pact',detail:`+1 HP per piercing bullet hit, within room cap${upg.bloodMoon ? ' (+1 bullet cap from Blood Moon)' : ''}`});
-  if(upg.lifeline) entries.push({icon: upg.lastStand?'♾+':'♾', name: upg.lastStand?'Last Stand':'Lifeline', detail:upg.lifelineUsed?'SPENT':'1× death save'});
+  if(upg.lifeline) entries.push({icon: upg.lastStand?'♾+':'♾', name: upg.lastStand?'Last Stand':'Lifeline', detail:upg.lifelineUsed?'SPENT':'1x death save'});
   if(upg.berserker) entries.push({icon:'🔴',name:'Berserker',detail:`HP:${BERSERKER_HP}, +3 SPS, +30% spd`});
-  if(upg.deadManTrigger) entries.push({icon:'☠',name:"Dead Man's Trigger",detail:'At ≤15% HP: ×2 dmg + free pierce'});
+  if(upg.deadManTrigger) entries.push({icon:'☠',name:"Dead Man's Trigger",detail:'At 15% HP: x2 dmg + pierce'});
   if(upg.echoFire) entries.push({icon:'↺',name:'Echo Fire',detail:'Every 5th shot fires free echo'});
   if(upg.splitShot) entries.push({icon: upg.splitShotEvolved?'⋔+':'⋔', name: upg.splitShotEvolved?'Fracture':'Split Shot', detail:'Bullets split on wall bounce'});
   if(upg.volatileRounds) entries.push({icon: upg.volatileAllTargets?'💢+':'💢', name: upg.volatileAllTargets?'Chain Reaction':'Volatile Rounds', detail:'Pierce shots burst on final hit'});
@@ -481,7 +481,7 @@ function getActiveBoonEntries(upg) {
   if(upg.lateBloomVariant === 'defense') entries.push({icon:'🛡️',name:'Guard Bloom',detail:`-${lateBloomPct}% dmg taken, -6% dmg`});
   if(upg.escalation) entries.push({icon:'📈',name:'Escalation',detail:`+${Math.round(Math.min(ESCALATION_MAX_BONUS, (upg.escalationKills||0) * ESCALATION_KILL_PCT) * 100)}% dmg`});
   if(upg.spreadShot) entries.push({icon:'⬄',name:'Spread Shot',detail:'3-bullet cone spread'});
-  if(upg.payload) entries.push({icon:'💣',name:'Payload',detail:'Bullets explode on impact'});
+  if(upg.payload) entries.push({icon:'💣',name:'Payload',detail:'Shots explode on impact'});
   if(upg.shockwave) entries.push({icon:'⚡',name:'Shockwave',detail:'Full charge → push enemies'});
 
   if(upg.gravityWell2) entries.push({icon:'⊙+',name:'Gravity Well II',detail:'Slows bullets & enemies'});
@@ -489,7 +489,7 @@ function getActiveBoonEntries(upg) {
   if(upg.refraction) entries.push({icon:'💡',name:'Refraction',detail:`Cooldown: ${Math.max(0, (upg.refractionCooldown||0)/1000).toFixed(1)}s`});
   if(upg.mirrorTide) entries.push({icon:'🪞',name:'Mirror Tide',detail:`${Math.max(0, (upg.mirrorTideRoomLimit||0) - (upg.mirrorTideRoomUses||0))}/${upg.mirrorTideRoomLimit||0} room uses, ${Math.max(0, (upg.mirrorTideCooldown||0)/1000).toFixed(1)}s cd`});
   if(upg.phaseDash) entries.push({icon:'💨',name:'Phase Dash',detail:`5% damage, ${Math.max(0, (upg.phaseDashRoomLimit||0) - (upg.phaseDashRoomUses||0))}/${upg.phaseDashRoomLimit||0} uses, ${Math.max(0, (upg.phaseDashCooldown||0)/1000).toFixed(1)}s cd`});
-  if(upg.overload) entries.push({icon:'⚡',name:'Overload',detail:'Auto ×2 damage at full charge'});
+  if(upg.overload) entries.push({icon:'⚡',name:'Overload',detail:'Full charge primes a big shot'});
   if(upg.empBurst) entries.push({icon:'💥',name:'EMP Burst',detail:upg.empBurstUsed?'SPENT':'Ready ≤30% HP'});
   if(upg.voidWalker) entries.push({icon:'🌊',name:'VOID WALKER',detail:'Dashing creates void zone'});
   if(upg.bloodMoon) entries.push({icon:'🩸',name:'BLOOD MOON',detail:'Kills: +8 HP, +3 grey bullets'});
