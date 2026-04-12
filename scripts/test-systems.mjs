@@ -26,6 +26,16 @@ import {
   getReinforcementIntervalMs,
   getBossEscortRespawnMs,
 } from '../src/core/roomFlow.js';
+import {
+  advanceRoomIntroPhase,
+  getPendingWaveIntroIndex,
+  pullWaveSpawnEntries,
+  getPostSpawningPhase,
+  shouldForceClearFromCombat,
+  updateBossEscortRespawn,
+  pullReinforcementSpawn,
+  advanceClearPhase,
+} from '../src/core/roomRuntime.js';
 
 function test(name, fn) {
   try {
@@ -242,6 +252,78 @@ test('room flow generates non-boss and room-100 special boss layouts', () => {
   assert.equal(bossEntries.length, 2);
   assert.equal(bossEntries[0].bossScale, 2);
   assert.equal(bossEntries[1].bossScale, 2);
+});
+
+test('room runtime intro and clear phase transitions', () => {
+  const introStep1 = advanceRoomIntroPhase({ roomPhase: 'intro', roomIntroTimer: 900, dtMs: 200 });
+  assert.equal(introStep1.roomPhase, 'intro');
+  assert.equal(introStep1.shouldShowGo, true);
+  assert.equal(introStep1.shouldHideIntro, false);
+
+  const introStep2 = advanceRoomIntroPhase({ roomPhase: 'intro', roomIntroTimer: 1500, dtMs: 200 });
+  assert.equal(introStep2.roomPhase, 'spawning');
+  assert.equal(introStep2.shouldHideIntro, true);
+
+  const clearStep = advanceClearPhase({ roomPhase: 'clear', roomClearTimer: 900, dtMs: 200, rewardDelayMs: 1000 });
+  assert.equal(clearStep.roomPhase, 'reward');
+  assert.equal(clearStep.shouldShowUpgrades, true);
+});
+
+test('room runtime wave/queue helpers keep phase logic stable', () => {
+  const pendingWave = getPendingWaveIntroIndex({
+    roomPhase: 'spawning',
+    enemiesCount: 0,
+    spawnQueue: [{ waveIndex: 2, spawnAt: 1000 }],
+    activeWaveIndex: 1,
+  });
+  assert.equal(pendingWave, 2);
+
+  const pullResult = pullWaveSpawnEntries({
+    spawnQueue: [
+      { t: 'chaser', waveIndex: 1, spawnAt: 100 },
+      { t: 'sniper', waveIndex: 1, spawnAt: 200 },
+      { t: 'rusher', waveIndex: 2, spawnAt: 100 },
+    ],
+    activeWaveIndex: 1,
+    roomTimer: 250,
+    maxOnScreen: 2,
+    enemiesCount: 0,
+  });
+  assert.equal(pullResult.spawnEntries.length, 2);
+  assert.equal(pullResult.remainingQueue.length, 1);
+
+  assert.equal(getPostSpawningPhase({ spawnQueueLen: 0, enemiesCount: 2 }), 'fighting');
+  assert.equal(getPostSpawningPhase({ spawnQueueLen: 0, enemiesCount: 0 }), 'clear');
+  assert.equal(getPostSpawningPhase({ spawnQueueLen: 1, enemiesCount: 0 }), null);
+
+  assert.equal(shouldForceClearFromCombat({ roomPhase: 'fighting', enemiesCount: 0, spawnQueueLen: 0 }), true);
+  assert.equal(shouldForceClearFromCombat({ roomPhase: 'spawning', enemiesCount: 1, spawnQueueLen: 0 }), false);
+});
+
+test('room runtime escort and reinforcement timing helpers are deterministic', () => {
+  const escort = updateBossEscortRespawn({
+    escortAlive: 0,
+    escortMaxCount: 2,
+    escortRespawnTimer: 6000,
+    dtMs: 1200,
+    respawnMs: 7000,
+  });
+  assert.equal(escort.shouldSpawnEscort, true);
+  assert.equal(escort.escortRespawnTimer, 0);
+
+  const reinforce = pullReinforcementSpawn({
+    isBossRoom: false,
+    spawnQueue: [{ t: 'chaser', waveIndex: 0, spawnAt: 0 }],
+    activeWaveIndex: 0,
+    enemiesCount: 1,
+    maxOnScreen: 5,
+    reinforceTimer: 790,
+    dtMs: 20,
+    intervalMs: 800,
+  });
+  assert.equal(reinforce.spawnEntry.t, 'chaser');
+  assert.equal(reinforce.reinforceTimer, 0);
+  assert.equal(reinforce.remainingQueue.length, 0);
 });
 
 if (process.exitCode && process.exitCode !== 0) {

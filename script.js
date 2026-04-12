@@ -36,6 +36,16 @@ import {
   getReinforcementIntervalMs as getReinforcementIntervalMsValue,
   getBossEscortRespawnMs as getBossEscortRespawnMsValue,
 } from './src/core/roomFlow.js';
+import {
+  advanceRoomIntroPhase,
+  getPendingWaveIntroIndex,
+  pullWaveSpawnEntries,
+  getPostSpawningPhase,
+  shouldForceClearFromCombat,
+  updateBossEscortRespawn,
+  pullReinforcementSpawn,
+  advanceClearPhase,
+} from './src/core/roomRuntime.js';
 
 loadPlayerColorFromStorage();
 renderVersionTag(VERSION);
@@ -1567,35 +1577,49 @@ function update(dt,ts){
   if(gstate === 'playing') runElapsedMs += dt * 1000;
 
   if(roomPhase==='intro'){
-    roomIntroTimer += dt * 1000;
-    if(roomIntroTimer >= 1000 && roomIntroTimer < 1600){
+    const introStep = advanceRoomIntroPhase({
+      roomPhase,
+      roomIntroTimer,
+      dtMs: dt * 1000,
+    });
+    roomPhase = introStep.roomPhase;
+    roomIntroTimer = introStep.roomIntroTimer;
+    if(introStep.shouldShowGo) {
       showRoomIntro('GO!', true);
-    } else if(roomIntroTimer >= 1600){
+    }
+    if(introStep.shouldHideIntro) {
       hideRoomIntro();
-      roomPhase = 'spawning';
     }
   }
 
-  if((roomPhase === 'spawning' || roomPhase === 'fighting')
-    && enemies.length === 0
-    && spawnQueue.length > 0
-    && spawnQueue[0].waveIndex > activeWaveIndex) {
-    beginWaveIntro(spawnQueue[0].waveIndex);
+  const pendingWaveIntroIndex = getPendingWaveIntroIndex({
+    roomPhase,
+    enemiesCount: enemies.length,
+    spawnQueue,
+    activeWaveIndex,
+  });
+  if(pendingWaveIntroIndex !== null) {
+    beginWaveIntro(pendingWaveIntroIndex);
   }
 
   if(roomPhase==='spawning'){
-    // Drain spawn queue (respect on-screen cap for reinforcement rooms)
-    while(
-      spawnQueue.length
-      && spawnQueue[0].waveIndex === activeWaveIndex
-      && spawnQueue[0].spawnAt <= roomTimer
-    ){
-      if(enemies.length >= currentRoomMaxOnScreen) break;
-      const entry = spawnQueue.shift();
+    const spawnedWaveEntries = pullWaveSpawnEntries({
+      spawnQueue,
+      activeWaveIndex,
+      roomTimer,
+      maxOnScreen: currentRoomMaxOnScreen,
+      enemiesCount: enemies.length,
+    });
+    spawnQueue = spawnedWaveEntries.remainingQueue;
+    for(const entry of spawnedWaveEntries.spawnEntries) {
       spawnEnemy(entry.t, entry.isBoss, entry.bossScale || 1);
     }
-    if(spawnQueue.length===0 && enemies.length > 0) roomPhase='fighting';
-    if(spawnQueue.length===0 && enemies.length === 0){
+    const postSpawningPhase = getPostSpawningPhase({
+      spawnQueueLen: spawnQueue.length,
+      enemiesCount: enemies.length,
+    });
+    if(postSpawningPhase === 'fighting') roomPhase='fighting';
+    if(postSpawningPhase === 'clear'){
       roomPhase='clear';
       roomClearTimer=0;
       bullets=[]; particles=[];
@@ -1609,8 +1633,11 @@ function update(dt,ts){
     }
   }
 
-  if(roomPhase==='fighting' || roomPhase==='spawning'){
-    if(enemies.length===0 && spawnQueue.length===0){
+  if(shouldForceClearFromCombat({
+    roomPhase,
+    enemiesCount: enemies.length,
+    spawnQueueLen: spawnQueue.length,
+  })){
       roomPhase='clear';
       roomClearTimer=0;
       // Clear all projectiles immediately
@@ -1642,39 +1669,48 @@ function update(dt,ts){
     // Boss escort trickle respawning
     if(currentRoomIsBoss && bossAlive) {
       const escortAlive = enemies.filter(e => !e.isBoss).length;
-      if(escortAlive < escortMaxCount) {
-        escortRespawnTimer += dt * 1000;
-        if(escortRespawnTimer >= getBossEscortRespawnMs(roomIndex)) {
-          escortRespawnTimer = 0;
-          spawnEnemy(escortType);
-        }
-      } else {
-        escortRespawnTimer = 0;
+      const escortSpawnState = updateBossEscortRespawn({
+        escortAlive,
+        escortMaxCount,
+        escortRespawnTimer,
+        dtMs: dt * 1000,
+        respawnMs: getBossEscortRespawnMs(roomIndex),
+      });
+      escortRespawnTimer = escortSpawnState.escortRespawnTimer;
+      if(escortSpawnState.shouldSpawnEscort) {
+        spawnEnemy(escortType);
       }
     }
 
     // Reinforcement spawning for rooms 40+ (non-boss)
-    if(
-      !currentRoomIsBoss
-      && spawnQueue.length > 0
-      && spawnQueue[0].waveIndex === activeWaveIndex
-      && enemies.length < currentRoomMaxOnScreen
-    ) {
-      reinforceTimer += dt * 1000;
-      if(reinforceTimer >= getReinforcementIntervalMs(roomIndex)) {
-        reinforceTimer = 0;
-        const entry = spawnQueue.shift();
-        spawnEnemy(entry.t, entry.isBoss, entry.bossScale || 1);
-      }
+    const reinforceSpawnState = pullReinforcementSpawn({
+      isBossRoom: currentRoomIsBoss,
+      spawnQueue,
+      activeWaveIndex,
+      enemiesCount: enemies.length,
+      maxOnScreen: currentRoomMaxOnScreen,
+      reinforceTimer,
+      dtMs: dt * 1000,
+      intervalMs: getReinforcementIntervalMs(roomIndex),
+    });
+    reinforceTimer = reinforceSpawnState.reinforceTimer;
+    spawnQueue = reinforceSpawnState.remainingQueue;
+    if(reinforceSpawnState.spawnEntry) {
+      const entry = reinforceSpawnState.spawnEntry;
+      spawnEnemy(entry.t, entry.isBoss, entry.bossScale || 1);
     }
   }
 
-  if(roomPhase==='clear'){
-    roomClearTimer+=dt*1000;
-    if(roomClearTimer>1000){
-      roomPhase='reward';
-      showUpgrades();
-    }
+  const clearStep = advanceClearPhase({
+    roomPhase,
+    roomClearTimer,
+    dtMs: dt * 1000,
+    rewardDelayMs: 1000,
+  });
+  roomPhase = clearStep.roomPhase;
+  roomClearTimer = clearStep.roomClearTimer;
+  if(clearStep.shouldShowUpgrades) {
+    showUpgrades();
   }
 
   // 'reward' and 'between' phases are handled by showUpgrades / card click callbacks
