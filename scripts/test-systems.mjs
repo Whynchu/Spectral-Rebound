@@ -49,6 +49,7 @@ import {
   buildRunTelemetryPayload,
 } from '../src/systems/telemetry.js';
 import { applyDamagelessRoomProgression } from '../src/systems/progression.js';
+import { orderBoonsForDisplay } from '../src/ui/boonsPanel.js';
 
 function test(name, fn) {
   try {
@@ -290,6 +291,17 @@ test('diagnostics builder produces crash report envelope', () => {
 
 test('diagnostics save returns false without browser storage', () => {
   assert.equal(saveRunCrashReport({ type: 'x' }), false);
+});
+
+test('orderBoonsForDisplay respects recorded boon pick order', () => {
+  const ordered = orderBoonsForDisplay([
+    { name: 'Shield Burst' },
+    { name: 'Rapid Fire' },
+    { name: 'Critical Hit' },
+  ], 'Rapid Fire,Critical Hit');
+  assert.equal(ordered[0].name, 'Rapid Fire');
+  assert.equal(ordered[1].name, 'Critical Hit');
+  assert.equal(ordered[2].name, 'Shield Burst');
 });
 
 test('room flow helpers keep threshold values', () => {

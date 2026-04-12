@@ -26,6 +26,7 @@ import { PATCH_NOTES, PATCH_NOTES_ARCHIVE_MESSAGE } from './src/data/patchNotes.
 import { renderColorSelector } from './src/ui/colorSelector.js';
 import { formatRunTime, renderHud } from './src/ui/hud.js';
 import { renderLeaderboard as renderLeaderboardView } from './src/ui/leaderboard.js';
+import { renderGameOverBoonsList, showLeaderboardBoonsPopup } from './src/ui/boonsPanel.js';
 import {
   getKillSustainCapForRoom as getKillSustainCapForRoomValue,
   applyKillSustainHeal as applyKillSustainHealValue,
@@ -198,19 +199,7 @@ function getEnemyGreyDropCount() {
 }
 
 function renderGameOverBoons() {
-  if(!goBoonsList) return;
-  const entries = getActiveBoonEntries(UPG);
-  goBoonsList.innerHTML = '';
-  if(entries.length === 0) {
-    goBoonsList.innerHTML = '<div class="up-active-empty">No boons collected this run.</div>';
-    return;
-  }
-  for(const entry of entries) {
-    const row = document.createElement('div');
-    row.className = 'up-active-item';
-    row.innerHTML = `<div class="up-active-icon">${entry.icon}</div><div class="up-active-copy"><div class="up-active-name">${entry.name}</div><div class="up-active-detail">${entry.detail}</div></div>`;
-    goBoonsList.appendChild(row);
-  }
+  renderGameOverBoonsList(goBoonsList, getActiveBoonEntries(UPG));
 }
 
 function syncPlayerScale() {
@@ -2856,34 +2845,15 @@ const lbBoonsPopupTitle = document.getElementById('lb-boons-popup-title');
 const lbBoonsPopupList = document.getElementById('lb-boons-popup-list');
 document.getElementById('btn-lb-boons-close')?.addEventListener('click', () => lbBoonsPopup?.classList.add('off'));
 
-function orderBoonsForDisplay(boons, boonOrder = '') {
-  if(!Array.isArray(boons) || boons.length < 2 || !boonOrder) return boons;
-  const orderedNames = boonOrder.split(',').map((name) => name.trim()).filter(Boolean);
-  if(orderedNames.length === 0) return boons;
-  const orderMap = new Map(orderedNames.map((name, index) => [name, index]));
-  return [...boons].sort((a, b) => {
-    const aIndex = orderMap.has(a.name) ? orderMap.get(a.name) : Number.MAX_SAFE_INTEGER;
-    const bIndex = orderMap.has(b.name) ? orderMap.get(b.name) : Number.MAX_SAFE_INTEGER;
-    return aIndex - bIndex || a.name.localeCompare(b.name);
-  });
-}
-
 function showLbBoonsPopup(runnerName, boons, boonOrder = '') {
-  if(!lbBoonsPopup) return;
-  lbBoonsPopupTitle.textContent = `${runnerName} · Run Loadout`;
-  lbBoonsPopupList.innerHTML = '';
-  const orderedBoons = orderBoonsForDisplay(boons, boonOrder);
-  if(!orderedBoons || orderedBoons.length === 0) {
-    lbBoonsPopupList.innerHTML = '<div class="up-active-empty">No boon data recorded.</div>';
-  } else {
-    for(const b of orderedBoons) {
-      const row = document.createElement('div');
-      row.className = 'up-active-item';
-      row.innerHTML = `<div class="up-active-icon">${b.icon}</div><div class="up-active-copy"><div class="up-active-name">${b.name}</div><div class="up-active-detail">${b.detail}</div></div>`;
-      lbBoonsPopupList.appendChild(row);
-    }
-  }
-  lbBoonsPopup.classList.remove('off');
+  showLeaderboardBoonsPopup({
+    popup: lbBoonsPopup,
+    titleEl: lbBoonsPopupTitle,
+    listEl: lbBoonsPopupList,
+    runnerName,
+    boons,
+    boonOrder,
+  });
 }
 
 
