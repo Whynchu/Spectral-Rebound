@@ -191,6 +191,9 @@ body.compact-viewport #wrap {
 #top-hud {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
+  grid-template-areas:
+    "room patch score"
+    "meta meta meta";
   align-items: center;
   padding: 8px 12px;
   background: var(--bg2);
@@ -205,20 +208,23 @@ body.compact-viewport #wrap {
 #score-txt { font-family:'Syne',sans-serif; font-weight:800; font-size:16px; color:var(--accent); }
 /* TOP HUD room counter */
 #room-counter { font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.18em; color:var(--muted); }
-#room-counter { justify-self: start; }
-#score-txt { justify-self: end; }
-#btn-patch-notes { justify-self: center; }
+#room-counter { grid-area: room; justify-self: start; }
+#score-txt { grid-area: score; justify-self: end; }
+#btn-patch-notes { grid-area: patch; justify-self: center; }
+#top-hud-secondary {
+  grid-area: meta;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
 /* CANVAS */
 #cv { display:block; border-radius:5px; border:1px solid var(--border2); cursor:none; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
 /* BOTTOM HUD */
 #bot-hud {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 5px;
+  display: none;
 }
 #charge-section { flex:1; }
 #charge-row { display:flex; justify-content:space-between; align-items:center; }
@@ -790,6 +796,11 @@ body.compact-viewport #top-hud,
 body.compact-viewport #bot-hud {
   padding: 7px 10px;
 }
+body.compact-viewport #top-hud-secondary {
+  gap: 10px;
+  margin-top: 6px;
+  padding-top: 6px;
+}
 body.compact-viewport #btn-patch-notes {
   padding: 5px 10px;
   font-size: 7px;
@@ -819,6 +830,11 @@ body.tight-viewport .name-row {
 body.tight-viewport #top-hud,
 body.tight-viewport #bot-hud {
   padding: 6px 9px;
+}
+body.tight-viewport #top-hud-secondary {
+  gap: 8px;
+  margin-top: 5px;
+  padding-top: 5px;
 }
 body.tight-viewport #legend {
   gap: 10px;
