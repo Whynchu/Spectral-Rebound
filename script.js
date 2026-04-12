@@ -87,6 +87,19 @@ const _isEaster = (_now.getMonth() === 3 && _now.getDate() >= 4 && _now.getDate(
 document.addEventListener('contextmenu', (e) => e.preventDefault());
 // Block dblclick — iOS can route double-tap zoom through this even when CSS manipulation is set
 document.addEventListener('dblclick', (e) => e.preventDefault());
+let lastTouchEndAt = 0;
+document.addEventListener('touchend', (event) => {
+  const target = event.target;
+  if(target && target.closest && target.closest('input, textarea, select')) return;
+  const now = Date.now();
+  if(now - lastTouchEndAt < 320) {
+    event.preventDefault();
+  }
+  lastTouchEndAt = now;
+}, { passive: false });
+document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
+document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
 let startDangerCopy;
 
 function revealAppShell() {
@@ -150,9 +163,10 @@ function setMenuChromeVisible(isVisible) {
 
 function resize() {
   const BASE_ARENA_ASPECT = 1.18;
-  const MAX_ARENA_ASPECT = 1.34;
   const viewportWidth = window.visualViewport?.width || window.innerWidth;
   const viewportHeight = window.visualViewport?.height || window.innerHeight;
+  const isPhoneWidth = viewportWidth <= 430;
+  const maxArenaAspect = isPhoneWidth ? 1.78 : 1.34;
   document.body.classList.toggle('compact-viewport', viewportHeight < 780);
   document.body.classList.toggle('tight-viewport', viewportHeight < 700);
 
@@ -185,7 +199,7 @@ function resize() {
   const maxWidthByHeight = Math.floor(availableCanvasHeight / BASE_ARENA_ASPECT);
   const finalWidth = Math.min(maxWidthByViewport, maxWidthByHeight > 0 ? maxWidthByHeight : maxWidthByViewport);
   const baseHeight = Math.floor(finalWidth * BASE_ARENA_ASPECT);
-  const extendedHeightCap = Math.floor(finalWidth * MAX_ARENA_ASPECT);
+  const extendedHeightCap = Math.floor(finalWidth * maxArenaAspect);
   const finalHeight = Math.max(baseHeight, Math.min(availableCanvasHeight, extendedHeightCap));
   setCanvasSize(finalWidth, finalHeight);
 
