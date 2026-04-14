@@ -118,12 +118,11 @@ import {
 } from './src/systems/outputHit.js';
 import { resolveEnemyKillEffects, resolveOrbitKillEffects } from './src/systems/killRewards.js';
 import {
-  resolveLifelineRecovery,
   resolveDangerPlayerHit,
   resolveSlipstreamNearMiss,
   resolveRusherContactHit,
   convertNearbyDangerBulletsToGrey,
-  buildLastStandBurstSpec,
+  resolvePostHitAftermath,
 } from './src/systems/dangerHit.js';
 import {
   createRunTelemetry as createRunTelemetryValue,
@@ -1703,8 +1702,20 @@ function update(dt,ts){
         player.invincible = rusherHit.invincibleSeconds;
         player.distort = rusherHit.distortSeconds;
         sparks(player.x,player.y,C.danger,10,90);
-        if(UPG.colossus && _colossusShockwaveCd <= 0){
-          _colossusShockwaveCd = 4.0;
+        const rusherAftermath = resolvePostHitAftermath({
+          hitResult: rusherHit,
+          upgrades: UPG,
+          colossusShockwaveCd: _colossusShockwaveCd,
+          enableShockwave: true,
+          shouldTriggerLastStand: rusherHit.shouldTriggerLastStand,
+          playerX: player.x,
+          playerY: player.y,
+          shotSpeed: 220 * GLOBAL_SPEED_LIFT,
+          now: performance.now(),
+          bloodPactHealCap: getBloodPactHealCap(),
+        });
+        if(rusherAftermath.triggerColossusShockwave){
+          _colossusShockwaveCd = rusherAftermath.nextColossusShockwaveCd;
           convertNearbyDangerBulletsToGrey({
             bullets,
             originX: player.x,
@@ -1714,26 +1725,14 @@ function update(dt,ts){
           });
           sparks(player.x,player.y,getThreatPalette().advanced.hex,14,120);
         }
-        if(rusherHit.lifelineTriggered){
-          UPG.lifelineTriggerCount = rusherHit.nextLifelineTriggerCount;
-          UPG.lifelineUsed = rusherHit.nextLifelineUsed;
+        if(rusherAftermath.shouldApplyLifelineState){
+          UPG.lifelineTriggerCount = rusherAftermath.nextLifelineTriggerCount;
+          UPG.lifelineUsed = rusherAftermath.nextLifelineUsed;
           sparks(player.x,player.y,C.lifelineEffect,16,100);
-          if(rusherHit.shouldTriggerLastStand){
-            const burstSpec = buildLastStandBurstSpec({
-              x: player.x,
-              y: player.y,
-              maxCharge: UPG.maxCharge,
-              speed: 220 * GLOBAL_SPEED_LIFT,
-              bounceTier: UPG.bounceTier,
-              pierceTier: UPG.pierceTier,
-              damageMult: UPG.playerDamageMult || 1,
-              denseDamageMult: UPG.denseDamageMult || 1,
-              now: performance.now(),
-              bloodPactHealCap: getBloodPactHealCap(),
-            });
-            spawnRadialOutputBurst({ bullets, ...burstSpec });
+          if(rusherAftermath.lastStandBurstSpec){
+            spawnRadialOutputBurst({ bullets, ...rusherAftermath.lastStandBurstSpec });
           }
-        } else if(rusherHit.shouldGameOver) {
+        } else if(rusherAftermath.shouldGameOver) {
           gameOver(); return;
         }
       }
@@ -2213,11 +2212,15 @@ function update(dt,ts){
         UPG.voidZoneActive = dangerHit.nextVoidZoneActive;
         UPG.voidZoneTimer = dangerHit.nextVoidZoneTimer;
         bullets.splice(i, 1);
-        if(dangerHit.lifelineTriggered){
-          UPG.lifelineTriggerCount = dangerHit.nextLifelineTriggerCount;
-          UPG.lifelineUsed = dangerHit.nextLifelineUsed;
+        const phaseDashAftermath = resolvePostHitAftermath({
+          hitResult: dangerHit,
+          upgrades: UPG,
+        });
+        if(phaseDashAftermath.shouldApplyLifelineState){
+          UPG.lifelineTriggerCount = phaseDashAftermath.nextLifelineTriggerCount;
+          UPG.lifelineUsed = phaseDashAftermath.nextLifelineUsed;
           sparks(player.x,player.y,C.lifelineEffect,16,100);
-        } else if(dangerHit.shouldGameOver) {
+        } else if(phaseDashAftermath.shouldGameOver) {
           gameOver(); return;
         }
         continue;
@@ -2267,8 +2270,20 @@ function update(dt,ts){
 
         sparks(player.x,player.y,C.danger,10,85);
         bullets.splice(i,1);
-        if(UPG.colossus && _colossusShockwaveCd <= 0){
-          _colossusShockwaveCd = 4.0;
+        const directHitAftermath = resolvePostHitAftermath({
+          hitResult: dangerHit,
+          upgrades: UPG,
+          colossusShockwaveCd: _colossusShockwaveCd,
+          enableShockwave: true,
+          shouldTriggerLastStand: Boolean(UPG.lastStand && dangerHit.lifelineTriggered),
+          playerX: player.x,
+          playerY: player.y,
+          shotSpeed: 220 * GLOBAL_SPEED_LIFT,
+          now: performance.now(),
+          bloodPactHealCap: getBloodPactHealCap(),
+        });
+        if(directHitAftermath.triggerColossusShockwave){
+          _colossusShockwaveCd = directHitAftermath.nextColossusShockwaveCd;
           convertNearbyDangerBulletsToGrey({
             bullets,
             originX: player.x,
@@ -2278,26 +2293,14 @@ function update(dt,ts){
           });
           sparks(player.x,player.y,getThreatPalette().advanced.hex,14,120);
         }
-        if(dangerHit.lifelineTriggered){
-          UPG.lifelineTriggerCount = dangerHit.nextLifelineTriggerCount;
-          UPG.lifelineUsed = dangerHit.nextLifelineUsed;
+        if(directHitAftermath.shouldApplyLifelineState){
+          UPG.lifelineTriggerCount = directHitAftermath.nextLifelineTriggerCount;
+          UPG.lifelineUsed = directHitAftermath.nextLifelineUsed;
           sparks(player.x,player.y,C.lifelineEffect,16,100);
-          if(UPG.lastStand){
-            const burstSpec = buildLastStandBurstSpec({
-              x: player.x,
-              y: player.y,
-              maxCharge: UPG.maxCharge,
-              speed: 220 * GLOBAL_SPEED_LIFT,
-              bounceTier: UPG.bounceTier,
-              pierceTier: UPG.pierceTier,
-              damageMult: UPG.playerDamageMult || 1,
-              denseDamageMult: UPG.denseDamageMult || 1,
-              now: performance.now(),
-              bloodPactHealCap: getBloodPactHealCap(),
-            });
-            spawnRadialOutputBurst({ bullets, ...burstSpec });
+          if(directHitAftermath.lastStandBurstSpec){
+            spawnRadialOutputBurst({ bullets, ...directHitAftermath.lastStandBurstSpec });
           }
-        } else if(dangerHit.shouldGameOver) {
+        } else if(directHitAftermath.shouldGameOver) {
           gameOver(); return;
         }
         continue;

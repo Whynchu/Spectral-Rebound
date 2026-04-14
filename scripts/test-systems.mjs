@@ -26,6 +26,7 @@ import {
   resolveRusherContactHit,
   convertNearbyDangerBulletsToGrey,
   buildLastStandBurstSpec,
+  resolvePostHitAftermath,
 } from '../src/systems/dangerHit.js';
 import {
   weightedPick,
@@ -704,6 +705,51 @@ test('danger hit helpers resolve void block, phase dash, mirror tide, direct hit
   assert.equal(lastStandBurst.expireAt, 3000);
   assert.equal(lastStandBurst.extras.bloodPactHeals, 0);
   assert.equal(lastStandBurst.extras.bloodPactHealCap, 3);
+
+  const aftermath = resolvePostHitAftermath({
+    hitResult: {
+      lifelineTriggered: true,
+      nextLifelineTriggerCount: 2,
+      nextLifelineUsed: true,
+      shouldGameOver: false,
+    },
+    upgrades: {
+      colossus: true,
+      maxCharge: 10,
+      bounceTier: 1,
+      pierceTier: 2,
+      playerDamageMult: 1.5,
+      denseDamageMult: 2,
+    },
+    colossusShockwaveCd: 0,
+    enableShockwave: true,
+    shouldTriggerLastStand: true,
+    playerX: 12,
+    playerY: 18,
+    shotSpeed: 220,
+    now: 1000,
+    bloodPactHealCap: 4,
+  });
+  assert.equal(aftermath.shouldApplyLifelineState, true);
+  assert.equal(aftermath.nextLifelineTriggerCount, 2);
+  assert.equal(aftermath.nextLifelineUsed, true);
+  assert.equal(aftermath.shouldGameOver, false);
+  assert.equal(aftermath.triggerColossusShockwave, true);
+  assert.equal(aftermath.nextColossusShockwaveCd, 4);
+  assert.ok(aftermath.lastStandBurstSpec);
+  assert.equal(aftermath.lastStandBurstSpec.x, 12);
+
+  const noAftermath = resolvePostHitAftermath({
+    hitResult: { lifelineTriggered: false, shouldGameOver: true },
+    upgrades: { colossus: true },
+    colossusShockwaveCd: 1,
+    enableShockwave: true,
+    shouldTriggerLastStand: false,
+  });
+  assert.equal(noAftermath.shouldApplyLifelineState, false);
+  assert.equal(noAftermath.shouldGameOver, true);
+  assert.equal(noAftermath.triggerColossusShockwave, false);
+  assert.equal(noAftermath.lastStandBurstSpec, null);
 });
 
 test('weightedPick uses candidate weights', () => {

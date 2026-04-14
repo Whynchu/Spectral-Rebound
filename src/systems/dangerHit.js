@@ -215,6 +215,55 @@ function buildLastStandBurstSpec({
   };
 }
 
+function resolvePostHitAftermath({
+  hitResult,
+  upgrades,
+  colossusShockwaveCd = 0,
+  enableShockwave = false,
+  shouldTriggerLastStand = false,
+  playerX = 0,
+  playerY = 0,
+  shotSpeed = 220,
+  now = 0,
+  bloodPactHealCap = 0,
+} = {}) {
+  const lifelineTriggered = Boolean(hitResult?.lifelineTriggered);
+  const shouldApplyLifelineState = lifelineTriggered;
+  const shouldGameOver = Boolean(!lifelineTriggered && hitResult?.shouldGameOver);
+
+  const triggerColossusShockwave = Boolean(
+    enableShockwave &&
+    upgrades?.colossus &&
+    colossusShockwaveCd <= 0,
+  );
+
+  let lastStandBurstSpec = null;
+  if(lifelineTriggered && shouldTriggerLastStand) {
+    lastStandBurstSpec = buildLastStandBurstSpec({
+      x: playerX,
+      y: playerY,
+      maxCharge: upgrades?.maxCharge,
+      speed: shotSpeed,
+      bounceTier: upgrades?.bounceTier || 0,
+      pierceTier: upgrades?.pierceTier || 0,
+      damageMult: upgrades?.playerDamageMult || 1,
+      denseDamageMult: upgrades?.denseDamageMult || 1,
+      now,
+      bloodPactHealCap,
+    });
+  }
+
+  return {
+    shouldApplyLifelineState,
+    nextLifelineTriggerCount: hitResult?.nextLifelineTriggerCount,
+    nextLifelineUsed: hitResult?.nextLifelineUsed,
+    shouldGameOver,
+    triggerColossusShockwave,
+    nextColossusShockwaveCd: triggerColossusShockwave ? 4.0 : colossusShockwaveCd,
+    lastStandBurstSpec,
+  };
+}
+
 export {
   resolveLifelineRecovery,
   resolveDangerPlayerHit,
@@ -222,4 +271,5 @@ export {
   resolveRusherContactHit,
   convertNearbyDangerBulletsToGrey,
   buildLastStandBurstSpec,
+  resolvePostHitAftermath,
 };
