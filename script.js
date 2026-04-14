@@ -6,6 +6,7 @@ import {
   stepRusherEnemy,
   advanceRangedEnemyCombatState,
   fireEnemyBurst,
+  applyOrbitSphereContact,
 } from './src/entities/enemyRuntime.js';
 import {
   applyEliteBulletStage as applyEliteBulletStageValue,
@@ -1740,38 +1741,33 @@ function update(dt,ts){
   if(UPG.orbitSphereTier > 0){
       // Sync arrays
       syncOrbRuntimeArrays(_orbFireTimers, _orbCooldown, UPG.orbitSphereTier);
-      if(!e.orbitHitAt) e.orbitHitAt = {};
-      for(let si=0;si<UPG.orbitSphereTier;si++){
-        if(_orbCooldown[si]>0) continue;
-        const orbitSlot = getOrbitSlotPosition({
-          index: si,
-          orbitSphereTier: UPG.orbitSphereTier,
-          ts,
-          rotationSpeed: ORBIT_ROTATION_SPD,
-          radius: ORBIT_SPHERE_R,
-          originX: player.x,
-          originY: player.y,
-        });
-        const sx=orbitSlot.x;
-        const sy=orbitSlot.y;
-        const lastHitAt = e.orbitHitAt[si] || -99999;
-        if(ts - lastHitAt < 220) continue;
-        if(Math.hypot(e.x-sx,e.y-sy) < e.r + 6){
-          e.orbitHitAt[si] = ts;
-          const orbitContactDamage = 2 + (UPG.orbitalFocus ? ORBITAL_FOCUS_CONTACT_BONUS + getChargeRatio() * 1.5 : 0);
-          e.hp -= orbitContactDamage;
-          sparks(sx,sy,C.green,4,45);
-          if(e.hp<=0){
-            score += computeKillScore(e.pts, false);
-            kills++;
-            recordKill('orbit');
-            sparks(e.x,e.y,e.col,14,95);
-            spawnGreyDrops(e.x,e.y,ts);
-            if(UPG.finalForm && hp <= maxHp * 0.15){ gainCharge(0.5, 'finalForm'); }
-            enemies.splice(ei,1);
-            break;
-          }
-        }
+      const orbitContact = applyOrbitSphereContact(e, {
+        orbCooldown: _orbCooldown,
+        orbitSphereTier: UPG.orbitSphereTier,
+        ts,
+        getOrbitSlotPosition,
+        rotationSpeed: ORBIT_ROTATION_SPD,
+        radius: ORBIT_SPHERE_R,
+        originX: player.x,
+        originY: player.y,
+        orbitalFocus: UPG.orbitalFocus,
+        chargeRatio: getChargeRatio(),
+        baseDamage: 2,
+        focusDamageBonus: ORBITAL_FOCUS_CONTACT_BONUS,
+        focusChargeScale: 1.5,
+      });
+      if(orbitContact.hit){
+        sparks(orbitContact.slotX, orbitContact.slotY, C.green, 4, 45);
+      }
+      if(orbitContact.killed){
+        score += computeKillScore(e.pts, false);
+        kills++;
+        recordKill('orbit');
+        sparks(e.x,e.y,e.col,14,95);
+        spawnGreyDrops(e.x,e.y,ts);
+        if(UPG.finalForm && hp <= maxHp * 0.15){ gainCharge(0.5, 'finalForm'); }
+        enemies.splice(ei,1);
+        continue;
       }
     }
   }

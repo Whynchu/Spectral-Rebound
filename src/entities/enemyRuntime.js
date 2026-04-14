@@ -150,6 +150,53 @@ function fireEnemyBurst(enemy, {
   applyDisruptorPostFire(enemy);
 }
 
+function applyOrbitSphereContact(enemy, {
+  orbCooldown,
+  orbitSphereTier,
+  ts,
+  getOrbitSlotPosition,
+  rotationSpeed,
+  radius,
+  originX,
+  originY,
+  orbitalFocus = false,
+  chargeRatio = 0,
+  baseDamage = 2,
+  focusDamageBonus = 1.5,
+  focusChargeScale = 1.5,
+} = {}) {
+  if(orbitSphereTier <= 0) return { hit: false, killed: false };
+  if(!enemy.orbitHitAt) enemy.orbitHitAt = {};
+
+  for(let si = 0; si < orbitSphereTier; si++) {
+    if(orbCooldown[si] > 0) continue;
+    const orbitSlot = getOrbitSlotPosition({
+      index: si,
+      orbitSphereTier,
+      ts,
+      rotationSpeed,
+      radius,
+      originX,
+      originY,
+    });
+    const lastHitAt = enemy.orbitHitAt[si] || -99999;
+    if(ts - lastHitAt < 220) continue;
+    if(Math.hypot(enemy.x - orbitSlot.x, enemy.y - orbitSlot.y) >= enemy.r + 6) continue;
+
+    enemy.orbitHitAt[si] = ts;
+    const damage = baseDamage + (orbitalFocus ? focusDamageBonus + chargeRatio * focusChargeScale : 0);
+    enemy.hp -= damage;
+    return {
+      hit: true,
+      killed: enemy.hp <= 0,
+      slotX: orbitSlot.x,
+      slotY: orbitSlot.y,
+    };
+  }
+
+  return { hit: false, killed: false };
+}
+
 export {
   clampEnemyToArena,
   stepSiphonEnemy,
@@ -157,4 +204,5 @@ export {
   advanceRangedEnemyCombatState,
   applyDisruptorPostFire,
   fireEnemyBurst,
+  applyOrbitSphereContact,
 };

@@ -77,6 +77,7 @@ import {
   advanceRangedEnemyCombatState,
   applyDisruptorPostFire,
   fireEnemyBurst,
+  applyOrbitSphereContact,
 } from '../src/entities/enemyRuntime.js';
 import {
   createLaneOffsets,
@@ -1693,6 +1694,58 @@ test('enemy fire helper routes burst patterns by enemy type deterministically', 
     ...spawners,
   });
   assert.equal(calls.enemyBullet, 1);
+});
+
+test('orbit contact helper applies cooldown-gated damage and kill state deterministically', () => {
+  const enemy = { x: 40, y: 0, r: 8, hp: 6 };
+  const result1 = applyOrbitSphereContact(enemy, {
+    orbCooldown: [0],
+    orbitSphereTier: 1,
+    ts: 1000,
+    getOrbitSlotPosition: ({ originX, originY }) => ({ x: originX + 40, y: originY }),
+    rotationSpeed: 0,
+    radius: 40,
+    originX: 0,
+    originY: 0,
+    orbitalFocus: false,
+    chargeRatio: 0,
+  });
+  assert.equal(result1.hit, true);
+  assert.equal(result1.killed, false);
+  assert.equal(enemy.hp, 4);
+
+  const result2 = applyOrbitSphereContact(enemy, {
+    orbCooldown: [0],
+    orbitSphereTier: 1,
+    ts: 1100,
+    getOrbitSlotPosition: ({ originX, originY }) => ({ x: originX + 40, y: originY }),
+    rotationSpeed: 0,
+    radius: 40,
+    originX: 0,
+    originY: 0,
+    orbitalFocus: false,
+    chargeRatio: 0,
+  });
+  assert.equal(result2.hit, false);
+
+  const result3 = applyOrbitSphereContact(enemy, {
+    orbCooldown: [0],
+    orbitSphereTier: 1,
+    ts: 1300,
+    getOrbitSlotPosition: ({ originX, originY }) => ({ x: originX + 40, y: originY }),
+    rotationSpeed: 0,
+    radius: 40,
+    originX: 0,
+    originY: 0,
+    orbitalFocus: true,
+    chargeRatio: 1,
+    baseDamage: 2,
+    focusDamageBonus: 1.5,
+    focusChargeScale: 1.5,
+  });
+  assert.equal(result3.hit, true);
+  assert.equal(result3.killed, true);
+  assert.ok(enemy.hp <= 0);
 });
 
 test('room flow helpers keep threshold values', () => {
