@@ -11,6 +11,7 @@ import {
   spawnEliteTriangleBurst as spawnEliteTriangleBurstValue,
 } from './src/entities/projectiles.js';
 import {
+  pushGreyBullet,
   pushOutputBullet,
   spawnGreyDrops as spawnGreyDropsValue,
   spawnSplitOutputBullets,
@@ -105,6 +106,10 @@ import {
   resolveDangerBounceState,
   resolveOutputBounceState,
 } from './src/systems/bulletRuntime.js';
+import {
+  resolveOutputEnemyHit,
+  resolveSanguineBurst,
+} from './src/systems/outputHit.js';
 import {
   createRunTelemetry as createRunTelemetryValue,
   createRoomTelemetry as createRoomTelemetryValue,
@@ -2327,16 +2332,21 @@ function update(dt,ts){
         if(b.hitIds.has(e.eid)) continue;
         if(Math.hypot(b.x-e.x,b.y-e.y)<b.r+e.r){
           b.hitIds.add(e.eid);
-          const deadManThreshold = maxHp * 0.15;
-          const deadManMult = (UPG.deadManTrigger && hp <= deadManThreshold) ? (UPG.finalForm ? 2.5 : 2) : 1;
-          const deadManPierce = UPG.deadManTrigger && hp <= deadManThreshold;
-          const dmg = (b.crit ? CRIT_DAMAGE_FACTOR : 1) * b.dmg * deadManMult;
-          e.hp-=dmg;
+          const hitResolution = resolveOutputEnemyHit({
+            bullet: b,
+            enemyHp: e.hp,
+            hp,
+            maxHp,
+            upgrades: UPG,
+            critDamageFactor: CRIT_DAMAGE_FACTOR,
+            bloodPactBaseHealCap: BLOOD_PACT_BASE_HEAL_CAP_PER_BULLET,
+          });
+          e.hp = hitResolution.enemyHpAfterHit;
           sparks(b.x,b.y,b.crit?C.ghost:C.green,b.crit?8:5,b.crit?70:55);
           // Blood Pact: piercing shots restore 1 HP per enemy hit
-          if(UPG.bloodPact && b.pierceLeft > 0 && (b.bloodPactHeals || 0) < (b.bloodPactHealCap || BLOOD_PACT_BASE_HEAL_CAP_PER_BULLET)){
+          if(hitResolution.shouldBloodPactHeal){
             applyKillSustainHeal(1, 'bloodPact');
-            b.bloodPactHeals = (b.bloodPactHeals || 0) + 1;
+            b.bloodPactHeals = hitResolution.nextBloodPactHeals;
           }
           if(e.hp<=0){
             score += computeKillScore(e.pts, b.crit);
@@ -2372,23 +2382,44 @@ function update(dt,ts){
               
               // Crimson Harvest: drop extra grey bullet at enemy position
               if(UPG.crimsonHarvest){
-                bullets.push({x:e.x,y:e.y,vx:(Math.random()-0.5)*150,vy:(Math.random()-0.5)*150,state:'grey',r:5,decayStart:ts,bounceLeft:0,pierceLeft:0,homing:false,crit:false,dmg:0,hitIds:new Set()});
+                pushGreyBullet({
+                  bullets,
+                  x: e.x,
+                  y: e.y,
+                  vx: (Math.random()-0.5)*150,
+                  vy: (Math.random()-0.5)*150,
+                  radius: 5,
+                  decayStart: ts,
+                });
               }
               
               // Sanguine Burst: every 8th kill (or 4th if Rampage) fires burst
               if(UPG.sanguineBurst){
-                UPG.sanguineKillCount = (UPG.sanguineKillCount || 0) + 1;
-                const burstThreshold = UPG.rampageEvolved ? 4 : 8;
-                if(UPG.sanguineKillCount >= burstThreshold){
-                  UPG.sanguineKillCount = 0;
-                  const numShots = UPG.rampageEvolved ? 8 : 6;
-                  const angleStep = Math.PI * 2 / numShots;
-                  for(let a=0;a<numShots;a++){
-                    const ang = a * angleStep;
-                    const vx = Math.cos(ang) * 220 * GLOBAL_SPEED_LIFT;
-                    const vy = Math.sin(ang) * 220 * GLOBAL_SPEED_LIFT;
-                    bullets.push({x:player.x,y:player.y,vx,vy,state:'output',r:5.5,decayStart:null,bounceLeft:UPG.bounceTier,pierceLeft:UPG.pierceTier,homing:UPG.homingTier>0,crit:false,dmg:(UPG.playerDamageMult||1)*(UPG.denseDamageMult||1),expireAt:ts+2200,hitIds:new Set(),bloodPactHeals:0,bloodPactHealCap:getBloodPactHealCap()});
-                  }
+                const sanguineBurst = resolveSanguineBurst({
+                  enabled: UPG.sanguineBurst,
+                  currentKillCount: UPG.sanguineKillCount || 0,
+                  rampageEvolved: UPG.rampageEvolved,
+                });
+                UPG.sanguineKillCount = sanguineBurst.nextKillCount;
+                if(sanguineBurst.shouldBurst){
+                  spawnRadialOutputBurst({
+                    bullets,
+                    x: player.x,
+                    y: player.y,
+                    count: sanguineBurst.burstCount,
+                    speed: 220 * GLOBAL_SPEED_LIFT,
+                    radius: 5.5,
+                    bounceLeft: UPG.bounceTier,
+                    pierceLeft: UPG.pierceTier,
+                    homing: UPG.homingTier>0,
+                    crit: false,
+                    dmg: (UPG.playerDamageMult||1)*(UPG.denseDamageMult||1),
+                    expireAt: ts+2200,
+                    extras: {
+                      bloodPactHeals: 0,
+                      bloodPactHealCap: getBloodPactHealCap(),
+                    },
+                  });
                 }
               }
               
@@ -2397,7 +2428,15 @@ function update(dt,ts){
                 applyKillSustainHeal(8, 'vampiric');
                 for(let i=0;i<3;i++){
                   const ang = (Math.PI*2/3)*i + Math.random()*0.3;
-                  bullets.push({x:e.x,y:e.y,vx:Math.cos(ang)*120,vy:Math.sin(ang)*120,state:'grey',r:5,decayStart:ts,bounceLeft:0,pierceLeft:0,homing:false,crit:false,dmg:0,hitIds:new Set()});
+                  pushGreyBullet({
+                    bullets,
+                    x: e.x,
+                    y: e.y,
+                    vx: Math.cos(ang)*120,
+                    vy: Math.sin(ang)*120,
+                    radius: 5,
+                    decayStart: ts,
+                  });
                 }
               }
               
@@ -2407,17 +2446,25 @@ function update(dt,ts){
             if(UPG.finalForm && hp <= maxHp * 0.15){ gainCharge(0.5, 'finalForm'); }
             enemies.splice(j,1);
           }
-          if(deadManPierce || b.pierceLeft>0){
-            if(!deadManPierce){
-              b.pierceLeft--;
-              if((b.pierceLeft===0 || UPG.volatileAllTargets) && UPG.volatileRounds){
-                const vNow=performance.now();
-                for(let va=0;va<4;va++){
-                  const vang=va*Math.PI/2;
-                  bullets.push({x:b.x,y:b.y,vx:Math.cos(vang)*180*GLOBAL_SPEED_LIFT,vy:Math.sin(vang)*180*GLOBAL_SPEED_LIFT,state:'output',r:b.r*0.75,decayStart:null,bounceLeft:0,pierceLeft:0,homing:false,crit:false,dmg:b.dmg*0.65,expireAt:vNow+1600,hitIds:new Set()});
-                }
-                sparks(b.x,b.y,C.green,6,60);
-              }
+          if(hitResolution.piercesAfterHit){
+            b.pierceLeft = hitResolution.nextPierceLeft;
+            if(hitResolution.shouldTriggerVolatile){
+              const vNow=performance.now();
+              spawnRadialOutputBurst({
+                bullets,
+                x: b.x,
+                y: b.y,
+                count: 4,
+                speed: 180 * GLOBAL_SPEED_LIFT,
+                radius: b.r * 0.75,
+                bounceLeft: 0,
+                pierceLeft: 0,
+                homing: false,
+                crit: false,
+                dmg: b.dmg * 0.65,
+                expireAt: vNow + 1600,
+              });
+              sparks(b.x,b.y,C.green,6,60);
             }
           } else { removeBullet=true; break; }
         }

@@ -15,6 +15,10 @@ import {
   resolveOutputBounceState,
 } from '../src/systems/bulletRuntime.js';
 import {
+  resolveOutputEnemyHit,
+  resolveSanguineBurst,
+} from '../src/systems/outputHit.js';
+import {
   weightedPick,
   generateWeightedWave,
   buildSpawnQueue,
@@ -274,6 +278,132 @@ test('bullet runtime helpers keep expiry and bounce transitions deterministic', 
   const removeResult = resolveOutputBounceState({ bounceLeft: 0 }, { splitShot: false });
   assert.equal(removeResult.kind, 'remove');
   assert.equal(removeResult.removeBullet, true);
+});
+
+test('output hit helpers keep damage, pierce, and reward cadence deterministic', () => {
+  const hit = resolveOutputEnemyHit({
+    bullet: {
+      crit: true,
+      dmg: 10,
+      pierceLeft: 2,
+      bloodPactHeals: 0,
+      bloodPactHealCap: 2,
+    },
+    enemyHp: 40,
+    hp: 20,
+    maxHp: 100,
+    upgrades: {
+      deadManTrigger: true,
+      finalForm: true,
+      bloodPact: true,
+      volatileRounds: true,
+      volatileAllTargets: false,
+    },
+    critDamageFactor: 2.4,
+    bloodPactBaseHealCap: 1,
+  });
+  assert.equal(hit.damage, 24);
+  assert.equal(hit.enemyKilled, false);
+  assert.equal(hit.deadManActive, false);
+  assert.equal(hit.shouldBloodPactHeal, true);
+  assert.equal(hit.nextBloodPactHeals, 1);
+  assert.equal(hit.piercesAfterHit, true);
+  assert.equal(hit.nextPierceLeft, 1);
+  assert.equal(hit.shouldTriggerVolatile, false);
+  assert.equal(hit.removeBullet, false);
+
+  const deadManHit = resolveOutputEnemyHit({
+    bullet: {
+      crit: false,
+      dmg: 8,
+      pierceLeft: 0,
+      bloodPactHeals: 0,
+    },
+    enemyHp: 25,
+    hp: 10,
+    maxHp: 100,
+    upgrades: {
+      deadManTrigger: true,
+      finalForm: false,
+      bloodPact: false,
+      volatileRounds: true,
+      volatileAllTargets: true,
+    },
+    critDamageFactor: 2.4,
+    bloodPactBaseHealCap: 1,
+  });
+  assert.equal(deadManHit.deadManActive, true);
+  assert.equal(deadManHit.damage, 16);
+  assert.equal(deadManHit.piercesAfterHit, true);
+  assert.equal(deadManHit.nextPierceLeft, 0);
+  assert.equal(deadManHit.shouldTriggerVolatile, false);
+
+  const volatileHit = resolveOutputEnemyHit({
+    bullet: {
+      crit: false,
+      dmg: 5,
+      pierceLeft: 1,
+      bloodPactHeals: 1,
+      bloodPactHealCap: 1,
+    },
+    enemyHp: 20,
+    hp: 90,
+    maxHp: 100,
+    upgrades: {
+      deadManTrigger: false,
+      finalForm: false,
+      bloodPact: true,
+      volatileRounds: true,
+      volatileAllTargets: false,
+    },
+    critDamageFactor: 2.4,
+    bloodPactBaseHealCap: 1,
+  });
+  assert.equal(volatileHit.shouldBloodPactHeal, false);
+  assert.equal(volatileHit.nextPierceLeft, 0);
+  assert.equal(volatileHit.shouldTriggerVolatile, true);
+
+  const removeHit = resolveOutputEnemyHit({
+    bullet: { crit: false, dmg: 3, pierceLeft: 0 },
+    enemyHp: 10,
+    hp: 90,
+    maxHp: 100,
+    upgrades: {
+      deadManTrigger: false,
+      finalForm: false,
+      bloodPact: false,
+      volatileRounds: false,
+      volatileAllTargets: false,
+    },
+    critDamageFactor: 2.4,
+    bloodPactBaseHealCap: 1,
+  });
+  assert.equal(removeHit.removeBullet, true);
+
+  const sanguineCharging = resolveSanguineBurst({
+    enabled: true,
+    currentKillCount: 2,
+    rampageEvolved: false,
+  });
+  assert.equal(sanguineCharging.nextKillCount, 3);
+  assert.equal(sanguineCharging.shouldBurst, false);
+
+  const sanguineBurst = resolveSanguineBurst({
+    enabled: true,
+    currentKillCount: 7,
+    rampageEvolved: false,
+  });
+  assert.equal(sanguineBurst.nextKillCount, 0);
+  assert.equal(sanguineBurst.shouldBurst, true);
+  assert.equal(sanguineBurst.burstCount, 6);
+
+  const rampageBurst = resolveSanguineBurst({
+    enabled: true,
+    currentKillCount: 3,
+    rampageEvolved: true,
+  });
+  assert.equal(rampageBurst.shouldBurst, true);
+  assert.equal(rampageBurst.burstCount, 8);
 });
 
 test('weightedPick uses candidate weights', () => {
