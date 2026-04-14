@@ -21,6 +21,14 @@ import {
   buildPlayerShotPlan,
   buildPlayerVolleySpecs,
 } from './src/entities/playerFire.js';
+import {
+  syncOrbRuntimeArrays,
+  getOrbitSlotPosition,
+  getShieldSlotPosition,
+  tickShieldCooldowns,
+  countReadyShields,
+  advanceAegisBatteryTimer,
+} from './src/entities/defenseRuntime.js';
 import { JOY_DEADZONE, JOY_MAX, createJoystickState, resetJoystickState, bindJoystickControls, tickJoystick } from './src/input/joystick.js';
 import { fetchRemoteLeaderboard, submitRemoteScore, submitRunDiagnostic } from './src/platform/leaderboardService.js';
 import {
@@ -992,12 +1000,7 @@ function getChargeRatio() {
 }
 
 function getReadyShieldCount() {
-  if(!player.shields || player.shields.length === 0) return 0;
-  let ready = 0;
-  for(const shield of player.shields) {
-    if((shield.cooldown || 0) <= 0) ready++;
-  }
-  return ready;
+  return countReadyShields(player.shields);
 }
 
 function getAegisBatteryDamageMult() {
@@ -1455,13 +1458,7 @@ function update(dt,ts){
 
   // ── Shields — sync count to tier, tick cooldowns
   while(player.shields.length < UPG.shieldTier) player.shields.push({cooldown:0, hardened: !!UPG.shieldTempered, mirrorCooldown:-9999});
-  for(const s of player.shields){
-    if(s.cooldown>0){
-      const prev=s.cooldown;
-      s.cooldown=Math.max(0,s.cooldown-dt);
-      if(prev>0 && s.cooldown<=0 && UPG.shieldTempered) s.hardened=true;
-    }
-  }
+  tickShieldCooldowns(player.shields, dt, UPG.shieldTempered);
   if(_barrierPulseTimer>0) _barrierPulseTimer-=dt*1000;
   if(_absorbComboTimer>0){ _absorbComboTimer-=dt*1000; if(_absorbComboTimer<=0){_absorbComboCount=0;} }
   if(_chainMagnetTimer>0) _chainMagnetTimer-=dt*1000;
@@ -1772,14 +1769,21 @@ function update(dt,ts){
 
   if(UPG.orbitSphereTier > 0){
       // Sync arrays
-      while(_orbFireTimers.length < UPG.orbitSphereTier) _orbFireTimers.push(0);
-      while(_orbCooldown.length < UPG.orbitSphereTier) _orbCooldown.push(0);
+      syncOrbRuntimeArrays(_orbFireTimers, _orbCooldown, UPG.orbitSphereTier);
       if(!e.orbitHitAt) e.orbitHitAt = {};
       for(let si=0;si<UPG.orbitSphereTier;si++){
         if(_orbCooldown[si]>0) continue;
-        const sAngle=Math.PI*2/UPG.orbitSphereTier*si+ts*ORBIT_ROTATION_SPD;
-        const sx=player.x+Math.cos(sAngle)*ORBIT_SPHERE_R;
-        const sy=player.y+Math.sin(sAngle)*ORBIT_SPHERE_R;
+        const orbitSlot = getOrbitSlotPosition({
+          index: si,
+          orbitSphereTier: UPG.orbitSphereTier,
+          ts,
+          rotationSpeed: ORBIT_ROTATION_SPD,
+          radius: ORBIT_SPHERE_R,
+          originX: player.x,
+          originY: player.y,
+        });
+        const sx=orbitSlot.x;
+        const sy=orbitSlot.y;
         const lastHitAt = e.orbitHitAt[si] || -99999;
         if(ts - lastHitAt < 220) continue;
         if(Math.hypot(e.x-sx,e.y-sy) < e.r + 6){
@@ -1804,16 +1808,24 @@ function update(dt,ts){
 
   // ── Charged Orbs: each alive orb fires at nearest enemy every 1.8s
   if(UPG.chargedOrbs && UPG.orbitSphereTier>0 && enemies.length>0){
-    while(_orbFireTimers.length < UPG.orbitSphereTier) _orbFireTimers.push(0);
+    syncOrbRuntimeArrays(_orbFireTimers, _orbCooldown, UPG.orbitSphereTier);
     for(let si=0;si<UPG.orbitSphereTier;si++){
       if(_orbCooldown[si]>0) continue;
       _orbFireTimers[si]=((_orbFireTimers[si]||0)+dt*1000);
       const orbFireInterval = CHARGED_ORB_FIRE_INTERVAL_MS * (UPG.orbitalFocus ? ORBITAL_FOCUS_CHARGED_ORB_INTERVAL_MULT : 1);
       if(_orbFireTimers[si] >= orbFireInterval){
         _orbFireTimers[si]=0;
-        const sAngle=Math.PI*2/UPG.orbitSphereTier*si+ts*ORBIT_ROTATION_SPD;
-        const ox=player.x+Math.cos(sAngle)*ORBIT_SPHERE_R;
-        const oy=player.y+Math.sin(sAngle)*ORBIT_SPHERE_R;
+        const orbitSlot = getOrbitSlotPosition({
+          index: si,
+          orbitSphereTier: UPG.orbitSphereTier,
+          ts,
+          rotationSpeed: ORBIT_ROTATION_SPD,
+          radius: ORBIT_SPHERE_R,
+          originX: player.x,
+          originY: player.y,
+        });
+        const ox=orbitSlot.x;
+        const oy=orbitSlot.y;
         const tgt=enemies.reduce((b,e)=>{const d=Math.hypot(e.x-ox,e.y-oy);return(!b||d<b.d)?{e,d}:b;},null);
         if(tgt){
           const ang=Math.atan2(tgt.e.y-oy,tgt.e.x-ox);
@@ -1858,24 +1870,28 @@ function update(dt,ts){
 
   if(UPG.aegisBattery && UPG.shieldTier > 0 && enemies.length > 0){
     const readyShieldCount = getReadyShieldCount();
-    if(readyShieldCount >= UPG.shieldTier){
-      UPG.aegisBatteryTimer = (UPG.aegisBatteryTimer || 0) + dt * 1000;
-      if(UPG.aegisBatteryTimer >= AEGIS_BATTERY_BOLT_INTERVAL_MS){
-        UPG.aegisBatteryTimer = 0;
-        const target = enemies.reduce((best, enemy) => {
-          const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
-          return (!best || dist < best.dist) ? { enemy, dist } : best;
-        }, null);
-        if(target){
-          const ang = Math.atan2(target.enemy.y - player.y, target.enemy.x - player.x);
-          const boltNow = performance.now();
-          const batteryDamage = (UPG.playerDamageMult || 1) * (UPG.denseDamageMult || 1) * (1.1 + readyShieldCount * 0.2);
-          bullets.push({x:player.x,y:player.y,vx:Math.cos(ang)*210*GLOBAL_SPEED_LIFT,vy:Math.sin(ang)*210*GLOBAL_SPEED_LIFT,state:'output',r:4.2,decayStart:null,bounceLeft:0,pierceLeft:0,homing:true,crit:false,dmg:batteryDamage,expireAt:boltNow+1700,hitIds:new Set()});
-          sparks(player.x, player.y, C.shieldActive, 6, 70);
-        }
+    const aegisStep = advanceAegisBatteryTimer({
+      aegisBattery: UPG.aegisBattery,
+      shieldTier: UPG.shieldTier,
+      enemiesCount: enemies.length,
+      readyShieldCount,
+      timer: UPG.aegisBatteryTimer || 0,
+      dtMs: dt * 1000,
+      intervalMs: AEGIS_BATTERY_BOLT_INTERVAL_MS,
+    });
+    UPG.aegisBatteryTimer = aegisStep.timer;
+    if(aegisStep.shouldFire){
+      const target = enemies.reduce((best, enemy) => {
+        const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
+        return (!best || dist < best.dist) ? { enemy, dist } : best;
+      }, null);
+      if(target){
+        const ang = Math.atan2(target.enemy.y - player.y, target.enemy.x - player.x);
+        const boltNow = performance.now();
+        const batteryDamage = (UPG.playerDamageMult || 1) * (UPG.denseDamageMult || 1) * (1.1 + readyShieldCount * 0.2);
+        bullets.push({x:player.x,y:player.y,vx:Math.cos(ang)*210*GLOBAL_SPEED_LIFT,vy:Math.sin(ang)*210*GLOBAL_SPEED_LIFT,state:'output',r:4.2,decayStart:null,bounceLeft:0,pierceLeft:0,homing:true,crit:false,dmg:batteryDamage,expireAt:boltNow+1700,hitIds:new Set()});
+        sparks(player.x, player.y, C.shieldActive, 6, 70);
       }
-    } else {
-      UPG.aegisBatteryTimer = 0;
     }
   } else if(UPG.aegisBattery) {
     UPG.aegisBatteryTimer = 0;
@@ -2052,13 +2068,21 @@ function update(dt,ts){
       }
       // Absorb Orbs: grey bullets near any alive orbit sphere are absorbed
       if(UPG.absorbOrbs && UPG.orbitSphereTier>0){
-        while(_orbCooldown.length < UPG.orbitSphereTier) _orbCooldown.push(0);
+        syncOrbRuntimeArrays(_orbFireTimers, _orbCooldown, UPG.orbitSphereTier);
         let absorbed=false;
         for(let si=0;si<UPG.orbitSphereTier;si++){
           if(_orbCooldown[si]>0) continue;
-          const sAngle=Math.PI*2/UPG.orbitSphereTier*si+ts*ORBIT_ROTATION_SPD;
-          const sx=player.x+Math.cos(sAngle)*ORBIT_SPHERE_R;
-          const sy=player.y+Math.sin(sAngle)*ORBIT_SPHERE_R;
+          const orbitSlot = getOrbitSlotPosition({
+            index: si,
+            orbitSphereTier: UPG.orbitSphereTier,
+            ts,
+            rotationSpeed: ORBIT_ROTATION_SPD,
+            radius: ORBIT_SPHERE_R,
+            originX: player.x,
+            originY: player.y,
+          });
+          const sx=orbitSlot.x;
+          const sy=orbitSlot.y;
           if(Math.hypot(b.x-sx,b.y-sy)<b.r+12){
             gainCharge(UPG.absorbValue, 'orbAbsorb');
             sparks(sx,sy,C.ghost,4,40);
@@ -2071,13 +2095,21 @@ function update(dt,ts){
 
     // Volatile Orbs: a danger bullet near any alive orbit sphere destroys the sphere + bullet
     if(b.state==='danger' && UPG.volatileOrbs && UPG.orbitSphereTier>0 && _volatileOrbGlobalCooldown<=0){
-      while(_orbCooldown.length < UPG.orbitSphereTier) _orbCooldown.push(0);
+      syncOrbRuntimeArrays(_orbFireTimers, _orbCooldown, UPG.orbitSphereTier);
       let orbHit=false;
       for(let si=0;si<UPG.orbitSphereTier;si++){
         if(_orbCooldown[si]>0) continue;
-        const sAngle=Math.PI*2/UPG.orbitSphereTier*si+ts*ORBIT_ROTATION_SPD;
-        const sx=player.x+Math.cos(sAngle)*ORBIT_SPHERE_R;
-        const sy=player.y+Math.sin(sAngle)*ORBIT_SPHERE_R;
+        const orbitSlot = getOrbitSlotPosition({
+          index: si,
+          orbitSphereTier: UPG.orbitSphereTier,
+          ts,
+          rotationSpeed: ORBIT_ROTATION_SPD,
+          radius: ORBIT_SPHERE_R,
+          originX: player.x,
+          originY: player.y,
+        });
+        const sx=orbitSlot.x;
+        const sy=orbitSlot.y;
         if(Math.hypot(b.x-sx,b.y-sy)<b.r+7){
           _orbCooldown[si] = VOLATILE_ORB_COOLDOWN;
           _volatileOrbGlobalCooldown = VOLATILE_ORB_SHARED_COOLDOWN;
@@ -2096,10 +2128,18 @@ function update(dt,ts){
         for(let si=0;si<total;si++){
           const s=player.shields[si];
           if(s.cooldown>0) continue;
-          const sAngle=Math.PI*2/total*si+ts*SHIELD_ROTATION_SPD;
-          const sx=player.x+Math.cos(sAngle)*SHIELD_ORBIT_R;
-          const sy=player.y+Math.sin(sAngle)*SHIELD_ORBIT_R;
-          const shieldFacing = sAngle + Math.PI * 0.5;
+          const shieldSlot = getShieldSlotPosition({
+            index: si,
+            shieldCount: total,
+            ts,
+            rotationSpeed: SHIELD_ROTATION_SPD,
+            radius: SHIELD_ORBIT_R,
+            originX: player.x,
+            originY: player.y,
+          });
+          const sx=shieldSlot.x;
+          const sy=shieldSlot.y;
+          const shieldFacing = shieldSlot.facing;
           if(circleIntersectsShieldPlate(b.x, b.y, b.r, sx, sy, shieldFacing)){
             if(currentRoomTelemetry) currentRoomTelemetry.safety.shieldBlocks += 1;
             // Mirror Shield: reflect bullet back as output

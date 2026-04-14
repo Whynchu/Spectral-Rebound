@@ -61,6 +61,14 @@ import {
   buildPlayerVolleySpecs,
 } from '../src/entities/playerFire.js';
 import {
+  syncOrbRuntimeArrays,
+  getOrbitSlotPosition,
+  getShieldSlotPosition,
+  tickShieldCooldowns,
+  countReadyShields,
+  advanceAegisBatteryTimer,
+} from '../src/entities/defenseRuntime.js';
+import {
   advanceRoomIntroPhase,
   getPendingWaveIntroIndex,
   pullWaveSpawnEntries,
@@ -1097,6 +1105,84 @@ test('player fire helpers build lane offsets, shot plan, and volley specs determ
   assert.equal(volley[0].extras.bloodPactHealCap, 9);
   assert.equal(volley[0].x, 100);
   assert.equal(volley[0].y, 46.5);
+});
+
+test('defense runtime helpers keep orbit and shield state deterministic', () => {
+  const orbFireTimers = [];
+  const orbCooldown = [1];
+  syncOrbRuntimeArrays(orbFireTimers, orbCooldown, 3);
+  assert.deepEqual(orbFireTimers, [0, 0, 0]);
+  assert.deepEqual(orbCooldown, [1, 0, 0]);
+
+  const orbitSlot = getOrbitSlotPosition({
+    index: 1,
+    orbitSphereTier: 4,
+    ts: 0,
+    rotationSpeed: 1,
+    radius: 40,
+    originX: 100,
+    originY: 50,
+  });
+  assert.ok(Math.abs(orbitSlot.x - 100) < 1e-9);
+  assert.equal(orbitSlot.y, 90);
+
+  const shieldSlot = getShieldSlotPosition({
+    index: 0,
+    shieldCount: 2,
+    ts: 0,
+    rotationSpeed: 1,
+    radius: 35,
+    originX: 10,
+    originY: 20,
+  });
+  assert.equal(shieldSlot.x, 45);
+  assert.equal(shieldSlot.y, 20);
+  assert.equal(shieldSlot.facing, Math.PI * 0.5);
+
+  const shields = [
+    { cooldown: 0.5, hardened: false },
+    { cooldown: 0, hardened: false },
+  ];
+  tickShieldCooldowns(shields, 0.5, true);
+  assert.equal(shields[0].cooldown, 0);
+  assert.equal(shields[0].hardened, true);
+  assert.equal(countReadyShields(shields), 2);
+
+  const charging = advanceAegisBatteryTimer({
+    aegisBattery: true,
+    shieldTier: 2,
+    enemiesCount: 3,
+    readyShieldCount: 2,
+    timer: 1200,
+    dtMs: 500,
+    intervalMs: 1800,
+  });
+  assert.equal(charging.timer, 1700);
+  assert.equal(charging.shouldFire, false);
+
+  const firing = advanceAegisBatteryTimer({
+    aegisBattery: true,
+    shieldTier: 2,
+    enemiesCount: 3,
+    readyShieldCount: 2,
+    timer: 1500,
+    dtMs: 400,
+    intervalMs: 1800,
+  });
+  assert.equal(firing.timer, 0);
+  assert.equal(firing.shouldFire, true);
+
+  const reset = advanceAegisBatteryTimer({
+    aegisBattery: true,
+    shieldTier: 2,
+    enemiesCount: 0,
+    readyShieldCount: 2,
+    timer: 700,
+    dtMs: 100,
+    intervalMs: 1800,
+  });
+  assert.equal(reset.timer, 0);
+  assert.equal(reset.shouldFire, false);
 });
 
 test('room flow helpers keep threshold values', () => {
