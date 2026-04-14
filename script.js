@@ -199,7 +199,6 @@ const lbCurrent = document.getElementById('lb-current');
 const lbStatus = document.getElementById('lb-status');
 const lbList = document.getElementById('leaderboard-list');
 const patchNotesBtn = document.getElementById('btn-patch-notes');
-const versionCheckBtn = document.getElementById('btn-version-check');
 const versionOpenBtn = document.getElementById('btn-version-open');
 const patchNotesPanel = document.getElementById('patch-notes-panel');
 const versionPanel = document.getElementById('version-panel');
@@ -2991,13 +2990,12 @@ bindPatchNotesControls({
 });
 
 bindPatchNotesControls({
-  button: versionCheckBtn,
+  button: versionOpenBtn,
   closeButton: versionCloseBtn,
   panelEl: versionPanel,
   onOpenChange: setVersionPanelOpen,
   doc: document,
 });
-versionOpenBtn?.addEventListener('click', () => setVersionPanelOpen(true));
 versionRefreshBtn?.addEventListener('click', () => {
   refreshVersionStatus();
 });
