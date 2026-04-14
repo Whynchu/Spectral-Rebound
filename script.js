@@ -65,7 +65,7 @@ import {
 } from './src/platform/leaderboardController.js';
 import { showBoonSelection } from './src/ui/boonSelection.js';
 import { renderVersionTag } from './src/ui/versionTag.js';
-import { PLAYER_COLORS, getPlayerColor, getPlayerColorScheme, getThreatPalette, loadPlayerColorFromStorage } from './src/data/colorScheme.js';
+import { PLAYER_COLORS, getPlayerColor, getPlayerColorScheme, getThreatPalette, setPlayerColor } from './src/data/colorScheme.js';
 import { PATCH_NOTES, PATCH_NOTES_ARCHIVE_MESSAGE } from './src/data/patchNotes.js';
 import { renderColorSelector } from './src/ui/colorSelector.js';
 import { formatRunTime, renderHud } from './src/ui/hud.js';
@@ -154,7 +154,9 @@ import {
   advanceClearPhase,
 } from './src/core/roomRuntime.js';
 
-loadPlayerColorFromStorage();
+const PLAYER_COLOR_KEY = 'phantom-player-color';
+const storedPlayerColor = readText(PLAYER_COLOR_KEY, 'green');
+setPlayerColor(PLAYER_COLORS[storedPlayerColor] ? storedPlayerColor : 'green');
 renderVersionTag(VERSION);
 
 // 🐰 Easter seasonal flag — show bunny ears on Easter weekend
@@ -173,6 +175,8 @@ function syncColorDrivenCopy() {
 }
 
 window.addEventListener('phantom:player-color-change', (event) => {
+  const colorKey = event.detail?.key || getPlayerColor();
+  writeText(PLAYER_COLOR_KEY, colorKey);
   syncColorDrivenCopy(event.detail?.scheme || getPlayerColorScheme());
 });
 

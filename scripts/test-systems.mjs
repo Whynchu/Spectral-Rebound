@@ -149,6 +149,7 @@ import {
   bindSessionFlow,
 } from '../src/ui/sessionFlow.js';
 import { bindGestureGuards } from '../src/platform/gestureGuards.js';
+import { setPlayerColor, getPlayerColor, getPlayerColorScheme } from '../src/data/colorScheme.js';
 
 const pendingTests = [];
 
@@ -1136,6 +1137,13 @@ test('shell ui helpers update class state and copy text', () => {
   setMenuChromeVisible({ doc, isVisible: true, onResize: () => { resized = true; } });
   assert.equal(classes.has('menu-chrome-visible'), true);
   assert.equal(resized, true);
+});
+
+test('color scheme setters are Node-safe and update active color', () => {
+  setPlayerColor('blue');
+  assert.equal(getPlayerColor(), 'blue');
+  assert.equal(getPlayerColorScheme().hex, '#60a5fa');
+  setPlayerColor('green');
 });
 
 test('room overlay helpers update text, classes, and reset timers', () => {
