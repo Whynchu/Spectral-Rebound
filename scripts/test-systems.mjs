@@ -76,6 +76,7 @@ import {
   stepRusherEnemy,
   advanceRangedEnemyCombatState,
   applyDisruptorPostFire,
+  fireEnemyBurst,
 } from '../src/entities/enemyRuntime.js';
 import {
   createLaneOffsets,
@@ -1630,6 +1631,68 @@ test('enemy runtime helpers keep movement and fire cadence deterministic', () =>
   assert.equal(cooldownApplied, true);
   assert.equal(ranged.disruptorBulletCount, 0);
   assert.equal(ranged.disruptorCooldown, 800);
+});
+
+test('enemy fire helper routes burst patterns by enemy type deterministically', () => {
+  const calls = {
+    zoner: 0,
+    eliteZoner: 0,
+    doubleBounce: 0,
+    triangle: 0,
+    eliteTriangle: 0,
+    eliteBullet: 0,
+    enemyBullet: 0,
+  };
+  const spawners = {
+    spawnZoner: () => { calls.zoner += 1; },
+    spawnEliteZoner: () => { calls.eliteZoner += 1; },
+    spawnDoubleBounce: () => { calls.doubleBounce += 1; },
+    spawnTriangle: () => { calls.triangle += 1; },
+    spawnEliteTriangle: () => { calls.eliteTriangle += 1; },
+    spawnEliteBullet: () => { calls.eliteBullet += 1; },
+    spawnEnemyBullet: () => { calls.enemyBullet += 1; },
+  };
+
+  fireEnemyBurst(
+    { type: 'orange_zoner', burst: 3, isElite: false },
+    { player: { x: 0, y: 0 }, bulletSpeedScale: () => 1, ...spawners },
+  );
+  assert.equal(calls.eliteZoner, 3);
+
+  fireEnemyBurst(
+    { type: 'triangle', burst: 2, isElite: true },
+    { player: { x: 0, y: 0 }, bulletSpeedScale: () => 1, ...spawners },
+  );
+  assert.equal(calls.eliteTriangle, 2);
+
+  const disruptor = { type: 'disruptor', burst: 2, isElite: false, x: 0, y: 0, disruptorBulletCount: 4, disruptorCooldown: 0 };
+  fireEnemyBurst(disruptor, {
+    player: { x: 10, y: 0 },
+    bulletSpeedScale: () => 1,
+    canEnemyUsePurpleShots: () => true,
+    ...spawners,
+  });
+  assert.equal(calls.doubleBounce, 2);
+  assert.equal(disruptor.disruptorCooldown, 800);
+
+  const eliteChaser = { type: 'chaser', burst: 2, isElite: true, x: 0, y: 0, disruptorBulletCount: 0, disruptorCooldown: 0 };
+  fireEnemyBurst(eliteChaser, {
+    player: { x: 10, y: 0 },
+    bulletSpeedScale: () => 1,
+    random: () => 0.5,
+    canEnemyUsePurpleShots: () => false,
+    ...spawners,
+  });
+  assert.equal(calls.eliteBullet, 2);
+
+  const plainChaser = { type: 'chaser', burst: 1, isElite: false, x: 0, y: 0, disruptorBulletCount: 0, disruptorCooldown: 0 };
+  fireEnemyBurst(plainChaser, {
+    player: { x: 10, y: 0 },
+    bulletSpeedScale: () => 1,
+    canEnemyUsePurpleShots: () => false,
+    ...spawners,
+  });
+  assert.equal(calls.enemyBullet, 1);
 });
 
 test('room flow helpers keep threshold values', () => {

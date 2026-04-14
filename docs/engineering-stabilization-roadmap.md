@@ -32,6 +32,7 @@ Recent stabilization stages landed after `1.16.51`:
 - `experimental` extraction stage: enemy kill reward derivation now lives in [src/systems/killRewards.js](C:/Development/Phantom-Rebound/src/systems/killRewards.js:1), centralizing boss-clear rewards, vampiric/blood-moon/corona/final-form reward values, crimson harvest drops, and streak timer updates while `script.js` applies the concrete side effects.
 - `experimental` extraction stage: danger-hit/player-defense resolution now lives in [src/systems/dangerHit.js](C:/Development/Phantom-Rebound/src/systems/dangerHit.js:1), centralizing void-zone blocks, phase-dash vs mirror-tide vs direct-hit branching, lifeline recovery state, and slipstream near-miss detection while `script.js` applies movement/VFX and bullet cleanup.
 - `experimental` extraction stage: enemy movement/fire-cycle helpers now live in [src/entities/enemyRuntime.js](C:/Development/Phantom-Rebound/src/entities/enemyRuntime.js:1), centralizing siphon/rusher stepping, ranged-enemy windup/fire cadence, and disruptor cooldown handling while projectile-spawn specifics remain in `script.js`.
+- `experimental` extraction stage: enemy burst-pattern routing now lives in [src/entities/enemyRuntime.js](C:/Development/Phantom-Rebound/src/entities/enemyRuntime.js:1) via `fireEnemyBurst`, moving zoner/triangle/elite/purple/disruptor fire branching out of `script.js` while preserving existing spawn callbacks.
 
 Validation status:
 
@@ -49,6 +50,7 @@ Validation status:
 - The regression harness also covers enemy kill reward derivation for boss rewards, sustain, streak timers, and reward-spawn counts.
 - The regression harness also covers void-zone blocking, phase-dash/mirror-tide/direct-hit decisions, lifeline recovery, and slipstream near-miss behavior.
 - The regression harness also covers enemy movement stepping, ranged fire cadence, and disruptor post-fire cooldown behavior.
+- The regression harness also covers enemy burst fire routing across zoner/triangle/elite/purple/disruptor paths.
 
 ## Purpose
 

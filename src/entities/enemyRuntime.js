@@ -100,10 +100,61 @@ function applyDisruptorPostFire(enemy) {
   return false;
 }
 
+function fireEnemyBurst(enemy, {
+  player,
+  bulletSpeedScale,
+  random = Math.random,
+  canEnemyUsePurpleShots = () => false,
+  spawnZoner,
+  spawnEliteZoner,
+  spawnDoubleBounce,
+  spawnTriangle,
+  spawnEliteTriangle,
+  spawnEliteBullet,
+  spawnEnemyBullet,
+} = {}) {
+  if(enemy.type === 'zoner' || enemy.type === 'purple_zoner' || enemy.type === 'orange_zoner') {
+    if(enemy.type === 'orange_zoner') {
+      for(let i = 0; i < enemy.burst; i++) spawnEliteZoner(i, enemy.burst, 0);
+    } else if(enemy.type === 'purple_zoner') {
+      for(let i = 0; i < enemy.burst; i++) spawnDoubleBounce();
+    } else if(enemy.isElite) {
+      for(let i = 0; i < enemy.burst; i++) spawnEliteZoner(i, enemy.burst, 0);
+    } else {
+      for(let i = 0; i < enemy.burst; i++) spawnZoner(i, enemy.burst);
+    }
+    return;
+  }
+
+  if(enemy.type === 'triangle') {
+    if(enemy.isElite) {
+      for(let i = 0; i < enemy.burst; i++) spawnEliteTriangle();
+    } else {
+      for(let i = 0; i < enemy.burst; i++) spawnTriangle();
+    }
+    return;
+  }
+
+  const canShootPurple = canEnemyUsePurpleShots(enemy);
+  for(let i = 0; i < enemy.burst; i++) {
+    if(enemy.isElite) {
+      const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x) + (random() - 0.5) * 0.6;
+      const speed = (130 + random() * 40) * bulletSpeedScale();
+      spawnEliteBullet(angle, speed, 0);
+    } else if(canShootPurple) {
+      spawnDoubleBounce();
+    } else {
+      spawnEnemyBullet();
+    }
+  }
+  applyDisruptorPostFire(enemy);
+}
+
 export {
   clampEnemyToArena,
   stepSiphonEnemy,
   stepRusherEnemy,
   advanceRangedEnemyCombatState,
   applyDisruptorPostFire,
+  fireEnemyBurst,
 };

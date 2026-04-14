@@ -5,7 +5,7 @@ import {
   stepSiphonEnemy,
   stepRusherEnemy,
   advanceRangedEnemyCombatState,
-  applyDisruptorPostFire,
+  fireEnemyBurst,
 } from './src/entities/enemyRuntime.js';
 import {
   applyEliteBulletStage as applyEliteBulletStageValue,
@@ -1721,41 +1721,19 @@ function update(dt,ts){
       });
 
       if(rangedStep.shouldFire){
-        if(e.type==='zoner' || e.type==='purple_zoner' || e.type==='orange_zoner'){
-          if(e.type==='orange_zoner'){
-            // Orange zoner is the elite-stage zoner and uses the rotated elite palette
-            for(let i=0;i<e.burst;i++) spawnEliteZB(e.x,e.y,i,e.burst,0); // stage 0 = elite hue
-          } else if(e.type==='purple_zoner'){
-            // Purple zoner shoots purple double-bounce bullets
-            for(let i=0;i<e.burst;i++) spawnDBB(e.x,e.y);
-          } else if(e.isElite){
-            // Regular zoner that rolled elite
-            for(let i=0;i<e.burst;i++) spawnEliteZB(e.x,e.y,i,e.burst,0); // stage 0 = elite hue
-          } else {
-            for(let i=0;i<e.burst;i++) spawnZB(e.x,e.y,i,e.burst);
-          }
-        } else if(e.type==='triangle'){
-          if(e.isElite){
-            for(let i=0;i<e.burst;i++) spawnEliteTriangleBullet(e.x,e.y);
-          } else {
-            for(let i=0;i<e.burst;i++) spawnTB(e.x,e.y);
-          }
-        } else {
-          const canShootPurple = canEnemyUsePurpleShots(e, roomIndex);
-          for(let i=0;i<e.burst;i++){
-            if(e.isElite){
-              // Elite enemies shoot bullets that stage through elite -> advanced -> danger hues
-              const angle = Math.atan2(player.y - e.y, player.x - e.x) + (Math.random() - 0.5) * 0.6;
-              const spd = (130 + Math.random() * 40) * bulletSpeedScale();
-              spawnEliteBullet(e.x, e.y, angle, spd, 0); // stage 0 = elite hue
-            } else if(canShootPurple) {
-              spawnDBB(e.x,e.y);
-            } else {
-              spawnEB(e.x,e.y);
-            }
-          }
-          applyDisruptorPostFire(e);
-        }
+        fireEnemyBurst(e, {
+          player,
+          bulletSpeedScale,
+          random: Math.random,
+          canEnemyUsePurpleShots: (enemy) => canEnemyUsePurpleShots(enemy, roomIndex),
+          spawnZoner: (idx, total) => spawnZB(e.x, e.y, idx, total),
+          spawnEliteZoner: (idx, total, stage) => spawnEliteZB(e.x, e.y, idx, total, stage),
+          spawnDoubleBounce: () => spawnDBB(e.x, e.y),
+          spawnTriangle: () => spawnTB(e.x, e.y),
+          spawnEliteTriangle: () => spawnEliteTriangleBullet(e.x, e.y),
+          spawnEliteBullet: (angle, speed, stage) => spawnEliteBullet(e.x, e.y, angle, speed, stage),
+          spawnEnemyBullet: () => spawnEB(e.x, e.y),
+        });
       }
     }
 
