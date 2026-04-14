@@ -199,11 +199,23 @@ const lbCurrent = document.getElementById('lb-current');
 const lbStatus = document.getElementById('lb-status');
 const lbList = document.getElementById('leaderboard-list');
 const patchNotesBtn = document.getElementById('btn-patch-notes');
+const versionCheckBtn = document.getElementById('btn-version-check');
+const versionOpenBtn = document.getElementById('btn-version-open');
 const patchNotesPanel = document.getElementById('patch-notes-panel');
+const versionPanel = document.getElementById('version-panel');
 const patchNotesCurrent = document.getElementById('patch-notes-current');
 const patchNotesList = document.getElementById('patch-notes-list');
 const patchNotesArchiveNote = document.getElementById('patch-notes-archive-note');
 const patchNotesCloseBtn = document.getElementById('btn-patch-notes-close');
+const versionCurrentEl = document.getElementById('version-current');
+const versionLatestEl = document.getElementById('version-latest');
+const versionStatusEl = document.getElementById('version-status');
+const versionCheckedAtEl = document.getElementById('version-checked-at');
+const versionRefreshBtn = document.getElementById('btn-version-refresh');
+const versionCloseBtn = document.getElementById('btn-version-close');
+const versionUpdateBtn = document.getElementById('btn-version-update');
+const UPDATE_AVAILABLE_KEY = 'phantom-rebound-update-available';
+let latestAvailableVersion = null;
 const roomClearEl = document.getElementById('room-clear');
 const roomClearTextEl = document.getElementById('room-clear-txt');
 const roomIntroEl = document.getElementById('room-intro');
@@ -318,7 +330,57 @@ function renderPatchNotes() {
 }
 
 function setPatchNotesOpen(isOpen) {
+  if(isOpen) setVersionPanelOpen(false);
   setPatchNotesVisibility(patchNotesPanel, isOpen);
+}
+
+function setVersionPanelOpen(isOpen) {
+  if(!versionPanel) return;
+  if(isOpen) setPatchNotesOpen(false);
+  versionPanel.classList.toggle('off', !isOpen);
+  versionPanel.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+  if(isOpen) refreshVersionStatus();
+}
+
+function setVersionStatusClass(element, mode) {
+  if(!element) return;
+  element.classList.remove('ok', 'warn', 'err');
+  if(mode) element.classList.add(mode);
+}
+
+async function refreshVersionStatus() {
+  if(!versionCurrentEl || !versionLatestEl || !versionStatusEl || !versionCheckedAtEl) return;
+  const currentBuild = VERSION.num;
+  versionCurrentEl.textContent = `v${currentBuild}`;
+  versionLatestEl.textContent = 'Checking...';
+  versionStatusEl.textContent = 'Checking...';
+  versionCheckedAtEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  setVersionStatusClass(versionStatusEl, null);
+  versionUpdateBtn?.classList.remove('show');
+  latestAvailableVersion = null;
+
+  try {
+    const response = await fetch(`version.json?ts=${Date.now()}`, { cache: 'no-store' });
+    if(!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const latestVersion = data?.version || 'Unknown';
+    versionLatestEl.textContent = latestVersion === 'Unknown' ? latestVersion : `v${latestVersion}`;
+    if(latestVersion === currentBuild) {
+      versionStatusEl.textContent = 'Up to date';
+      setVersionStatusClass(versionStatusEl, 'ok');
+      try { sessionStorage.removeItem(UPDATE_AVAILABLE_KEY); } catch {}
+    } else {
+      versionStatusEl.textContent = 'Update available';
+      setVersionStatusClass(versionStatusEl, 'warn');
+      versionUpdateBtn?.classList.add('show');
+      latestAvailableVersion = latestVersion;
+      try { sessionStorage.setItem(UPDATE_AVAILABLE_KEY, latestVersion); } catch {}
+    }
+  } catch {
+    versionLatestEl.textContent = 'Unavailable';
+    versionStatusEl.textContent = 'Check failed';
+    setVersionStatusClass(versionStatusEl, 'err');
+  }
 }
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
@@ -2927,6 +2989,30 @@ bindPatchNotesControls({
   onOpenChange: setPatchNotesOpen,
   doc: document,
 });
+
+bindPatchNotesControls({
+  button: versionCheckBtn,
+  closeButton: versionCloseBtn,
+  panelEl: versionPanel,
+  onOpenChange: setVersionPanelOpen,
+  doc: document,
+});
+versionOpenBtn?.addEventListener('click', () => setVersionPanelOpen(true));
+versionRefreshBtn?.addEventListener('click', () => {
+  refreshVersionStatus();
+});
+versionUpdateBtn?.addEventListener('click', () => {
+  const url = new URL(window.location.href);
+  url.searchParams.set('build', latestAvailableVersion || VERSION.num);
+  url.searchParams.set('ts', String(Date.now()));
+  window.location.replace(url.toString());
+});
+try {
+  const flaggedVersion = sessionStorage.getItem(UPDATE_AVAILABLE_KEY);
+  if(flaggedVersion && flaggedVersion !== VERSION.num) {
+    setVersionPanelOpen(true);
+  }
+} catch {}
 
 bindLeaderboardControls({
   openButtons: [lbOpenBtn, lbOpenBtnGo],

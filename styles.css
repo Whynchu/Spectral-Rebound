@@ -195,6 +195,52 @@ body.compact-viewport #wrap {
 #btn-patch-notes-close {
   align-self: center;
 }
+.version-title {
+  font-size: 30px;
+}
+.version-grid {
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.version-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.version-k {
+  font-size: 9px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.version-v {
+  font-family: 'Syne', sans-serif;
+  font-size: 12px;
+  color: #fff;
+}
+.version-v.ok { color: var(--accent); }
+.version-v.warn { color: #fbbf24; }
+.version-v.err { color: #f87171; }
+.version-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+#btn-version-update {
+  display: none;
+}
+#btn-version-update.show {
+  display: inline-block;
+}
 /* TOP HUD */
 #top-hud {
   display: grid;
@@ -218,7 +264,7 @@ body.compact-viewport #wrap {
 #room-counter { font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.18em; color:var(--muted); }
 #room-counter { grid-area: room; justify-self: start; }
 #score-txt { grid-area: score; justify-self: end; }
-#btn-patch-notes { grid-area: patch; justify-self: center; }
+#top-actions { grid-area: patch; justify-self: center; display:flex; gap:6px; align-items:center; }
 #top-hud-secondary {
   grid-area: meta;
   display: flex;
