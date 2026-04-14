@@ -1214,6 +1214,35 @@ test('gesture guard blocks dblclick and fast double-tap while allowing inputs', 
   assert.equal(prevented, true);
 
   prevented = false;
+  const touchStartHandler = listeners.get('touchstart');
+  touchStartHandler({
+    target: { closest: () => null },
+    preventDefault: () => { prevented = true; },
+  });
+  assert.equal(prevented, false);
+
+  now += 100;
+  touchStartHandler({
+    target: { closest: () => null },
+    preventDefault: () => { prevented = true; },
+  });
+  assert.equal(prevented, true);
+
+  prevented = false;
+  listeners.get('selectstart')({
+    target: { closest: () => null },
+    preventDefault: () => { prevented = true; },
+  });
+  assert.equal(prevented, true);
+
+  prevented = false;
+  listeners.get('selectstart')({
+    target: { closest: (selector) => selector === 'input, textarea, select' ? {} : null },
+    preventDefault: () => { prevented = true; },
+  });
+  assert.equal(prevented, false);
+
+  prevented = false;
   const touchHandler = listeners.get('touchend');
   touchHandler({
     target: { closest: () => null },
