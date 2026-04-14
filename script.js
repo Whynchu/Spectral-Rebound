@@ -2,6 +2,7 @@ import { C, ROOM_SCRIPTS, BOSS_ROOMS, DECAY_BASE, M, VERSION } from './src/data/
 import { CHARGED_ORB_FIRE_INTERVAL_MS, ESCALATION_KILL_PCT, ESCALATION_MAX_BONUS, getActiveBoonEntries, getDefaultUpgrades, getRequiredShotCount, getKineticChargeRate, syncChargeCapacity, getEvolvedBoon, checkLegendarySequences, getLateBloomGrowth, LATE_BLOOM_SPEED_PENALTY, LATE_BLOOM_DAMAGE_TAKEN_PENALTY, LATE_BLOOM_DAMAGE_PENALTY } from './src/data/boons.js';
 import { ENEMY_TYPES, createEnemy, canEnemyUsePurpleShots } from './src/entities/enemyTypes.js';
 import {
+  resolveEnemySeparation,
   stepEnemyCombatState,
   fireEnemyBurst,
   applyOrbitSphereContact,
@@ -1747,6 +1748,15 @@ function update(dt,ts){
 
   // ── Enemies
   const WINDUP_MS = 520; // tell duration before firing
+  if(enemies.length > 1){
+    resolveEnemySeparation(enemies, {
+      width: W,
+      height: H,
+      margin: M,
+      separationPadding: 2,
+      maxIterations: 2,
+    });
+  }
   for(let ei=enemies.length-1;ei>=0;ei--){
     const e=enemies[ei];
     const combatStep = stepEnemyCombatState(e, {
@@ -1867,6 +1877,15 @@ function update(dt,ts){
         continue;
       }
     }
+  }
+  if(enemies.length > 1){
+    resolveEnemySeparation(enemies, {
+      width: W,
+      height: H,
+      margin: M,
+      separationPadding: 2,
+      maxIterations: 2,
+    });
   }
 
   // ── Charged Orbs: each alive orb fires at nearest enemy every 1.8s

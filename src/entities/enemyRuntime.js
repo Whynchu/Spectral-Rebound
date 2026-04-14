@@ -3,6 +3,62 @@ function clampEnemyToArena(enemy, width, height, margin) {
   enemy.y = Math.max(margin + enemy.r, Math.min(height - margin - enemy.r, enemy.y));
 }
 
+function resolveEnemySeparation(enemies, {
+  width,
+  height,
+  margin,
+  separationPadding = 2,
+  maxIterations = 2,
+} = {}) {
+  if(!Array.isArray(enemies) || enemies.length <= 1) return 0;
+
+  let resolvedPairs = 0;
+  const iterations = Math.max(1, maxIterations | 0);
+  for(let step = 0; step < iterations; step++) {
+    let hadOverlap = false;
+    for(let i = 0; i < enemies.length; i++) {
+      const a = enemies[i];
+      for(let j = i + 1; j < enemies.length; j++) {
+        const b = enemies[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const minDist = (a.r || 0) + (b.r || 0) + separationPadding;
+        const distSq = dx * dx + dy * dy;
+        if(distSq >= minDist * minDist) continue;
+
+        hadOverlap = true;
+        resolvedPairs++;
+        let distance = Math.sqrt(distSq);
+        let nx;
+        let ny;
+        if(distance > 0.0001) {
+          nx = dx / distance;
+          ny = dy / distance;
+        } else {
+          // Deterministic fallback vector when two enemies are on the same point.
+          const seed = ((a.eid || i) * 1.97 + (b.eid || j) * 3.11);
+          nx = Math.cos(seed);
+          ny = Math.sin(seed);
+          distance = 0;
+        }
+
+        const overlap = minDist - distance;
+        const push = overlap * 0.5;
+        a.x -= nx * push;
+        a.y -= ny * push;
+        b.x += nx * push;
+        b.y += ny * push;
+
+        clampEnemyToArena(a, width, height, margin);
+        clampEnemyToArena(b, width, height, margin);
+      }
+    }
+    if(!hadOverlap) break;
+  }
+
+  return resolvedPairs;
+}
+
 function stepSiphonEnemy(enemy, {
   ts,
   dt,
@@ -256,6 +312,7 @@ function applyOrbitSphereContact(enemy, {
 
 export {
   clampEnemyToArena,
+  resolveEnemySeparation,
   stepSiphonEnemy,
   stepRusherEnemy,
   advanceRangedEnemyCombatState,

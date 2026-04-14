@@ -1,5 +1,17 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.60',
+    label: 'READABILITY PASS',
+    summary: [
+      'This pass improves combat readability by preventing enemy bodies from stacking into a single unreadable blob. Enemy and boss units now resolve overlap continuously so threat count and spacing stay legible during dense rooms.'
+    ],
+    highlights: [
+      'Added enemy-to-enemy collision separation so standard mobs no longer overlap each other.',
+      'Bosses and escorts now also separate instead of occupying the same visual space.',
+      'Separation is resolved during combat updates to keep spacing clear as waves evolve.'
+    ]
+  },
+  {
     version: '1.16.58',
     label: 'ENGINEERING STABILIZATION',
     summary: [
