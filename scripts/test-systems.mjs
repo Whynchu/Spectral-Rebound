@@ -72,6 +72,12 @@ import {
   spawnRadialOutputBurst,
 } from '../src/entities/playerProjectiles.js';
 import {
+  stepSiphonEnemy,
+  stepRusherEnemy,
+  advanceRangedEnemyCombatState,
+  applyDisruptorPostFire,
+} from '../src/entities/enemyRuntime.js';
+import {
   createLaneOffsets,
   buildPlayerShotPlan,
   buildPlayerVolleySpecs,
@@ -1563,6 +1569,67 @@ test('defense runtime helpers keep orbit and shield state deterministic', () => 
   });
   assert.equal(reset.timer, 0);
   assert.equal(reset.shouldFire, false);
+});
+
+test('enemy runtime helpers keep movement and fire cadence deterministic', () => {
+  const siphon = { x: 10, y: 20, r: 5 };
+  const siphonStep = stepSiphonEnemy(siphon, {
+    ts: 0,
+    dt: 1,
+    width: 200,
+    height: 200,
+    margin: 10,
+    player: { x: 10, y: 20 },
+  });
+  assert.equal(siphonStep.shouldDrainCharge, true);
+  assert.ok(siphon.x >= 15 && siphon.x <= 185);
+  assert.ok(siphon.y >= 15 && siphon.y <= 185);
+
+  const rusher = { x: 10, y: 10, r: 5, spd: 20 };
+  const rusherStep = stepRusherEnemy(rusher, {
+    player: { x: 40, y: 10 },
+    dt: 1,
+    width: 100,
+    height: 100,
+    margin: 0,
+  });
+  assert.equal(rusherStep.distanceToPlayer, 30);
+  assert.equal(rusher.x, 30);
+  assert.equal(rusher.y, 10);
+
+  const ranged = {
+    x: 50,
+    y: 50,
+    r: 5,
+    spd: 40,
+    fT: 900,
+    fRate: 1000,
+    eid: 2,
+    fleeRange: 100,
+    strafeSpd: 0.6,
+    disruptorCooldown: 0,
+    type: 'disruptor',
+    burst: 2,
+    disruptorBulletCount: 4,
+  };
+  const rangedStep = advanceRangedEnemyCombatState(ranged, {
+    player: { x: 150, y: 50 },
+    ts: 0,
+    dt: 0.2,
+    width: 200,
+    height: 200,
+    margin: 10,
+    gravityWell2: false,
+    windupMs: 520,
+  });
+  assert.equal(rangedStep.inWindup, true);
+  assert.equal(rangedStep.shouldFire, true);
+  assert.equal(ranged.fT, 0);
+
+  const cooldownApplied = applyDisruptorPostFire(ranged);
+  assert.equal(cooldownApplied, true);
+  assert.equal(ranged.disruptorBulletCount, 0);
+  assert.equal(ranged.disruptorCooldown, 800);
 });
 
 test('room flow helpers keep threshold values', () => {

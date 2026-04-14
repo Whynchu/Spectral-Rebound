@@ -2,6 +2,12 @@ import { C, ROOM_SCRIPTS, BOSS_ROOMS, DECAY_BASE, M, VERSION } from './src/data/
 import { CHARGED_ORB_FIRE_INTERVAL_MS, ESCALATION_KILL_PCT, ESCALATION_MAX_BONUS, getActiveBoonEntries, getDefaultUpgrades, getRequiredShotCount, getKineticChargeRate, syncChargeCapacity, getEvolvedBoon, checkLegendarySequences, getLateBloomGrowth, LATE_BLOOM_SPEED_PENALTY, LATE_BLOOM_DAMAGE_TAKEN_PENALTY, LATE_BLOOM_DAMAGE_PENALTY } from './src/data/boons.js';
 import { ENEMY_TYPES, createEnemy, canEnemyUsePurpleShots } from './src/entities/enemyTypes.js';
 import {
+  stepSiphonEnemy,
+  stepRusherEnemy,
+  advanceRangedEnemyCombatState,
+  applyDisruptorPostFire,
+} from './src/entities/enemyRuntime.js';
+import {
   applyEliteBulletStage as applyEliteBulletStageValue,
   getDoubleBounceBulletPalette as getDoubleBounceBulletPaletteValue,
   spawnAimedEnemyBullet,
@@ -1669,20 +1675,24 @@ function update(dt,ts){
   for(let ei=enemies.length-1;ei>=0;ei--){
     const e=enemies[ei];
     if(e.isSiphon){
-      e.x+=Math.sin(ts*.0009+e.y)*22*dt;
-      e.y+=Math.cos(ts*.0011+e.x)*22*dt;
-      e.x=Math.max(M+e.r,Math.min(W-M-e.r,e.x));
-      e.y=Math.max(M+e.r,Math.min(H-M-e.r,e.y));
-      if(Math.hypot(e.x-player.x,e.y-player.y)<72){charge=Math.max(0,charge-2.8*dt);sparks(player.x,player.y,C.siphon,1,35);}
+      const siphonStep = stepSiphonEnemy(e, {
+        ts,
+        dt,
+        width: W,
+        height: H,
+        margin: M,
+        player,
+      });
+      if(siphonStep.shouldDrainCharge){charge=Math.max(0,charge-2.8*dt);sparks(player.x,player.y,C.siphon,1,35);}
     } else if(e.isRusher){
-      const dx=player.x-e.x, dy=player.y-e.y, d=Math.hypot(dx,dy);
-      if(d>e.r){
-        e.x+=dx/d*e.spd*dt;
-        e.y+=dy/d*e.spd*dt;
-      }
-      e.x=Math.max(M+e.r,Math.min(W-M-e.r,e.x));
-      e.y=Math.max(M+e.r,Math.min(H-M-e.r,e.y));
-      if(d<player.r+e.r+2 && player.invincible<=0){
+      const rusherStep = stepRusherEnemy(e, {
+        player,
+        dt,
+        width: W,
+        height: H,
+        margin: M,
+      });
+      if(rusherStep.distanceToPlayer<player.r+e.r+2 && player.invincible<=0){
         hp-=18; recordPlayerDamage(18, 'contact'); player.invincible=getPostHitInvulnSeconds('contact'); player.distort=.4;
         sparks(player.x,player.y,C.danger,10,90);
         if(UPG.colossus && _colossusShockwaveCd <= 0){
@@ -1699,45 +1709,18 @@ function update(dt,ts){
         }
       }
     } else {
-      const dx=player.x-e.x, dy=player.y-e.y, d=Math.hypot(dx,dy);
-      const fleeRange = e.fleeRange || 110;
-      let spd = e.spd;
-      
-      // Gravity Well tier 2: apply 20% enemy movement slowdown
-      if(UPG.gravityWell2) spd *= 0.8;
+      const rangedStep = advanceRangedEnemyCombatState(e, {
+        player,
+        ts,
+        dt,
+        width: W,
+        height: H,
+        margin: M,
+        gravityWell2: UPG.gravityWell2,
+        windupMs: WINDUP_MS,
+      });
 
-      // Advance fire timer
-      e.fT += dt*1000;
-      const inWindup = e.fT >= e.fRate - WINDUP_MS;
-
-      if(!inWindup){
-        // Normal flee/orbit movement
-        if(d < fleeRange){
-          const nx=dx/d, ny=dy/d;
-          const strafeDir = (Math.sin(ts*0.0008 + e.eid*1.3) > 0) ? 1 : -1;
-          e.x -= nx*spd*dt + (-ny)*spd*(e.strafeSpd||0.6)*strafeDir*dt;
-          e.y -= ny*spd*dt + (nx)*spd*(e.strafeSpd||0.6)*strafeDir*dt;
-        } else if(d > fleeRange*1.6){
-          e.x += dx/d*spd*0.25*dt;
-          e.y += dy/d*spd*0.25*dt;
-        } else {
-          const strafeDir = (Math.sin(ts*0.0007 + e.eid*2.1) > 0) ? 1 : -1;
-          e.x += (-dy/d)*spd*(e.strafeSpd||0.6)*strafeDir*dt;
-          e.y += (dx/d)*spd*(e.strafeSpd||0.6)*strafeDir*dt;
-        }
-        e.x=Math.max(M+e.r,Math.min(W-M-e.r,e.x));
-        e.y=Math.max(M+e.r,Math.min(H-M-e.r,e.y));
-      }
-      // else: frozen during windup — no position update
-
-      // Disruptor cooldown tracking
-      if(e.disruptorCooldown > 0) {
-        e.disruptorCooldown -= dt*1000;
-      }
-
-      // Fire when timer expires (only if not in disruptor cooldown)
-      if(e.fT >= e.fRate && e.disruptorCooldown <= 0){
-        e.fT = 0;
+      if(rangedStep.shouldFire){
         if(e.type==='zoner' || e.type==='purple_zoner' || e.type==='orange_zoner'){
           if(e.type==='orange_zoner'){
             // Orange zoner is the elite-stage zoner and uses the rotated elite palette
@@ -1771,14 +1754,7 @@ function update(dt,ts){
               spawnEB(e.x,e.y);
             }
           }
-          // Disruptor cooldown: after 5 bullets, cooldown for 800ms
-          if(e.type==='disruptor'){
-            e.disruptorBulletCount += e.burst;
-            if(e.disruptorBulletCount >= 5){
-              e.disruptorBulletCount = 0;
-              e.disruptorCooldown = 800;
-            }
-          }
+          applyDisruptorPostFire(e);
         }
       }
     }
