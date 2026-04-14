@@ -18,6 +18,7 @@ import {
   resolveOutputEnemyHit,
   resolveSanguineBurst,
 } from '../src/systems/outputHit.js';
+import { resolveEnemyKillEffects } from '../src/systems/killRewards.js';
 import {
   weightedPick,
   generateWeightedWave,
@@ -404,6 +405,77 @@ test('output hit helpers keep damage, pierce, and reward cadence deterministic',
   });
   assert.equal(rampageBurst.shouldBurst, true);
   assert.equal(rampageBurst.burstCount, 8);
+});
+
+test('kill reward helpers derive boss, sustain, and burst side effects deterministically', () => {
+  const effects = resolveEnemyKillEffects({
+    enemy: { isBoss: true },
+    bullet: { isRing: true },
+    upgrades: {
+      escalation: true,
+      escalationKills: 2,
+      predatorKillStreak: 4,
+      bloodRush: true,
+      bloodRushStacks: 4,
+      sanguineBurst: true,
+      sanguineKillCount: 7,
+      rampageEvolved: false,
+      vampiric: true,
+      bloodMoon: true,
+      corona: true,
+      finalForm: true,
+      crimsonHarvest: true,
+    },
+    hp: 10,
+    maxHp: 100,
+    ts: 5000,
+    vampiricHealPerKill: 4,
+    vampiricChargePerKill: 0.25,
+  });
+
+  assert.equal(effects.bossCleared, true);
+  assert.equal(effects.bossRewardHeal, 50);
+  assert.equal(effects.vampiricHeal, 4);
+  assert.equal(effects.vampiricCharge, 0.25);
+  assert.equal(effects.bloodMoonHeal, 8);
+  assert.equal(effects.coronaCharge, 1);
+  assert.equal(effects.finalFormCharge, 0.5);
+  assert.equal(effects.crimsonHarvestGreyDrops, 1);
+  assert.equal(effects.bloodMoonGreyDrops, 3);
+  assert.equal(effects.sanguineBurstCount, 6);
+  assert.equal(effects.nextUpgradeState.escalationKills, 3);
+  assert.equal(effects.nextUpgradeState.predatorKillStreak, 5);
+  assert.equal(effects.nextUpgradeState.predatorKillStreakTime, 10000);
+  assert.equal(effects.nextUpgradeState.bloodRushStacks, 5);
+  assert.equal(effects.nextUpgradeState.bloodRushTimer, 8000);
+  assert.equal(effects.nextUpgradeState.sanguineKillCount, 0);
+
+  const plainEffects = resolveEnemyKillEffects({
+    enemy: { isBoss: false },
+    bullet: { isRing: false },
+    upgrades: {
+      escalation: false,
+      predatorKillStreak: 0,
+      bloodRush: false,
+      sanguineBurst: false,
+      vampiric: false,
+      bloodMoon: false,
+      corona: false,
+      finalForm: false,
+      crimsonHarvest: false,
+    },
+    hp: 90,
+    maxHp: 100,
+    ts: 2000,
+    vampiricHealPerKill: 4,
+    vampiricChargePerKill: 0.25,
+  });
+  assert.equal(plainEffects.bossCleared, false);
+  assert.equal(plainEffects.bossRewardHeal, 0);
+  assert.equal(plainEffects.vampiricHeal, 0);
+  assert.equal(plainEffects.bloodMoonGreyDrops, 0);
+  assert.equal(plainEffects.sanguineBurstCount, 0);
+  assert.equal(plainEffects.nextUpgradeState.escalationKills, 0);
 });
 
 test('weightedPick uses candidate weights', () => {

@@ -29,6 +29,7 @@ Recent stabilization stages landed after `1.16.51`:
 - `experimental` extraction stage: orbit/shield runtime helpers now live in [src/entities/defenseRuntime.js](C:/Development/Phantom-Rebound/src/entities/defenseRuntime.js:1), centralizing orb timer sync, orbit/shield slot positioning, shield cooldown ticking, ready-shield counting, and Aegis Battery timer stepping for reuse across combat branches.
 - `experimental` extraction stage: bullet lifecycle transition helpers now live in [src/systems/bulletRuntime.js](C:/Development/Phantom-Rebound/src/systems/bulletRuntime.js:1), centralizing output expiry, out-of-bounds cleanup, danger-bounce state changes, and output-bounce/split decisions while leaving VFX and gameplay side effects in the main loop for now.
 - `experimental` extraction stage: output-hit resolution helpers now live in [src/systems/outputHit.js](C:/Development/Phantom-Rebound/src/systems/outputHit.js:1), centralizing crit/dead-man damage math, blood-pact eligibility, pierce/volatile-round decisions, and sanguine-burst cadence while keeping kill rewards and room-side effects in `script.js`.
+- `experimental` extraction stage: enemy kill reward derivation now lives in [src/systems/killRewards.js](C:/Development/Phantom-Rebound/src/systems/killRewards.js:1), centralizing boss-clear rewards, vampiric/blood-moon/corona/final-form reward values, crimson harvest drops, and streak timer updates while `script.js` applies the concrete side effects.
 
 Validation status:
 
@@ -43,6 +44,7 @@ Validation status:
 - The regression harness also covers orbit timer sync, shield cooldown ticking, orbit/shield slot positioning, and Aegis Battery timing behavior.
 - The regression harness also covers bullet expiry, out-of-bounds cleanup, danger bounce transitions, and output bounce/split decisions.
 - The regression harness also covers output-hit damage resolution, blood-pact eligibility, pierce/volatile-round behavior, and sanguine-burst cadence.
+- The regression harness also covers enemy kill reward derivation for boss rewards, sustain, streak timers, and reward-spawn counts.
 
 ## Purpose
 

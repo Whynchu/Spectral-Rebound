@@ -108,8 +108,8 @@ import {
 } from './src/systems/bulletRuntime.js';
 import {
   resolveOutputEnemyHit,
-  resolveSanguineBurst,
 } from './src/systems/outputHit.js';
+import { resolveEnemyKillEffects } from './src/systems/killRewards.js';
 import {
   createRunTelemetry as createRunTelemetryValue,
   createRoomTelemetry as createRoomTelemetryValue,
@@ -2355,95 +2355,80 @@ function update(dt,ts){
             sparks(e.x,e.y,e.col, e.isBoss ? 30 : 14, e.isBoss ? 160 : 95);
             // Death bullets scatter as grey
             spawnGreyDrops(e.x,e.y,ts);
-            // Escalation: track kills in room for damage scaling
-            if(UPG.escalation) UPG.escalationKills = (UPG.escalationKills || 0) + 1;
-            // Boss death: big HP restore + stop escort respawns
-            if(e.isBoss) {
+            const killEffects = resolveEnemyKillEffects({
+              enemy: e,
+              bullet: b,
+              upgrades: UPG,
+              hp,
+              maxHp,
+              ts,
+              vampiricHealPerKill: VAMPIRIC_HEAL_PER_KILL,
+              vampiricChargePerKill: VAMPIRIC_CHARGE_PER_KILL,
+            });
+            UPG.escalationKills = killEffects.nextUpgradeState.escalationKills;
+            UPG.predatorKillStreak = killEffects.nextUpgradeState.predatorKillStreak;
+            UPG.predatorKillStreakTime = killEffects.nextUpgradeState.predatorKillStreakTime;
+            UPG.bloodRushStacks = killEffects.nextUpgradeState.bloodRushStacks;
+            UPG.bloodRushTimer = killEffects.nextUpgradeState.bloodRushTimer;
+            UPG.sanguineKillCount = killEffects.nextUpgradeState.sanguineKillCount;
+            if(killEffects.bossCleared) {
               bossAlive = false;
               bossClears += 1;
-              healPlayer(Math.floor(maxHp * 0.5), 'bossReward');
+              healPlayer(killEffects.bossRewardHeal, 'bossReward');
               showBossDefeated();
             }
-            // Vampiric Return: modest sustain per kill without fully funding the next volley.
-            if(UPG.vampiric){ 
-              applyKillSustainHeal(VAMPIRIC_HEAL_PER_KILL, 'vampiric');
-              gainCharge(VAMPIRIC_CHARGE_PER_KILL, 'vampiric');
+            if(killEffects.vampiricHeal > 0){
+              applyKillSustainHeal(killEffects.vampiricHeal, 'vampiric');
+              gainCharge(killEffects.vampiricCharge, 'vampiric');
             }
-              // Predator's Instinct: track kill streak (5s window)
-              UPG.predatorKillStreak++;
-              UPG.predatorKillStreakTime = ts + 5000;
-              
-              // Blood Rush: grant +10% speed for 3s, stacks to +50%
-              if(UPG.bloodRush){
-                if(!UPG.bloodRushStacks) UPG.bloodRushStacks = 0;
-                UPG.bloodRushStacks = Math.min(5, UPG.bloodRushStacks + 1);
-                UPG.bloodRushTimer = ts + 3000;
-              }
-              
-              // Crimson Harvest: drop extra grey bullet at enemy position
-              if(UPG.crimsonHarvest){
+            for(let drop = 0; drop < killEffects.crimsonHarvestGreyDrops; drop++){
+              pushGreyBullet({
+                bullets,
+                x: e.x,
+                y: e.y,
+                vx: (Math.random()-0.5)*150,
+                vy: (Math.random()-0.5)*150,
+                radius: 5,
+                decayStart: ts,
+              });
+            }
+            if(killEffects.sanguineBurstCount > 0){
+              spawnRadialOutputBurst({
+                bullets,
+                x: player.x,
+                y: player.y,
+                count: killEffects.sanguineBurstCount,
+                speed: 220 * GLOBAL_SPEED_LIFT,
+                radius: 5.5,
+                bounceLeft: UPG.bounceTier,
+                pierceLeft: UPG.pierceTier,
+                homing: UPG.homingTier>0,
+                crit: false,
+                dmg: (UPG.playerDamageMult||1)*(UPG.denseDamageMult||1),
+                expireAt: ts+2200,
+                extras: {
+                  bloodPactHeals: 0,
+                  bloodPactHealCap: getBloodPactHealCap(),
+                },
+              });
+            }
+            if(killEffects.bloodMoonHeal > 0){
+              applyKillSustainHeal(killEffects.bloodMoonHeal, 'vampiric');
+              for(let bloodMoonDrop = 0; bloodMoonDrop < killEffects.bloodMoonGreyDrops; bloodMoonDrop++){
+                const ang = (Math.PI*2/3)*bloodMoonDrop + Math.random()*0.3;
                 pushGreyBullet({
                   bullets,
                   x: e.x,
                   y: e.y,
-                  vx: (Math.random()-0.5)*150,
-                  vy: (Math.random()-0.5)*150,
+                  vx: Math.cos(ang)*120,
+                  vy: Math.sin(ang)*120,
                   radius: 5,
                   decayStart: ts,
                 });
               }
-              
-              // Sanguine Burst: every 8th kill (or 4th if Rampage) fires burst
-              if(UPG.sanguineBurst){
-                const sanguineBurst = resolveSanguineBurst({
-                  enabled: UPG.sanguineBurst,
-                  currentKillCount: UPG.sanguineKillCount || 0,
-                  rampageEvolved: UPG.rampageEvolved,
-                });
-                UPG.sanguineKillCount = sanguineBurst.nextKillCount;
-                if(sanguineBurst.shouldBurst){
-                  spawnRadialOutputBurst({
-                    bullets,
-                    x: player.x,
-                    y: player.y,
-                    count: sanguineBurst.burstCount,
-                    speed: 220 * GLOBAL_SPEED_LIFT,
-                    radius: 5.5,
-                    bounceLeft: UPG.bounceTier,
-                    pierceLeft: UPG.pierceTier,
-                    homing: UPG.homingTier>0,
-                    crit: false,
-                    dmg: (UPG.playerDamageMult||1)*(UPG.denseDamageMult||1),
-                    expireAt: ts+2200,
-                    extras: {
-                      bloodPactHeals: 0,
-                      bloodPactHealCap: getBloodPactHealCap(),
-                    },
-                  });
-                }
-              }
-              
-              // BLOOD MOON: enhanced kill rewards
-              if(UPG.bloodMoon){
-                applyKillSustainHeal(8, 'vampiric');
-                for(let i=0;i<3;i++){
-                  const ang = (Math.PI*2/3)*i + Math.random()*0.3;
-                  pushGreyBullet({
-                    bullets,
-                    x: e.x,
-                    y: e.y,
-                    vx: Math.cos(ang)*120,
-                    vy: Math.sin(ang)*120,
-                    radius: 5,
-                    decayStart: ts,
-                  });
-                }
-              }
-              
-            // Corona: ring kills refund 1 charge
-            if(b.isRing && UPG.corona){ gainCharge(1, 'corona'); }
-            // Final Form: low-HP kills grant charge
-            if(UPG.finalForm && hp <= maxHp * 0.15){ gainCharge(0.5, 'finalForm'); }
+            }
+            if(killEffects.coronaCharge > 0) gainCharge(killEffects.coronaCharge, 'corona');
+            if(killEffects.finalFormCharge > 0) gainCharge(killEffects.finalFormCharge, 'finalForm');
             enemies.splice(j,1);
           }
           if(hitResolution.piercesAfterHit){
