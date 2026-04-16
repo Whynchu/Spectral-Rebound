@@ -1,5 +1,17 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.65',
+    label: 'HUNT LINES',
+    summary: [
+      'Enemies now respond to wall geometry instead of blindly pathing, with non-melee units showing stronger fear behavior when the ghost closes in.'
+    ],
+    highlights: [
+      'Ranged enemies now evaluate line-of-sight around obstacle cubes and reposition to find firing lanes.',
+      'Non-melee enemies enter a stronger close-range fear state and disengage until they regain distance.',
+      'Obstacle steering was added so enemies slide around walls instead of stalling into them.'
+    ]
+  },
+  {
     version: '1.16.64',
     label: 'GRID COVER',
     summary: [
