@@ -1,5 +1,17 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.64',
+    label: 'GRID COVER',
+    summary: [
+      'Rooms now include subtle grid-aligned wall cubes from room 1 onward, adding hard cover and lane control so combat has more spatial texture.'
+    ],
+    highlights: [
+      'Added obstacle cubes that block movement for players and enemies.',
+      'Projectiles now collide with obstacle cubes and bounce using the core bounce runtime.',
+      'Bullet motion now sub-steps during long frames to prevent tunneling through wall cubes.'
+    ]
+  },
+  {
     version: '1.16.63',
     label: 'PAYLOAD BLOOM',
     summary: [
