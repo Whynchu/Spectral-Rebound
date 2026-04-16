@@ -2738,7 +2738,7 @@ function draw(ts){
     const inWindup = !e.isRusher && !e.isSiphon && e.fT >= e.fRate - WINDUP_MS_DRAW;
     let drawR = e.r;
     if(inWindup){
-      const prog = (e.fT - (e.fRate - WINDUP_MS_DRAW)) / WINDUP_MS_DRAW; // 0→1
+      const prog = Math.max(0, Math.min(1, (e.fT - (e.fRate - WINDUP_MS_DRAW)) / WINDUP_MS_DRAW)); // 0→1 clamped
       drawR = e.r * (1 + prog * 0.12); // max 12% swell — subtle
       // Faint ring only
       ctx.strokeStyle = `rgba(255,255,255,${0.08 + prog * 0.18})`;

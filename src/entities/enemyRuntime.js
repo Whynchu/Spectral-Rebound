@@ -209,8 +209,15 @@ function advanceRangedEnemyCombatState(enemy, {
   if(gravityWell2) speed *= 0.8;
 
   enemy.fT += dt * 1000;
-  const inWindup = enemy.fT >= enemy.fRate - windupMs;
+  const canShootWithoutLos = enemy.type === 'zoner' || enemy.type === 'purple_zoner' || enemy.type === 'orange_zoner';
   const hasLos = hasLineOfSightToPlayer(enemy, player, obstacles);
+  const isFiringLaneReady = canShootWithoutLos || hasLos;
+  const inWindup = enemy.fT >= enemy.fRate - windupMs && isFiringLaneReady;
+
+  // Prevent LOS-blocked ranged enemies from entering permanent windup lock.
+  if(!isFiringLaneReady && enemy.fT > enemy.fRate - windupMs * 0.4) {
+    enemy.fT = enemy.fRate - windupMs * 0.4;
+  }
 
   if(!inWindup && distance > 0) {
     const nx = dx / distance;
@@ -254,10 +261,9 @@ function advanceRangedEnemyCombatState(enemy, {
   }
 
   const shouldFireBase = enemy.fT >= enemy.fRate && enemy.disruptorCooldown <= 0;
-  const canShootWithoutLos = enemy.type === 'zoner' || enemy.type === 'purple_zoner' || enemy.type === 'orange_zoner';
   const shouldFire = shouldFireBase
     && !inFearRange
-    && (canShootWithoutLos || hasLineOfSightToPlayer(enemy, player, obstacles));
+    && isFiringLaneReady;
   if(shouldFire) enemy.fT = 0;
 
   return {
