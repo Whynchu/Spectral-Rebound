@@ -1,5 +1,17 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.66',
+    label: 'LOS HOTFIX',
+    summary: [
+      'Fixes a wall-awareness regression where LOS-blocked enemies could lock into windup behavior and visually scale forever instead of repositioning.'
+    ],
+    highlights: [
+      'Ranged enemies no longer enter persistent windup when they do not have a firing lane.',
+      'LOS-blocked fire timers are clamped to keep enemies in reposition behavior.',
+      'Enemy windup swell visuals are now hard-clamped to prevent runaway size growth.'
+    ]
+  },
+  {
     version: '1.16.65',
     label: 'HUNT LINES',
     summary: [
