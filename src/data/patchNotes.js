@@ -1,5 +1,17 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.72',
+    label: 'RANGED FIRE HOTFIX',
+    summary: [
+      'Ranged enemies now keep their firing cadence while afraid, so close-pressure chases and wall pins no longer suppress shots.'
+    ],
+    highlights: [
+      'Removed fear-based fire timer clamp that could prevent ranged enemies from reaching windup/fire thresholds.',
+      'Removed fear-range fire gate so ranged units shoot as soon as their timer and lane conditions are ready.',
+      'Fear behavior now affects movement only; firing reliability remains consistent under pressure.'
+    ]
+  },
+  {
     version: '1.16.71',
     label: 'POINTER POLISH',
     summary: [
