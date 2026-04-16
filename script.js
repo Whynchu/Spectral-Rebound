@@ -401,6 +401,8 @@ const SHIELD_COOLDOWN   = 4.5;  // seconds a shield is inactive after absorbing 
 const SHIELD_ROTATION_SPD  = 0.001; // radians per millisecond (≈1 rev / 6.3 s)
 const ORBIT_SPHERE_R    = 40;   // orbital radius of passive orbit spheres (px)
 const ORBIT_ROTATION_SPD   = 0.003; // radians per millisecond (≈1 rev / 2.1 s)
+const GRID_SIZE = 28;
+const WALL_CUBE_SIZE = 20;
 const PLAYER_SHOT_LIFE_MS = 1100;
 const DENSE_DESPERATION_BONUS = 2.4;
 const CRIT_DAMAGE_FACTOR = 2.4;
@@ -459,6 +461,7 @@ let activeWaveIndex = 0;
 let roomClearTimer = 0;
 let roomPurpleShooterAssigned = false;
 let roomIntroTimer = 0;
+let roomObstacles = [];
 const ROOM_NAMES = ROOM_SCRIPTS.map((room) => room.name);
 const BASE_CONTACT_INVULN_S = 1.0;
 const BASE_PROJECTILE_INVULN_S = 1.2;
@@ -714,6 +717,81 @@ function buildSpawnQueue(roomDef) {
   return buildSpawnQueueValue(roomDef);
 }
 
+function createRoomObstacles(width, height) {
+  const arenaWidth = Math.max(0, width - 2 * M);
+  const arenaHeight = Math.max(0, height - 2 * M);
+  const cols = Math.max(1, Math.floor(arenaWidth / GRID_SIZE));
+  const rows = Math.max(1, Math.floor(arenaHeight / GRID_SIZE));
+  const cx = Math.floor(cols / 2);
+  const cy = Math.floor(rows / 2);
+  const leftCol = Math.max(1, Math.min(cols - 2, cx - 3));
+  const rightCol = Math.max(1, Math.min(cols - 2, cx + 2));
+  const topRow = Math.max(1, cy - 2);
+  const bottomRow = Math.min(rows - 2, cy + 1);
+  const inset = (GRID_SIZE - WALL_CUBE_SIZE) * 0.5;
+
+  const cells = [];
+  for(let y = topRow; y <= bottomRow; y++){
+    cells.push({ col: leftCol, row: y });
+    cells.push({ col: rightCol, row: y });
+  }
+
+  return cells.map(({ col, row }) => ({
+    x: M + col * GRID_SIZE + inset,
+    y: M + row * GRID_SIZE + inset,
+    w: WALL_CUBE_SIZE,
+    h: WALL_CUBE_SIZE,
+  }));
+}
+
+function getCircleRectContactNormal(x, y, radius, rect) {
+  const nearestX = Math.max(rect.x, Math.min(x, rect.x + rect.w));
+  const nearestY = Math.max(rect.y, Math.min(y, rect.y + rect.h));
+  const dx = x - nearestX;
+  const dy = y - nearestY;
+  const distSq = dx * dx + dy * dy;
+  if(distSq > radius * radius) return null;
+
+  if(distSq > 0.0001){
+    const dist = Math.sqrt(distSq);
+    return { nx: dx / dist, ny: dy / dist, push: radius - dist };
+  }
+
+  const leftPen = Math.abs(x - rect.x);
+  const rightPen = Math.abs((rect.x + rect.w) - x);
+  const topPen = Math.abs(y - rect.y);
+  const bottomPen = Math.abs((rect.y + rect.h) - y);
+  const minPen = Math.min(leftPen, rightPen, topPen, bottomPen);
+  if(minPen === leftPen) return { nx: -1, ny: 0, push: radius };
+  if(minPen === rightPen) return { nx: 1, ny: 0, push: radius };
+  if(minPen === topPen) return { nx: 0, ny: -1, push: radius };
+  return { nx: 0, ny: 1, push: radius };
+}
+
+function resolveEntityObstacleCollisions(entity) {
+  if(!entity || !roomObstacles.length) return;
+  for(const obstacle of roomObstacles){
+    const contact = getCircleRectContactNormal(entity.x, entity.y, entity.r, obstacle);
+    if(!contact) continue;
+    entity.x += contact.nx * (contact.push + 0.05);
+    entity.y += contact.ny * (contact.push + 0.05);
+  }
+}
+
+function resolveBulletObstacleCollision(bullet) {
+  if(!bullet || !roomObstacles.length) return false;
+  for(const obstacle of roomObstacles){
+    const contact = getCircleRectContactNormal(bullet.x, bullet.y, bullet.r, obstacle);
+    if(!contact) continue;
+    bullet.x += contact.nx * (contact.push + 0.05);
+    bullet.y += contact.ny * (contact.push + 0.05);
+    if(Math.abs(contact.nx) >= Math.abs(contact.ny)) bullet.vx = -bullet.vx;
+    else bullet.vy = -bullet.vy;
+    return true;
+  }
+  return false;
+}
+
 function beginWaveIntro(nextWaveIndex) {
   activeWaveIndex = nextWaveIndex;
   roomPhase = 'intro';
@@ -752,6 +830,7 @@ function startRoom(idx) {
   roomTimer = 0;
   roomIntroTimer = 0;
   roomPhase = 'intro';
+  roomObstacles = createRoomObstacles(cv.width, cv.height);
   enemies = [];
   bullets = [];
   // Boss room state
@@ -811,6 +890,7 @@ function spawnEnemy(type, isBoss = false, bossScale = 1) {
     bossScale,
   });
   if(enemy.forcePurpleShots) roomPurpleShooterAssigned = true;
+  resolveEntityObstacleCollisions(enemy);
   enemies.push(enemy);
 }
 
@@ -1568,6 +1648,7 @@ function update(dt,ts){
   }
   player.x=Math.max(M+player.r,Math.min(W-M-player.r,player.x+player.vx*dt));
   player.y=Math.max(M+player.r,Math.min(H-M-player.r,player.y+player.vy*dt));
+  resolveEntityObstacleCollisions(player);
   if(player.invincible>0)player.invincible-=dt;
   if(player.distort>0)player.distort-=dt;
 
@@ -1789,6 +1870,7 @@ function update(dt,ts){
         gravityWell2: UPG.gravityWell2,
         windupMs: WINDUP_MS,
       });
+      resolveEntityObstacleCollisions(e);
       if(combatStep.kind === 'siphon'){
         if(combatStep.shouldDrainCharge){charge=Math.max(0,charge-2.8*dt);sparks(player.x,player.y,C.siphon,1,35);}
       } else if(combatStep.kind === 'rusher'){
@@ -1907,6 +1989,7 @@ function update(dt,ts){
         maxIterations: 2,
       });
     }
+    for(const e of enemies) resolveEntityObstacleCollisions(e);
   }
 
   // ── Charged Orbs: each alive orb fires at nearest enemy every 1.8s
@@ -2033,12 +2116,20 @@ function update(dt,ts){
       }
     }
 
-    b.x+=b.vx*dt; b.y+=b.vy*dt;
     let bounced=false;
-    if(b.x-b.r<M){b.x=M+b.r;b.vx=Math.abs(b.vx);bounced=true;}
-    if(b.x+b.r>W-M){b.x=W-M-b.r;b.vx=-Math.abs(b.vx);bounced=true;}
-    if(b.y-b.r<M){b.y=M+b.r;b.vy=Math.abs(b.vy);bounced=true;}
-    if(b.y+b.r>H-M){b.y=H-M-b.r;b.vy=-Math.abs(b.vy);bounced=true;}
+    // Sub-stepped bullet movement prevents tunneling through wall cubes on long frames.
+    const maxFrameTravel = Math.max(Math.abs(b.vx), Math.abs(b.vy)) * dt;
+    const subSteps = Math.min(6, Math.max(1, Math.ceil(maxFrameTravel / 10)));
+    const stepDt = dt / subSteps;
+    for(let step = 0; step < subSteps; step++){
+      b.x += b.vx * stepDt;
+      b.y += b.vy * stepDt;
+      if(b.x-b.r<M){b.x=M+b.r;b.vx=Math.abs(b.vx);bounced=true;}
+      if(b.x+b.r>W-M){b.x=W-M-b.r;b.vx=-Math.abs(b.vx);bounced=true;}
+      if(b.y-b.r<M){b.y=M+b.r;b.vy=Math.abs(b.vy);bounced=true;}
+      if(b.y+b.r>H-M){b.y=H-M-b.r;b.vy=-Math.abs(b.vy);bounced=true;}
+      if(resolveBulletObstacleCollision(b)) bounced = true;
+    }
 
     if(bounced){
       if(b.state==='danger'){
@@ -2589,9 +2680,24 @@ function draw(ts){
 
   // Grid
   ctx.strokeStyle=C.grid;ctx.lineWidth=1;
-  const gs=28;
+  const gs=GRID_SIZE;
   for(let x=M;x<W-M;x+=gs){ctx.beginPath();ctx.moveTo(x,M);ctx.lineTo(x,H-M);ctx.stroke();}
   for(let y=M;y<H-M;y+=gs){ctx.beginPath();ctx.moveTo(M,y);ctx.lineTo(W-M,y);ctx.stroke();}
+
+  // Grid obstacles (subtle cover cubes)
+  ctx.fillStyle='rgba(180, 196, 220, 0.12)';
+  ctx.strokeStyle='rgba(220, 235, 255, 0.28)';
+  ctx.lineWidth=1;
+  for(const obstacle of roomObstacles){
+    ctx.fillRect(obstacle.x, obstacle.y, obstacle.w, obstacle.h);
+    ctx.strokeRect(obstacle.x, obstacle.y, obstacle.w, obstacle.h);
+    ctx.beginPath();
+    ctx.moveTo(obstacle.x, obstacle.y + obstacle.h);
+    ctx.lineTo(obstacle.x + obstacle.w, obstacle.y);
+    ctx.strokeStyle='rgba(255,255,255,0.08)';
+    ctx.stroke();
+    ctx.strokeStyle='rgba(220, 235, 255, 0.28)';
+  }
 
   // Arena border — neutral
   ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=1.5;
