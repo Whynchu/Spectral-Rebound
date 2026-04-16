@@ -42,14 +42,23 @@ function hasLineOfSightToPlayer(enemy, player, obstacles = []) {
   return true;
 }
 
-function applyObstacleSteering(enemy, {
+function hasLineOfSightBetweenPoints(ax, ay, bx, by, obstacles = [], expand = 4) {
+  if(!obstacles?.length) return true;
+  for(const obstacle of obstacles) {
+    if(segmentIntersectsExpandedRect(ax, ay, bx, by, obstacle, expand)) return false;
+  }
+  return true;
+}
+
+function clamp01(value) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function getObstacleSteeringVector(enemy, {
   obstacles = [],
-  dt = 0,
-  speed = 0,
   influenceRadius = 56,
-  steerStrength = 0.9,
 } = {}) {
-  if(!obstacles.length || dt <= 0 || speed <= 0) return;
+  if(!obstacles.length) return { x: 0, y: 0 };
   let pushX = 0;
   let pushY = 0;
   for(const obstacle of obstacles) {
@@ -64,10 +73,57 @@ function applyObstacleSteering(enemy, {
     pushY += (dy / dist) * weight;
   }
   const pushLen = Math.hypot(pushX, pushY);
-  if(pushLen <= 0.0001) return;
-  const steerSpeed = speed * steerStrength * dt;
-  enemy.x += (pushX / pushLen) * steerSpeed;
-  enemy.y += (pushY / pushLen) * steerSpeed;
+  if(pushLen <= 0.0001) return { x: 0, y: 0 };
+  return { x: pushX / pushLen, y: pushY / pushLen };
+}
+
+function moveEnemyWithIntent(enemy, intentX, intentY, speed, dt, speedScale = 1) {
+  const intentLen = Math.hypot(intentX, intentY);
+  if(intentLen <= 0.0001 || speed <= 0 || dt <= 0) return;
+  const moveSpeed = speed * Math.max(0, speedScale) * dt;
+  enemy.x += (intentX / intentLen) * moveSpeed;
+  enemy.y += (intentY / intentLen) * moveSpeed;
+}
+
+function getStableMovementSide(enemy, key, ts, preferredSide, holdMs = 720) {
+  const sideKey = `${key}Side`;
+  const untilKey = `${key}SideUntil`;
+  if(enemy[untilKey] > ts && enemy[sideKey]) return enemy[sideKey];
+  enemy[sideKey] = preferredSide || 1;
+  enemy[untilKey] = ts + holdMs;
+  return enemy[sideKey];
+}
+
+function pickFlankSide(enemy, player, obstacles, ts, key = 'path') {
+  const dx = player.x - enemy.x;
+  const dy = player.y - enemy.y;
+  const distance = Math.max(1, Math.hypot(dx, dy));
+  const nx = dx / distance;
+  const ny = dy / distance;
+  const probeDistance = Math.min(52, Math.max(26, distance * 0.32));
+  let bestSide = null;
+  let bestScore = -Infinity;
+
+  for(const side of [1, -1]) {
+    const tx = -ny * side;
+    const ty = nx * side;
+    const probeX = enemy.x + (nx * 0.42 + tx * 1.05) * probeDistance;
+    const probeY = enemy.y + (ny * 0.42 + ty * 1.05) * probeDistance;
+    const hasProbeLos = hasLineOfSightBetweenPoints(probeX, probeY, player.x, player.y, obstacles, Math.min(4, enemy.r * 0.35));
+    const obstacleSteer = getObstacleSteeringVector({ x: probeX, y: probeY, r: enemy.r }, {
+      obstacles,
+      influenceRadius: 64,
+    });
+    const steerAlign = obstacleSteer.x * tx + obstacleSteer.y * ty;
+    const score = (hasProbeLos ? 1000 : 0) + steerAlign * 20;
+    if(score > bestScore) {
+      bestScore = score;
+      bestSide = side;
+    }
+  }
+
+  const fallbackSide = Math.sin(enemy.eid * 1.91) >= 0 ? 1 : -1;
+  return getStableMovementSide(enemy, key, ts, bestSide || fallbackSide, 850);
 }
 
 function hasClearShotLane(enemy, player, angle, obstacles = [], shotRadius = 5) {
@@ -170,15 +226,13 @@ function stepSiphonEnemy(enemy, {
   player,
   obstacles = [],
 } = {}) {
-  enemy.x += Math.sin(ts * 0.0009 + enemy.y) * 22 * dt;
-  enemy.y += Math.cos(ts * 0.0011 + enemy.x) * 22 * dt;
-  applyObstacleSteering(enemy, {
+  const driftX = Math.sin(ts * 0.0009 + enemy.y);
+  const driftY = Math.cos(ts * 0.0011 + enemy.x);
+  const steer = getObstacleSteeringVector(enemy, {
     obstacles,
-    dt,
-    speed: 52,
     influenceRadius: 62,
-    steerStrength: 1.1,
   });
+  moveEnemyWithIntent(enemy, driftX + steer.x * 1.1, driftY + steer.y * 1.1, 52, dt);
   clampEnemyToArena(enemy, width, height, margin);
   return {
     shouldDrainCharge: Math.hypot(enemy.x - player.x, enemy.y - player.y) < 72,
@@ -201,27 +255,28 @@ function stepRusherEnemy(enemy, {
     const nx = dx / distance;
     const ny = dy / distance;
     const hasLos = hasLineOfSightToPlayer(enemy, player, obstacles);
+    const steer = getObstacleSteeringVector(enemy, {
+      obstacles,
+      influenceRadius: 64,
+    });
     if(hasLos) {
       enemy.losBlockedMs = 0;
-      enemy.x += nx * enemy.spd * dt;
-      enemy.y += ny * enemy.spd * dt;
+      moveEnemyWithIntent(enemy, nx + steer.x * 0.45, ny + steer.y * 0.45, enemy.spd, dt);
     } else {
       enemy.losBlockedMs = (enemy.losBlockedMs || 0) + dt * 1000;
-      const flankBoost = enemy.losBlockedMs > 650 ? 1.45 : 1.0;
-      const strafeDir = (Math.sin(ts * 0.0009 + enemy.eid * 1.7) > 0) ? 1 : -1;
+      const pathFrac = clamp01((enemy.losBlockedMs || 0) / 900);
+      const strafeDir = pickFlankSide(enemy, player, obstacles, ts, 'rusherPath');
       const tx = -ny * strafeDir;
       const ty = nx * strafeDir;
-      enemy.x += (nx * 0.95 + tx * 1.2) * flankBoost * enemy.spd * dt;
-      enemy.y += (ny * 0.95 + ty * 1.2) * flankBoost * enemy.spd * dt;
+      moveEnemyWithIntent(
+        enemy,
+        nx * (0.95 + pathFrac * 0.35) + tx * (0.7 + pathFrac * 0.65) + steer.x * 0.6,
+        ny * (0.95 + pathFrac * 0.35) + ty * (0.7 + pathFrac * 0.65) + steer.y * 0.6,
+        enemy.spd,
+        dt
+      );
     }
   }
-  applyObstacleSteering(enemy, {
-    obstacles,
-    dt,
-    speed: enemy.spd,
-    influenceRadius: 64,
-    steerStrength: 1.0,
-  });
   clampEnemyToArena(enemy, width, height, margin);
   return { distanceToPlayer: distance };
 }
@@ -260,42 +315,54 @@ function advanceRangedEnemyCombatState(enemy, {
   if(!inWindup && distance > 0) {
     const nx = dx / distance;
     const ny = dy / distance;
+    const steer = getObstacleSteeringVector(enemy, {
+      obstacles,
+      influenceRadius: 62,
+    });
     if(inFearRange) {
-      const panicStrafeDir = (Math.sin(ts * 0.001 + enemy.eid * 2.6) > 0) ? 1 : -1;
-      enemy.x -= nx * speed * 1.18 * dt;
-      enemy.y -= ny * speed * 1.18 * dt;
-      enemy.x += (-ny) * speed * (enemy.strafeSpd || 0.6) * 0.95 * panicStrafeDir * dt;
-      enemy.y += nx * speed * (enemy.strafeSpd || 0.6) * 0.95 * panicStrafeDir * dt;
+      const panicStrafeDir = getStableMovementSide(enemy, 'panic', ts, Math.sin(enemy.eid * 2.6) >= 0 ? 1 : -1, 520);
+      moveEnemyWithIntent(
+        enemy,
+        -nx * 1.05 + (-ny) * (enemy.strafeSpd || 0.6) * 0.9 * panicStrafeDir + steer.x * 0.7,
+        -ny * 1.05 + nx * (enemy.strafeSpd || 0.6) * 0.9 * panicStrafeDir + steer.y * 0.7,
+        speed,
+        dt
+      );
     } else if(!hasLos) {
       enemy.losBlockedMs = (enemy.losBlockedMs || 0) + dt * 1000;
-      const flankBoost = enemy.losBlockedMs > 700 ? 1.35 : 1;
-      const strafeDir = (Math.sin(ts * 0.0008 + enemy.eid * 1.3) > 0) ? 1 : -1;
-      enemy.x += (-ny) * speed * (enemy.strafeSpd || 0.6) * 1.45 * flankBoost * strafeDir * dt;
-      enemy.y += nx * speed * (enemy.strafeSpd || 0.6) * 1.45 * flankBoost * strafeDir * dt;
-      enemy.x += nx * speed * 0.48 * flankBoost * dt;
-      enemy.y += ny * speed * 0.48 * flankBoost * dt;
+      const pathFrac = clamp01((enemy.losBlockedMs || 0) / 950);
+      const strafeDir = pickFlankSide(enemy, player, obstacles, ts, 'rangedPath');
+      moveEnemyWithIntent(
+        enemy,
+        (-ny) * (0.7 + pathFrac * 0.85) * (enemy.strafeSpd || 0.6) * strafeDir + nx * (0.45 + pathFrac * 0.35) + steer.x * 0.7,
+        nx * (0.7 + pathFrac * 0.85) * (enemy.strafeSpd || 0.6) * strafeDir + ny * (0.45 + pathFrac * 0.35) + steer.y * 0.7,
+        speed,
+        dt
+      );
     } else if(distance < fleeRange) {
       enemy.losBlockedMs = 0;
-      const strafeDir = (Math.sin(ts * 0.0008 + enemy.eid * 1.3) > 0) ? 1 : -1;
-      enemy.x -= nx * speed * dt + (-ny) * speed * (enemy.strafeSpd || 0.6) * strafeDir * dt;
-      enemy.y -= ny * speed * dt + nx * speed * (enemy.strafeSpd || 0.6) * strafeDir * dt;
+      const strafeDir = getStableMovementSide(enemy, 'kite', ts, Math.sin(enemy.eid * 1.3) >= 0 ? 1 : -1, 650);
+      moveEnemyWithIntent(
+        enemy,
+        -nx + (-ny) * (enemy.strafeSpd || 0.6) * strafeDir + steer.x * 0.55,
+        -ny + nx * (enemy.strafeSpd || 0.6) * strafeDir + steer.y * 0.55,
+        speed,
+        dt
+      );
     } else if(distance > fleeRange * 1.6) {
       enemy.losBlockedMs = 0;
-      enemy.x += nx * speed * 0.25 * dt;
-      enemy.y += ny * speed * 0.25 * dt;
+      moveEnemyWithIntent(enemy, nx + steer.x * 0.35, ny + steer.y * 0.35, speed * 0.25, dt);
     } else {
       enemy.losBlockedMs = 0;
-      const strafeDir = (Math.sin(ts * 0.0007 + enemy.eid * 2.1) > 0) ? 1 : -1;
-      enemy.x += (-ny) * speed * (enemy.strafeSpd || 0.6) * strafeDir * dt;
-      enemy.y += nx * speed * (enemy.strafeSpd || 0.6) * strafeDir * dt;
+      const strafeDir = getStableMovementSide(enemy, 'orbit', ts, Math.sin(enemy.eid * 2.1) >= 0 ? 1 : -1, 700);
+      moveEnemyWithIntent(
+        enemy,
+        (-ny) * (enemy.strafeSpd || 0.6) * strafeDir + steer.x * 0.5,
+        nx * (enemy.strafeSpd || 0.6) * strafeDir + steer.y * 0.5,
+        speed,
+        dt
+      );
     }
-    applyObstacleSteering(enemy, {
-      obstacles,
-      dt,
-      speed,
-      influenceRadius: 62,
-      steerStrength: 0.95,
-    });
     clampEnemyToArena(enemy, width, height, margin);
   }
 

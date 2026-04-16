@@ -1,5 +1,19 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.74',
+    label: 'PATHING + UX HOTFIX',
+    summary: [
+      'Enemy wall movement has been normalized and stabilized, gravity well now behaves like a temporary field slow instead of a permanent projectile shred, and several UI/UX edge cases were cleaned up.'
+    ],
+    highlights: [
+      'Blocked enemies now move from a single normalized intent vector instead of stacking chase, strafe, and obstacle pushes into accidental speed boosts.',
+      'Wall pathing now holds a side decision briefly so enemies route more smoothly toward line-of-sight or melee contact around center cover.',
+      'Gravity well now slows danger bullets only while they remain in range, then smoothly restores them toward their original speed after they leave the field.',
+      'Hardened iOS gesture guards against remaining loupe/selection edge cases by clearing stray selections and suppressing non-input touch-move gestures.',
+      'Removed duplicate Gravity Well and Blood Moon entries from active boon lists.'
+    ]
+  },
+  {
     version: '1.16.73',
     label: 'HOMING SPEED HOTFIX',
     summary: [

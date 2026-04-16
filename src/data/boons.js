@@ -476,7 +476,6 @@ function getActiveBoonEntries(upg) {
   if(upg.resonantAbsorb) entries.push({icon: upg.surgeHarvest?'≋+':'≋', name: upg.surgeHarvest?'Surge Harvest':'Resonant Absorb', detail:'Quick combos give bonus charge'});
   if(upg.chainMagnetTier>0) entries.push({icon:'⤥',name:'Chain Magnet',detail:`${(700+350*(upg.chainMagnetTier-1))}ms double pull`});
   if(upg.overchargeVent) entries.push({icon:'⬆',name:'Overcharge Vent',detail:'+60% dmg at full charge'});
-  if(upg.gravityWell) entries.push({icon:'⊙',name:'Gravity Well',detail:'Slows nearby danger bullets 40%'});
   if(upg.sliver) entries.push({icon:'◌',name:'Sliver',detail:'Low HP speed+size boost'});
   if(upg.vampiric) entries.push({icon:'🩸',name:'Vampiric Return',detail:'+4 HP and +0.25 charge per kill'});
   if(upg.predatorInstinct) entries.push({icon:'🐺',name:'Predator\'s Instinct',detail:`Kill streak: +${Math.round((upg.predatorKillStreak||0)*25)}% damage (max +125%)`});
@@ -492,7 +491,6 @@ function getActiveBoonEntries(upg) {
   if(upg.corona) entries.push({icon:'☀️',name:'CORONA',detail:'Ring pierce +1, kills refund charge'});
   if(upg.finalForm) entries.push({icon:'💀',name:'FINAL FORM',detail:'Dead Man ≤15% HP ×2.5, kill→charge'});
   if(upg.colossus) entries.push({icon:'⬡',name:'COLOSSUS',detail:'Hit→shockwave, halved titan slow'});
-  if(upg.bloodMoon) entries.push({icon:'🩸',name:'BLOOD MOON',detail:'Kills: +8 HP, +3 grey bullets'});
   if(upg.volatileOrbs) entries.push({icon:'💥',name:'Volatile Orbs',detail:'Orb detonation has shared cooldown'});
   if(upg.bloodRush) entries.push({icon:'🩸→',name:'Blood Rush',detail:`+${upg.bloodRushStacks||0} stacks (${((upg.bloodRushStacks||0)*10)}% speed)`});
   if(upg.crimsonHarvest) entries.push({icon:'🩸+',name:'Crimson Harvest',detail:'Kills drop extra grey bullet'});
@@ -508,15 +506,14 @@ function getActiveBoonEntries(upg) {
   if(upg.payloadRadiusTier > 0) entries.push({icon:'💣+',name:'Payload Bloom',detail:`Tier ${upg.payloadRadiusTier} — ${Math.round(getPayloadBlastRadius(upg))}px blast`});
   if(upg.shockwave) entries.push({icon:'⚡',name:'Shockwave',detail:'Full charge → push enemies'});
 
-  if(upg.gravityWell2) entries.push({icon:'⊙+',name:'Gravity Well II',detail:'Slows bullets & enemies'});
-  else if(upg.gravityWell) entries.push({icon:'⊙',name:'Gravity Well',detail:'Slows nearby danger bullets'});
+  if(upg.gravityWell2) entries.push({icon:'⊙+',name:'Gravity Well II',detail:'Field-slow bullets, also slows nearby enemies'});
+  else if(upg.gravityWell) entries.push({icon:'⊙',name:'Gravity Well',detail:'Field-slows nearby danger bullets'});
   if(upg.refraction) entries.push({icon:'💡',name:'Refraction',detail:`Cooldown: ${Math.max(0, (upg.refractionCooldown||0)/1000).toFixed(1)}s`});
   if(upg.mirrorTide) entries.push({icon:'🪞',name:'Mirror Tide',detail:`${Math.max(0, (upg.mirrorTideRoomLimit||0) - (upg.mirrorTideRoomUses||0))}/${upg.mirrorTideRoomLimit||0} room uses, ${Math.max(0, (upg.mirrorTideCooldown||0)/1000).toFixed(1)}s cd`});
   if(upg.phaseDash) entries.push({icon:'💨',name:'Phase Dash',detail:`5% damage, ${Math.max(0, (upg.phaseDashRoomLimit||0) - (upg.phaseDashRoomUses||0))}/${upg.phaseDashRoomLimit||0} uses, ${Math.max(0, (upg.phaseDashCooldown||0)/1000).toFixed(1)}s cd`});
   if(upg.overload) entries.push({icon:'⚡',name:'Overload',detail:'Full charge primes a big shot'});
   if(upg.empBurst) entries.push({icon:'💥',name:'EMP Burst',detail:upg.empBurstUsed?'SPENT':'Ready ≤30% HP'});
   if(upg.voidWalker) entries.push({icon:'🌊',name:'VOID WALKER',detail:'Dashing creates void zone'});
-  if(upg.bloodMoon) entries.push({icon:'🩸',name:'BLOOD MOON',detail:'Kills: +8 HP, +3 grey bullets'});
   if(upg.chargedOrbs) entries.push({icon:'⚡',name:'Charged Orbs',detail:`Orbs fire shot every ${(CHARGED_ORB_FIRE_INTERVAL_MS / 1000).toFixed(1)}s`});
   if(upg.absorbOrbs) entries.push({icon:'🌀',name:'Absorb Orbs',detail:'Orbs absorb nearby grey bullets'});
   if(upg.orbTwin) entries.push({icon:'⚡≫',name:'Orb Twin',detail:'Charged Orbs fire a 2-shot fork'});
