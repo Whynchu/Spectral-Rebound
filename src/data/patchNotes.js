@@ -1,5 +1,17 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.73',
+    label: 'HOMING SPEED HOTFIX',
+    summary: [
+      'Fixed a projectile-speed mismatch where homing output bullets could lose Faster Bullets and Snipe-derived speed while tracking targets.'
+    ],
+    highlights: [
+      'Homing speed clamp now uses the same launch-speed basis as fired player shots.',
+      'The clamp now includes global speed lift, Faster Bullets scaling, and Snipe speed scaling.',
+      'This should remove the false impression that higher Pierce tiers are disabling Faster Bullets on surviving shots.'
+    ]
+  },
+  {
     version: '1.16.72',
     label: 'RANGED FIRE HOTFIX',
     summary: [

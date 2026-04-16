@@ -2190,7 +2190,8 @@ function update(dt,ts){
         const dx=tgt.e.x-b.x,dy=tgt.e.y-b.y,d=Math.hypot(dx,dy);
         b.vx+=(dx/d)*400*dt; b.vy+=(dy/d)*400*dt;
         const sp=Math.hypot(b.vx,b.vy);
-        const maxSp=230*Math.min(2.0,UPG.shotSpd)*1.2;
+        // Match the launch-speed basis so homing cannot silently nerf Faster Bullets/Snipe scaling.
+        const maxSp=230*GLOBAL_SPEED_LIFT*Math.min(2.0,UPG.shotSpd)*(1+UPG.snipePower*0.18)*1.2;
         if(sp>maxSp){b.vx=b.vx/sp*maxSp;b.vy=b.vy/sp*maxSp;}
       }
     }
