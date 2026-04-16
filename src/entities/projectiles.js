@@ -59,6 +59,7 @@ function spawnAimedEnemyBullet({
   player,
   x,
   y,
+  angleOverride = null,
   spread = 0.22,
   speedBase = 145,
   speedRoll = 40,
@@ -68,7 +69,8 @@ function spawnAimedEnemyBullet({
   onSpawn = () => {},
   random = Math.random,
 }) {
-  const angle = Math.atan2(player.y - y, player.x - x) + (random() - 0.5) * spread;
+  const baseAngle = angleOverride === null ? Math.atan2(player.y - y, player.x - x) : angleOverride;
+  const angle = baseAngle + (random() - 0.5) * spread;
   const speed = (speedBase + random() * speedRoll) * bulletSpeedScale();
   spawnEnemyBullet({
     bullets,

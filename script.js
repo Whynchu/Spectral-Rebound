@@ -977,12 +977,13 @@ function getDoubleBounceBulletPalette() {
   });
 }
 
-function spawnEB(ex,ey) {
+function spawnEB(ex,ey, angleOverride = null) {
   spawnAimedEnemyBullet({
     bullets,
     player,
     x: ex,
     y: ey,
+    angleOverride,
     bulletSpeedScale,
     onSpawn: recordDangerBulletSpawn,
   });
@@ -1007,12 +1008,13 @@ function spawnEliteZB(ex, ey, idx, total, stageOverride) {
   spawnEliteBullet(ex, ey, a, spd, stage);
 }
 
-function spawnDBB(ex,ey) {
+function spawnDBB(ex,ey, angleOverride = null) {
   spawnAimedEnemyBullet({
     bullets,
     player,
     x: ex,
     y: ey,
+    angleOverride,
     bulletSpeedScale,
     extras: { doubleBounce: true, bounceCount: 0 },
     onSpawn: recordDangerBulletSpawn,
@@ -1926,15 +1928,16 @@ function update(dt,ts){
           fireEnemyBurst(e, {
             player,
             bulletSpeedScale,
+            obstacles: roomObstacles,
             random: Math.random,
             canEnemyUsePurpleShots: (enemy) => canEnemyUsePurpleShots(enemy, roomIndex),
             spawnZoner: (idx, total) => spawnZB(e.x, e.y, idx, total),
             spawnEliteZoner: (idx, total, stage) => spawnEliteZB(e.x, e.y, idx, total, stage),
-            spawnDoubleBounce: () => spawnDBB(e.x, e.y),
+            spawnDoubleBounce: (angle) => spawnDBB(e.x, e.y, angle),
             spawnTriangle: () => spawnTB(e.x, e.y),
             spawnEliteTriangle: () => spawnEliteTriangleBullet(e.x, e.y),
             spawnEliteBullet: (angle, speed, stage) => spawnEliteBullet(e.x, e.y, angle, speed, stage),
-            spawnEnemyBullet: () => spawnEB(e.x, e.y),
+            spawnEnemyBullet: (angle) => spawnEB(e.x, e.y, angle),
           });
         }
       }

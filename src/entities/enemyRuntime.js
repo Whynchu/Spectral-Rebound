@@ -70,6 +70,41 @@ function applyObstacleSteering(enemy, {
   enemy.y += (pushY / pushLen) * steerSpeed;
 }
 
+function hasClearShotLane(enemy, player, angle, obstacles = [], shotRadius = 5) {
+  if(!obstacles.length) return true;
+  const distance = Math.max(24, Math.hypot(player.x - enemy.x, player.y - enemy.y));
+  const endX = enemy.x + Math.cos(angle) * distance;
+  const endY = enemy.y + Math.sin(angle) * distance;
+  for(const obstacle of obstacles) {
+    if(segmentIntersectsExpandedRect(enemy.x, enemy.y, endX, endY, obstacle, shotRadius + 2)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function chooseClearShotAngle(enemy, player, {
+  obstacles = [],
+  baseSpread = 0.22,
+  shotRadius = 5,
+} = {}) {
+  const base = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+  const offsets = [
+    0,
+    -baseSpread * 0.6, baseSpread * 0.6,
+    -baseSpread * 1.2, baseSpread * 1.2,
+    -baseSpread * 2.0, baseSpread * 2.0,
+    -baseSpread * 3.0, baseSpread * 3.0,
+  ];
+  for(const offset of offsets) {
+    const candidate = base + offset;
+    if(hasClearShotLane(enemy, player, candidate, obstacles, shotRadius)) {
+      return candidate;
+    }
+  }
+  return base;
+}
+
 function resolveEnemySeparation(enemies, {
   width,
   height,
@@ -229,19 +264,24 @@ function advanceRangedEnemyCombatState(enemy, {
       enemy.x += (-ny) * speed * (enemy.strafeSpd || 0.6) * 0.95 * panicStrafeDir * dt;
       enemy.y += nx * speed * (enemy.strafeSpd || 0.6) * 0.95 * panicStrafeDir * dt;
     } else if(!hasLos) {
+      enemy.losBlockedMs = (enemy.losBlockedMs || 0) + dt * 1000;
+      const flankBoost = enemy.losBlockedMs > 700 ? 1.35 : 1;
       const strafeDir = (Math.sin(ts * 0.0008 + enemy.eid * 1.3) > 0) ? 1 : -1;
-      enemy.x += (-ny) * speed * (enemy.strafeSpd || 0.6) * 1.35 * strafeDir * dt;
-      enemy.y += nx * speed * (enemy.strafeSpd || 0.6) * 1.35 * strafeDir * dt;
-      enemy.x += nx * speed * 0.22 * dt;
-      enemy.y += ny * speed * 0.22 * dt;
+      enemy.x += (-ny) * speed * (enemy.strafeSpd || 0.6) * 1.45 * flankBoost * strafeDir * dt;
+      enemy.y += nx * speed * (enemy.strafeSpd || 0.6) * 1.45 * flankBoost * strafeDir * dt;
+      enemy.x += nx * speed * 0.48 * flankBoost * dt;
+      enemy.y += ny * speed * 0.48 * flankBoost * dt;
     } else if(distance < fleeRange) {
+      enemy.losBlockedMs = 0;
       const strafeDir = (Math.sin(ts * 0.0008 + enemy.eid * 1.3) > 0) ? 1 : -1;
       enemy.x -= nx * speed * dt + (-ny) * speed * (enemy.strafeSpd || 0.6) * strafeDir * dt;
       enemy.y -= ny * speed * dt + nx * speed * (enemy.strafeSpd || 0.6) * strafeDir * dt;
     } else if(distance > fleeRange * 1.6) {
+      enemy.losBlockedMs = 0;
       enemy.x += nx * speed * 0.25 * dt;
       enemy.y += ny * speed * 0.25 * dt;
     } else {
+      enemy.losBlockedMs = 0;
       const strafeDir = (Math.sin(ts * 0.0007 + enemy.eid * 2.1) > 0) ? 1 : -1;
       enemy.x += (-ny) * speed * (enemy.strafeSpd || 0.6) * strafeDir * dt;
       enemy.y += nx * speed * (enemy.strafeSpd || 0.6) * strafeDir * dt;
@@ -349,6 +389,7 @@ function applyDisruptorPostFire(enemy) {
 function fireEnemyBurst(enemy, {
   player,
   bulletSpeedScale,
+  obstacles = [],
   random = Math.random,
   canEnemyUsePurpleShots = () => false,
   spawnZoner,
@@ -384,13 +425,28 @@ function fireEnemyBurst(enemy, {
   const canShootPurple = canEnemyUsePurpleShots(enemy);
   for(let i = 0; i < enemy.burst; i++) {
     if(enemy.isElite) {
-      const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x) + (random() - 0.5) * 0.6;
+      const angleBase = chooseClearShotAngle(enemy, player, {
+        obstacles,
+        baseSpread: 0.6,
+        shotRadius: 5,
+      });
+      const angle = angleBase + (random() - 0.5) * 0.6;
       const speed = (130 + random() * 40) * bulletSpeedScale();
       spawnEliteBullet(angle, speed, 0);
     } else if(canShootPurple) {
-      spawnDoubleBounce();
+      const angle = chooseClearShotAngle(enemy, player, {
+        obstacles,
+        baseSpread: 0.22,
+        shotRadius: 4.5,
+      });
+      spawnDoubleBounce(angle);
     } else {
-      spawnEnemyBullet();
+      const angle = chooseClearShotAngle(enemy, player, {
+        obstacles,
+        baseSpread: 0.22,
+        shotRadius: 4.5,
+      });
+      spawnEnemyBullet(angle);
     }
   }
   applyDisruptorPostFire(enemy);
