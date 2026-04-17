@@ -66,7 +66,7 @@ import {
 } from './src/platform/leaderboardController.js';
 import { showBoonSelection } from './src/ui/boonSelection.js';
 import { renderVersionTag } from './src/ui/versionTag.js';
-import { PLAYER_COLORS, getPlayerColor, getPlayerColorScheme, getThreatPalette, setPlayerColor } from './src/data/colorScheme.js';
+import { PLAYER_COLORS, getPlayerColor, getPlayerColorScheme, getThreatPalette, setPlayerColor, getColorAssistMode, getColorAssistOptions, setColorAssistMode, getColorSchemeForKey } from './src/data/colorScheme.js';
 import { PATCH_NOTES, PATCH_NOTES_ARCHIVE_MESSAGE } from './src/data/patchNotes.js';
 import { renderColorSelector } from './src/ui/colorSelector.js';
 import { formatRunTime, renderHud } from './src/ui/hud.js';
@@ -156,6 +156,9 @@ import {
 } from './src/core/roomRuntime.js';
 
 const PLAYER_COLOR_KEY = 'phantom-player-color';
+const COLOR_ASSIST_KEY = 'phantom-color-assist';
+const storedColorAssist = readText(COLOR_ASSIST_KEY, 'off');
+setColorAssistMode(storedColorAssist);
 const storedPlayerColor = readText(PLAYER_COLOR_KEY, 'green');
 setPlayerColor(PLAYER_COLORS[storedPlayerColor] ? storedPlayerColor : 'green');
 renderVersionTag(VERSION);
@@ -175,10 +178,22 @@ function syncColorDrivenCopy() {
   syncColorDrivenCopyView(startDangerCopy, getThreatPalette().dangerKey);
 }
 
+function refreshThemeBoundUi() {
+  renderColorSelector('color-picker');
+  syncColorDrivenCopy();
+  renderSettingsPanel();
+  renderLeaderboard();
+}
+
 window.addEventListener('phantom:player-color-change', (event) => {
   const colorKey = event.detail?.key || getPlayerColor();
   writeText(PLAYER_COLOR_KEY, colorKey);
-  syncColorDrivenCopy(event.detail?.scheme || getPlayerColorScheme());
+  refreshThemeBoundUi();
+});
+
+window.addEventListener('phantom:color-assist-change', (event) => {
+  writeText(COLOR_ASSIST_KEY, event.detail?.assistMode || getColorAssistMode());
+  refreshThemeBoundUi();
 });
 
 const cv  = document.getElementById('cv');
@@ -203,10 +218,16 @@ const patchNotesBtn = document.getElementById('btn-patch-notes');
 const versionOpenBtn = document.getElementById('btn-version-open');
 const patchNotesPanel = document.getElementById('patch-notes-panel');
 const versionPanel = document.getElementById('version-panel');
+const settingsOpenBtn = document.getElementById('btn-settings-open');
+const settingsPanel = document.getElementById('settings-panel');
 const patchNotesCurrent = document.getElementById('patch-notes-current');
 const patchNotesList = document.getElementById('patch-notes-list');
 const patchNotesArchiveNote = document.getElementById('patch-notes-archive-note');
 const patchNotesCloseBtn = document.getElementById('btn-patch-notes-close');
+const settingsCloseBtn = document.getElementById('btn-settings-close');
+const settingsColorAssistButtons = document.getElementById('settings-color-assist-buttons');
+const settingsPreviewCopy = document.getElementById('settings-preview-copy');
+const settingsPreviewGrid = document.getElementById('settings-preview-grid');
 const versionCurrentEl = document.getElementById('version-current');
 const versionLatestEl = document.getElementById('version-latest');
 const versionStatusEl = document.getElementById('version-status');
@@ -329,17 +350,99 @@ function renderPatchNotes() {
   });
 }
 
+function buildResolvedPlayerColorMap() {
+  return Object.fromEntries(Object.keys(PLAYER_COLORS).map((key) => [key, getColorSchemeForKey(key)]));
+}
+
+function renderSettingsPanel() {
+  if(!settingsColorAssistButtons || !settingsPreviewGrid || !settingsPreviewCopy) return;
+  const activeMode = getColorAssistMode();
+  const assistOptions = getColorAssistOptions();
+  settingsColorAssistButtons.innerHTML = '';
+  for(const option of assistOptions) {
+    const button = document.createElement('button');
+    button.className = `btn lb-toggle settings-mode-btn${option.key === activeMode ? ' active' : ''}`;
+    button.type = 'button';
+    button.textContent = option.shortLabel;
+    button.title = option.description;
+    button.setAttribute('aria-pressed', option.key === activeMode ? 'true' : 'false');
+    button.addEventListener('click', () => setColorAssistMode(option.key));
+    settingsColorAssistButtons.appendChild(button);
+  }
+
+  const playerScheme = getPlayerColorScheme();
+  const threat = getThreatPalette();
+  const activeLabel = assistOptions.find((option) => option.key === activeMode)?.name || 'Off';
+  settingsPreviewCopy.textContent = activeMode === 'off'
+    ? `Previewing the default palette for ${playerScheme.name}.`
+    : `${activeLabel} is active. Previewing the adjusted live palette for ${playerScheme.name}.`;
+
+  const previewEntries = [
+    { label: 'Player', note: 'Your ghost and UI accent', color: playerScheme.hex, glow: playerScheme.light, kind: 'player' },
+    { label: 'Buster', note: 'Base ranged threat', color: threat.danger.hex, glow: threat.danger.light, kind: 'enemy' },
+    { label: 'Chaser', note: 'Aggressive melee lane', color: threat.aggressive.hex, glow: threat.aggressive.light, kind: 'aggressive' },
+    { label: 'Phase Buster', note: 'Advanced wall-shot lane', color: threat.advanced.hex, glow: threat.advanced.light, kind: 'phase' },
+    { label: 'Omega', note: 'Elite late-room threat', color: threat.elite.hex, glow: threat.elite.light, kind: 'elite' },
+    { label: 'Danger Shot', note: 'Hostile bullet color', color: threat.danger.hex, glow: threat.danger.light, kind: 'bullet' },
+  ];
+
+  settingsPreviewGrid.innerHTML = '';
+  for(const entry of previewEntries) {
+    const card = document.createElement('div');
+    card.className = 'settings-preview-card';
+
+    const swatch = document.createElement('div');
+    swatch.className = `settings-preview-swatch ${entry.kind}`;
+    swatch.style.background = entry.color;
+    swatch.style.boxShadow = `0 0 18px ${entry.glow}66`;
+
+    const meta = document.createElement('div');
+    meta.className = 'settings-preview-meta';
+
+    const label = document.createElement('div');
+    label.className = 'settings-preview-label';
+    label.textContent = entry.label;
+
+    const note = document.createElement('div');
+    note.className = 'settings-preview-note';
+    note.textContent = entry.note;
+
+    meta.appendChild(label);
+    meta.appendChild(note);
+    card.appendChild(swatch);
+    card.appendChild(meta);
+    settingsPreviewGrid.appendChild(card);
+  }
+}
+
 function setPatchNotesOpen(isOpen) {
-  if(isOpen) setVersionPanelOpen(false);
+  if(isOpen) {
+    setVersionPanelOpen(false);
+    setSettingsPanelOpen(false);
+  }
   setPatchNotesVisibility(patchNotesPanel, isOpen);
 }
 
 function setVersionPanelOpen(isOpen) {
   if(!versionPanel) return;
-  if(isOpen) setPatchNotesOpen(false);
+  if(isOpen) {
+    setPatchNotesOpen(false);
+    setSettingsPanelOpen(false);
+  }
   versionPanel.classList.toggle('off', !isOpen);
   versionPanel.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
   if(isOpen) refreshVersionStatus();
+}
+
+function setSettingsPanelOpen(isOpen) {
+  if(!settingsPanel) return;
+  if(isOpen) {
+    setPatchNotesOpen(false);
+    setVersionPanelOpen(false);
+    renderSettingsPanel();
+  }
+  settingsPanel.classList.toggle('off', !isOpen);
+  settingsPanel.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
 }
 
 function setVersionStatusClass(element, mode) {
@@ -1540,7 +1643,7 @@ function renderLeaderboard() {
     useRemoteLeaderboardRows: lbSync.useRemoteRows,
     remoteLeaderboardRows: lbSync.remoteRows,
     leaderboard,
-    playerColors: PLAYER_COLORS,
+    playerColors: buildResolvedPlayerColorMap(),
     formatRunTime,
     onOpenBoons: showLbBoonsPopup,
     lbPeriodBtns,
@@ -3296,6 +3399,14 @@ bindPatchNotesControls({
   onOpenChange: setVersionPanelOpen,
   doc: document,
 });
+
+bindPatchNotesControls({
+  button: settingsOpenBtn,
+  closeButton: settingsCloseBtn,
+  panelEl: settingsPanel,
+  onOpenChange: setSettingsPanelOpen,
+  doc: document,
+});
 versionRefreshBtn?.addEventListener('click', () => {
   refreshVersionStatus();
 });
@@ -3347,6 +3458,7 @@ bindNameInputs({
 
 // Initialize color picker on start screen
 renderColorSelector('color-picker');
+renderSettingsPanel();
 syncColorDrivenCopy();
 
 bindSessionFlow({

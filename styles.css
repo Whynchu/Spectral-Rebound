@@ -115,8 +115,122 @@ body.compact-viewport #wrap {
   gap: 10px;
   padding: 18px 18px 16px;
 }
+#settings-panel {
+  z-index: 15;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 18px 18px 16px;
+}
 .patch-notes-title {
   font-size: 34px;
+}
+.settings-title {
+  font-size: 30px;
+}
+.settings-copy,
+.settings-preview-copy {
+  width: 100%;
+  max-width: 100%;
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--muted);
+  text-align: center;
+}
+.settings-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.settings-section-head {
+  width: 100%;
+  font-size: 9px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--dim);
+  text-align: left;
+}
+.settings-mode-grid {
+  width: 100%;
+  grid-template-columns: 1fr 1fr;
+}
+.settings-preview-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.settings-preview-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 11px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  text-align: left;
+}
+.settings-preview-swatch {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+}
+.settings-preview-swatch.player,
+.settings-preview-swatch.enemy,
+.settings-preview-swatch.phase,
+.settings-preview-swatch.elite {
+  border-radius: 999px;
+}
+.settings-preview-swatch.aggressive {
+  border-radius: 8px;
+  transform: rotate(45deg);
+}
+.settings-preview-swatch.triangle {
+  border-radius: 0;
+  clip-path: polygon(50% 6%, 8% 92%, 92% 92%);
+}
+.settings-preview-swatch.bullet {
+  width: 16px;
+  height: 16px;
+  margin: 0 7px;
+  border-radius: 999px;
+}
+.settings-preview-swatch::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: inherit;
+  background: rgba(255,255,255,0.18);
+  opacity: 0.65;
+}
+.settings-preview-swatch.triangle::after {
+  inset: 7px;
+}
+.settings-preview-swatch.aggressive::after {
+  inset: 7px;
+}
+.settings-preview-swatch.bullet::after {
+  inset: 3px;
+}
+.settings-preview-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.settings-preview-label {
+  font-family: 'Syne', sans-serif;
+  font-size: 12px;
+  line-height: 1.1;
+  color: #fff;
+}
+.settings-preview-note {
+  font-size: 8px;
+  line-height: 1.35;
+  color: var(--dim);
 }
 .patch-notes-current {
   max-width: 100%;
@@ -436,6 +550,21 @@ body.keyboard-open .screen {
   padding:10px 22px;
   font-size:10px;
   letter-spacing:.15em;
+}
+.btn-settings-open {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  line-height: 1;
+  z-index: 2;
 }
 .btn-mini { padding:10px 14px; font-size:9px; letter-spacing:.14em; }
 /* UPGRADE SCREEN — horizontal 3 cards */

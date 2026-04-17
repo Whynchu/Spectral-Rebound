@@ -1,5 +1,19 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.76',
+    label: 'COLOR ASSIST SETTINGS',
+    summary: [
+      'Added a first-pass accessibility settings panel with standard color assist modes that remap the live gameplay palette instead of applying a screen filter.'
+    ],
+    highlights: [
+      'Main menu now includes a dedicated settings button that opens a menu overlay for accessibility controls.',
+      'Added standard color assist presets for Protanopia, Deuteranopia, and Tritanopia, plus Off.',
+      'Color assist now flows through the shared gameplay palette so player theme, enemy tiers, hostile bullets, and UI accents stay in sync.',
+      'Added a live comparison preview in settings for the player, core enemy families, elite threat color, and danger-shot color.',
+      'Documented the broader accessibility follow-up roadmap for contrast, non-color identity cues, and QA.'
+    ]
+  },
+  {
     version: '1.16.75',
     label: 'LATE ROOM TUNING',
     summary: [
