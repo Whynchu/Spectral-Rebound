@@ -8,7 +8,7 @@ const ENEMY_TYPES = {
   rusher:         {label:'Chaser',           colorRole:'aggressive',   r:13,hp:4, spd:66, fRate:9999,burst:0,spread:0,  pts:70,  isRusher:true, spawnValue:3, unlockRoom:2, ammoPressure:0},
   siphon:         {colorRole:'siphon',       r:13,hp:3, spd:28, fRate:9999,burst:0,spread:0,  pts:120, isSiphon:true, spawnValue:4, unlockRoom:6, ammoPressure:0},
   disruptor:      {colorRole:'dangerDark',   r:11,hp:4, spd:46, fRate:750, burst:1,spread:.9, pts:60,  flee:true,  fleeRange:100, strafeSpd:0.7, doubleBounce:false, spawnValue:5, unlockRoom:7, ammoPressure:1},
-  zoner:          {colorRole:'dangerDark',   r:15,hp:5, spd:24, fRate:2200,burst:8,spread:6.28,pts:80, flee:true,  fleeRange:130, strafeSpd:0.5, doubleBounce:false, spawnValue:8, unlockRoom:4, ammoPressure:8},
+  zoner:          {colorRole:'dangerDark',   r:15,hp:5, spd:24, fRate:2200,burst:8,spread:6.28,pts:80, flee:true,  fleeRange:130, strafeSpd:0.5, doubleBounce:false, spawnValue:6, unlockRoom:4, ammoPressure:8},
   purple_chaser:  {label:'Phase Buster',     colorRole:'advanced',     r:12,hp:4, spd:55, fRate:1800,burst:1,spread:.22,pts:75,  flee:true, fleeRange:110, strafeSpd:0.6, doubleBounce:true, forcePurpleShots:true, spawnValue:6, unlockRoom:9, ammoPressure:2},
   purple_disruptor:{colorRole:'advancedDark',r:11,hp:5, spd:46, fRate:780, burst:1,spread:.9, pts:95,  flee:true, fleeRange:100, strafeSpd:0.7, doubleBounce:true, forcePurpleShots:true, spawnValue:9, unlockRoom:11, ammoPressure:2},
   purple_zoner:   {colorRole:'advancedDark', r:15,hp:6, spd:24, fRate:2200,burst:8,spread:6.28,pts:120, flee:true, fleeRange:130, strafeSpd:0.5, doubleBounce:true, forcePurpleShots:true, spawnValue:10, unlockRoom:21, ammoPressure:4},

@@ -18,6 +18,20 @@ function createRunTelemetry({
   };
 }
 
+function cloneWaveEntries(waves = []) {
+  return waves.map((wave) => wave.map((entry) => ({
+    t: entry.t,
+    n: entry.n,
+    d: entry.d || 0,
+    ...(entry.isBoss ? { isBoss: true } : {}),
+    ...(entry.bossScale && entry.bossScale !== 1 ? { bossScale: entry.bossScale } : {}),
+  })));
+}
+
+function summarizeWaveEntries(waves = []) {
+  return waves.map((wave) => wave.map((entry) => `${entry.t}x${entry.n}`).join(', ')).join(' | ');
+}
+
 function createRoomTelemetry({
   roomNumber,
   roomDef,
@@ -34,6 +48,9 @@ function createRoomTelemetry({
     canvasWidth,
     canvasHeight,
     hpStart,
+    layoutSource: roomDef.layoutSource || (roomDef.isBossRoom ? 'boss' : 'generated'),
+    layoutSummary: summarizeWaveEntries(roomDef.waves),
+    layout: cloneWaveEntries(roomDef.waves),
     hpEnd: hpStart,
     hpLost: 0,
     hitsTaken: 0,

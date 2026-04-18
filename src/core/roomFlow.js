@@ -52,6 +52,7 @@ function getRoomDef(idx, { roomNames, bossRooms, generateWeightedWave }) {
       name: roomNumber === 100 ? 'DOUBLE EXECUTION' : bossConfig.name,
       chaos: bossConfig.chaos,
       waves: [wave],
+      layoutSource: 'boss',
       isBossRoom: true,
       bossType: bossConfig.bossType,
       escortType: bossConfig.escortType,
@@ -66,7 +67,12 @@ function getRoomDef(idx, { roomNames, bossRooms, generateWeightedWave }) {
     : EXTENDED_ROOM_NAMES[(idx - roomNames.length) % EXTENDED_ROOM_NAMES.length];
   const earlyGeneratedChaos = idx >= 12 && idx <= 14 ? 0.06 : 0;
   const chaos = Math.max(0, Math.min(0.65, idx * 0.035 - earlyGeneratedChaos));
-  return { name, chaos, waves: [generateWeightedWave(idx)] };
+  return {
+    name,
+    chaos,
+    waves: [generateWeightedWave(idx)],
+    layoutSource: 'generated',
+  };
 }
 
 function getRoomMaxOnScreen(idx, isBossRoom) {

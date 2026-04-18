@@ -777,8 +777,15 @@ function captureTelemetrySnapshot(roomNumber) {
     maxHp: roundTelemetryValue(maxHp),
     sps: roundTelemetryValue(UPG.sps || 0),
     maxCharge: roundTelemetryValue(UPG.maxCharge || 0),
+    currentCharge: roundTelemetryValue(charge || 0),
     requiredShotCount: getRequiredShotCount(UPG),
     damageMult: roundTelemetryValue((UPG.playerDamageMult || 1) * (UPG.denseDamageMult || 1)),
+    denseTier: UPG.denseTier || 0,
+    denseDamageMult: roundTelemetryValue(UPG.denseDamageMult || 1),
+    chargeCapTier: UPG.chargeCapTier || 0,
+    chargeCapMult: roundTelemetryValue(UPG.chargeCapMult || 1),
+    chargeCapFlatTier: UPG.chargeCapFlatTier || 0,
+    chargeCapFlatBonus: roundTelemetryValue(UPG.chargeCapFlatBonus || 0),
     damageReductionPct: roundTelemetryValue((1 - (UPG.damageTakenMult || 1)) * 100),
     critChancePct: roundTelemetryValue((UPG.critChance || 0) * 100),
     moveChargeRate: roundTelemetryValue(getKineticChargeRate(UPG) * (UPG.fluxState ? 2 : 1)),
@@ -802,9 +809,7 @@ function startRoomTelemetry(roomNumber, roomDef) {
     canvasHeight: cv.height,
   };
   currentRoomTelemetry = createRoomTelemetry(roomNumber, roomDef);
-  if(roomNumber === 1 || roomNumber % 10 === 0) {
-    captureTelemetrySnapshot(roomNumber);
-  }
+  captureTelemetrySnapshot(roomNumber);
 }
 
 function finalizeCurrentRoomTelemetry(endState, clearMs = roomTimer) {

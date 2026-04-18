@@ -1,5 +1,19 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.84',
+    label: 'TELEMETRY + CHARGE TUNING',
+    summary: [
+      'This balance-and-analysis pass makes generated room layouts visible in exported telemetry, lowers base Zoner room cost so it can appear in more mixed waves, gives Capacity Boost real early impact, and reworks Dense Core into a four-tier high-risk curve.'
+    ],
+    highlights: [
+      'Room telemetry now records each room layout source, a compact composition summary, and the raw wave entries chosen by generation.',
+      'Telemetry snapshots now capture charge-cap state every room, including current charge, cap boon tiers, and Dense Core state.',
+      'Base Zoner spawn budget cost was lowered so generated rooms can fit it into more compositions.',
+      'Capacity Boost now gives +16% base charge cap per pick with a minimum +2 charge floor per pick before flat reserve bonuses.',
+      'Dense Core now runs on explicit four-tier targets: x1.45 / x2.00 / x2.50 / x2.85 damage with 75% / 50% / 25% / 5% max-charge scales.'
+    ]
+  },
+  {
     version: '1.16.83',
     label: 'SCREENSHOT ICON UPDATE',
     summary: [

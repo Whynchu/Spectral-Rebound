@@ -12,9 +12,12 @@ const EXTRA_LIFE_GAINS = [40, 34, 28, 22, 18, 14];
 const ROOM_REGEN_PER_PICK = 18;
 const ROOM_REGEN_MAX = 54;
 const BASE_CHARGE_CAP = 5;
-const CHARGE_CAP_PCT = 0.12;
+const CHARGE_CAP_PCT = 0.16;
+const CHARGE_CAP_MIN_FLAT_PER_TIER = 2;
 const MAX_CHARGE_CAP_MULT = 2.0;
 const MAX_DEEP_RESERVE_BONUS = 120;
+const DENSE_CORE_DAMAGE_MULTS = [1.45, 2.0, 2.5, 2.85];
+const DENSE_CORE_CAP_SCALES = [0.75, 0.5, 0.25, 0.05];
 const CHARGED_ORB_FIRE_INTERVAL_MS = 1400;
 const ESCALATION_KILL_PCT = 0.03;
 const ESCALATION_MAX_BONUS = 0.60;
@@ -87,13 +90,12 @@ function syncChargeCapacity(upg) {
   const baseCap = BASE_CHARGE_CAP + Math.max(0, shotCount - 1);
   const capMult = upg.chargeCapMult;
   const scaledBaseCap = Math.max(baseCap, Math.round(baseCap * capMult));
-  upg.maxCharge = scaledBaseCap + upg.chargeCapFlatBonus;
-  // Dense Core reduces cap by percentage: −25% / −50% / −75%, down to minimum 1
+  const chargeCapFloor = baseCap + Math.max(0, upg.chargeCapTier || 0) * CHARGE_CAP_MIN_FLAT_PER_TIER;
+  upg.maxCharge = Math.max(scaledBaseCap, chargeCapFloor) + upg.chargeCapFlatBonus;
+  // Dense Core applies explicit total-cap scales per tier so the tradeoff is exact.
   if(upg.denseTier > 0) {
-    const reductionFactors = [0.75, 0.5, 0.25];
-    for(let i = 0; i < upg.denseTier; i++) {
-      upg.maxCharge = Math.max(1, Math.floor(upg.maxCharge * reductionFactors[i]));
-    }
+    const denseScale = DENSE_CORE_CAP_SCALES[Math.min(DENSE_CORE_CAP_SCALES.length - 1, upg.denseTier - 1)];
+    upg.maxCharge = Math.max(1, Math.floor(upg.maxCharge * denseScale));
   }
   return upg.maxCharge;
 }
@@ -228,7 +230,7 @@ const BOONS = [
   {name:'Pierce',tag:'UTILITY',icon:'→',desc:'+1 pierce per tier. Max 3.',apply(upg){upg.pierceTier=Math.min(3,upg.pierceTier+1);}},
   {name:'Quick Harvest',tag:'UTILITY',icon:'⬇',desc:'Grey absorbs grant more charge.',apply(upg){upg.absorbTier++;upg.absorbValue=1+0.40*getHyperbolicScale(upg.absorbTier);}},
   {name:'Decay Extension',tag:'UTILITY',icon:'⏳',desc:'+1s grey linger. Max +3s.',apply(upg){upg.decayBonus=Math.min(3000,upg.decayBonus+1000);}},
-  {name:'Capacity Boost',tag:'UTILITY',icon:'◆',desc:'+12% base charge cap. Max +100%.',apply(upg){if((upg.chargeCapMult||1) >= MAX_CHARGE_CAP_MULT)return; upg.chargeCapTier++;upg.chargeCapMult = Math.min(MAX_CHARGE_CAP_MULT, 1 + upg.chargeCapTier * CHARGE_CAP_PCT);syncChargeCapacity(upg);}},
+  {name:'Capacity Boost',tag:'UTILITY',icon:'◆',desc:'+16% base charge cap and at least +2 charge per pick. Max +100%.',apply(upg){if((upg.chargeCapMult||1) >= MAX_CHARGE_CAP_MULT)return; upg.chargeCapTier++;upg.chargeCapMult = Math.min(MAX_CHARGE_CAP_MULT, 1 + upg.chargeCapTier * CHARGE_CAP_PCT);syncChargeCapacity(upg);}},
   {name:'Deep Reserve',tag:'UTILITY',icon:'▣',desc:'+flat charge. Starts at +16, caps at +120.',apply(upg){if((upg.chargeCapFlatBonus||0) >= MAX_DEEP_RESERVE_BONUS)return; upg.chargeCapFlatTier++;upg.chargeCapFlatBonus = Math.min(MAX_DEEP_RESERVE_BONUS, (upg.chargeCapFlatBonus||0) + getFlatChargeGain(upg.chargeCapFlatTier));syncChargeCapacity(upg);}},
   {name:'Wider Absorb',tag:'UTILITY',icon:'🧲',desc:'More absorb range. Max +60.',apply(upg){upg.absorbRange=Math.min(60,upg.absorbRange+15);}},
   {name:'Long Reach',tag:'UTILITY',icon:'➶',desc:'Shots last longer.',apply(upg){upg.shotLifeTier++;upg.shotLifeMult=getHyperbolicScale(upg.shotLifeTier);}},
@@ -255,7 +257,7 @@ const BOONS = [
   {name:'Orb Overcharge',tag:'OFFENSE',icon:'⚡⬆',desc:'Charged Orb shots scale much harder from current charge.',requires:upg=>upg.chargedOrbs,apply(upg){if(upg.orbOvercharge)return; upg.orbOvercharge=true;}},
   {name:'Orbital Focus',tag:'OFFENSE',icon:'🌐',desc:'Orbs hit harder and fire faster.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if(upg.orbitalFocus)return; upg.orbitalFocus=true;}},
   {name:'Aegis Battery',tag:'OFFENSE',icon:'🔋',desc:'Ready shields boost returns; full set fires bolts.',requires:upg=>upg.shieldTier>0,apply(upg){if(upg.aegisBattery)return; upg.aegisBattery=true; upg.aegisBatteryTimer=0;}},
-  {name:'Dense Core',tag:'OFFENSE',icon:'◈',desc:'Less max charge, more damage. Max 3.',apply(upg){if(upg.denseTier>=3)return; upg.denseTier++; upg.denseDamageMult=1+upg.denseTier*0.35; syncChargeCapacity(upg);}},
+  {name:'Dense Core',tag:'OFFENSE',icon:'◈',desc:'Less max charge, more damage. Max 4.',apply(upg){if(upg.denseTier>=4)return; upg.denseTier++; upg.denseDamageMult=DENSE_CORE_DAMAGE_MULTS[Math.min(DENSE_CORE_DAMAGE_MULTS.length - 1, upg.denseTier - 1)]; syncChargeCapacity(upg);}},
   {name:'Echo Fire',tag:'OFFENSE',icon:'↺',desc:'Every 5th shot fires a free echo.',apply(upg){if(upg.echoFire)return; upg.echoFire=true;}},
   {name:'Split Shot',tag:'OFFENSE',icon:'⋔',desc:'Shots split on first wall bounce.',apply(upg){if(upg.splitShot||upg.bounceTier===0)return; upg.splitShot=true;},evolvesWith:['Ricochet'],evolvedVersion:{name:'Fracture',icon:'⋔+',desc:'Bounce splits into 3 and gains damage.',apply(upg){if(upg.splitShot||upg.bounceTier===0)return; upg.splitShot=true; upg.splitShotEvolved=true; upg.denseDamageMult=(upg.denseDamageMult||1)*1.2;}}},
   {name:'Volatile Rounds',tag:'OFFENSE',icon:'💢',desc:'Pierce shots burst on the last hit.',apply(upg){if(upg.volatileRounds||upg.pierceTier===0)return; upg.volatileRounds=true;},evolvesWith:['Pierce'],evolvedVersion:{name:'Chain Reaction',icon:'💢+',desc:'Every pierced hit bursts.',apply(upg){if(upg.volatileRounds||upg.pierceTier===0)return; upg.volatileRounds=true; upg.volatileAllTargets=true;}}},
