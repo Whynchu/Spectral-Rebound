@@ -1,5 +1,17 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.87',
+    label: 'HAT PREVIEW HOTFIX',
+    summary: [
+      'The menu ghost preview now uses the real in-game ghost renderer at an idle baseline, and the Hats button opens a visible overlay instead of only dropping menu chrome.'
+    ],
+    highlights: [
+      'The start-screen preview now calls the same ghost draw path used in gameplay instead of a separate stylized preview render.',
+      'The preview now starts from the default ghost state instead of looking like a scaled-up late-run build.',
+      'The Hats panel now has its own overlay stacking layer so opening it reliably shows the selector.'
+    ]
+  },
+  {
     version: '1.16.86',
     label: 'HATS + GHOST PREVIEW',
     summary: [

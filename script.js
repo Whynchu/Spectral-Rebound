@@ -3489,222 +3489,186 @@ function getHatHeightMultiplier(hatKey) {
   }
 }
 
-// ── GHOST SPRITE ──────────────────────────────────────────────────────────────
-function drawGhost(ts){
-  const p=player;
-  if(!p||!p.x) return;
-  const t=ts/1000;
-  const chargeFrac=Math.min(1,charge/Math.max(1,UPG.maxCharge||10));
-  const shotInterval = 1 / (UPG.sps * 2);
-  const fireFrac = charge >= 1 ? Math.max(0, Math.min(1, fireT / shotInterval)) : 0;
-  const overload=chargeFrac>=0.95;
-  const overloadPulse=overload?Math.sin(t*12)*.3+.7:1;
-  const lean=Math.max(-.3,Math.min(.3,player.vx/300));
-  const wobble=Math.sin(t*3)*2;
-  const deathFrac = gstate === 'dying' ? Math.max(0, Math.min(1, (ts - player.deadAt) / GAME_OVER_ANIM_MS)) : 0;
-  const popFrac = gstate === 'dying' ? Math.max(0, Math.min(1, (ts - player.popAt) / (GAME_OVER_ANIM_MS * 0.28))) : 0;
-  const size=player.r*1.18+chargeFrac*3.9 - deathFrac*1.2;
+function drawGhostSprite(ctxRef, ts, {
+  playerState,
+  chargeValue,
+  maxChargeValue,
+  fireProgress,
+  gameState = gstate,
+  hpValue = hp,
+  maxHpValue = maxHp,
+  hatKey = playerHat,
+  basePlayerHp = BASE_PLAYER_HP,
+  idleStill = false,
+} = {}) {
+  const p = playerState;
+  if(!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return;
+  const t = ts / 1000;
+  const chargeFrac = Math.min(1, chargeValue / Math.max(1, maxChargeValue || 10));
+  const fireFrac = chargeValue >= 1 ? Math.max(0, Math.min(1, fireProgress || 0)) : 0;
+  const overload = chargeFrac >= 0.95;
+  const overloadPulse = overload ? Math.sin(t * 12) * 0.3 + 0.7 : 1;
+  const lean = idleStill ? 0 : Math.max(-.3, Math.min(.3, p.vx / 300));
+  const wobble = idleStill ? 0 : Math.sin(t * 3) * 2;
+  const deathFrac = gameState === 'dying' ? Math.max(0, Math.min(1, (ts - p.deadAt) / GAME_OVER_ANIM_MS)) : 0;
+  const popFrac = gameState === 'dying' ? Math.max(0, Math.min(1, (ts - p.popAt) / (GAME_OVER_ANIM_MS * 0.28))) : 0;
+  const size = p.r * 1.18 + chargeFrac * 3.9 - deathFrac * 1.2;
 
-  ctx.save();
-  if(player.distort>0 || gstate === 'dying'){
-    ctx.translate(p.x,p.y+wobble);
-    const deathScale = gstate === 'dying' ? 1 + deathFrac * 0.22 - popFrac * 1.1 : 1;
-    ctx.scale((1+.12*Math.sin(ts*.06)) * deathScale,(1+.12*Math.cos(ts*.07)) * deathScale);
-    ctx.rotate(lean);
+  ctxRef.save();
+  if((p.distort || 0) > 0 || gameState === 'dying'){
+    ctxRef.translate(p.x, p.y + wobble);
+    const deathScale = gameState === 'dying' ? 1 + deathFrac * 0.22 - popFrac * 1.1 : 1;
+    ctxRef.scale((1 + .12 * Math.sin(ts * .06)) * deathScale, (1 + .12 * Math.cos(ts * .07)) * deathScale);
+    ctxRef.rotate(lean);
   } else {
-    ctx.translate(p.x,p.y+wobble);
-    ctx.rotate(lean);
+    ctxRef.translate(p.x, p.y + wobble);
+    ctxRef.rotate(lean);
   }
 
-  // Ambient glow
-  const pulse=.55+.45*Math.sin(ts*.0025);
+  const pulse = .55 + .45 * Math.sin(ts * .0025);
   const gRgb = C.ghostRgb;
-  const ga=ctx.createRadialGradient(0,0,0,0,0,size*3);
-  ga.addColorStop(0,gstate === 'dying' ? `rgba(248,180,199,${0.14 + deathFrac * 0.16})` : overload?`rgba(${gRgb.r},${gRgb.g},${gRgb.b},${0.20 + 0.08 * pulse})`:`rgba(${gRgb.r},${gRgb.g},${gRgb.b},${0.18*pulse})`);
-  ga.addColorStop(1,`rgba(${gRgb.r},${gRgb.g},${gRgb.b},0)`);
-  ctx.fillStyle=ga;
-  ctx.beginPath();ctx.arc(0,0,size*3,0,Math.PI*2);ctx.fill();
+  const ga = ctxRef.createRadialGradient(0, 0, 0, 0, 0, size * 3);
+  ga.addColorStop(0, gameState === 'dying'
+    ? `rgba(248,180,199,${0.14 + deathFrac * 0.16})`
+    : overload
+      ? `rgba(${gRgb.r},${gRgb.g},${gRgb.b},${0.20 + 0.08 * pulse})`
+      : `rgba(${gRgb.r},${gRgb.g},${gRgb.b},${0.18 * pulse})`);
+  ga.addColorStop(1, `rgba(${gRgb.r},${gRgb.g},${gRgb.b},0)`);
+  ctxRef.fillStyle = ga;
+  ctxRef.beginPath(); ctxRef.arc(0, 0, size * 3, 0, Math.PI * 2); ctxRef.fill();
 
-  ctx.shadowBlur=22+chargeFrac*14;
-  ctx.shadowColor=gstate === 'dying' ? '#f8b4c7' : overload?C.ghost:C.ghost;
+  ctxRef.shadowBlur = 22 + chargeFrac * 14;
+  ctxRef.shadowColor = gameState === 'dying' ? '#f8b4c7' : C.ghost;
 
-  const inv=player.invincible>0?Math.min(1,player.invincible/.4):0;
+  const inv = (p.invincible || 0) > 0 ? Math.min(1, (p.invincible || 0) / .4) : 0;
   const baseRgb = C.ghostBodyRgb;
   const accentRgb = C.greenRgb;
-  let bodyR,bodyG,bodyB;
-  if(gstate === 'dying'){
+  let bodyR, bodyG, bodyB;
+  if(gameState === 'dying'){
     bodyR = 208;
     bodyG = 244 - Math.round(deathFrac * 36);
     bodyB = 224 + Math.round(deathFrac * 12);
   } else if(overload){
     const tintMix = Math.min(0.55, 0.34 + overloadPulse * 0.18);
-    bodyR=Math.round(baseRgb.r + (accentRgb.r - baseRgb.r) * tintMix);
-    bodyG=Math.round(baseRgb.g + (accentRgb.g - baseRgb.g) * tintMix);
-    bodyB=Math.round(baseRgb.b + (accentRgb.b - baseRgb.b) * tintMix);
+    bodyR = Math.round(baseRgb.r + (accentRgb.r - baseRgb.r) * tintMix);
+    bodyG = Math.round(baseRgb.g + (accentRgb.g - baseRgb.g) * tintMix);
+    bodyB = Math.round(baseRgb.b + (accentRgb.b - baseRgb.b) * tintMix);
   } else {
-    bodyR=Math.round(Math.min(255,baseRgb.r+inv*26));
-    bodyG=Math.round(Math.min(255,baseRgb.g+inv*12));
-    bodyB=Math.round(Math.min(255,baseRgb.b+inv*22));
+    bodyR = Math.round(Math.min(255, baseRgb.r + inv * 26));
+    bodyG = Math.round(Math.min(255, baseRgb.g + inv * 12));
+    bodyB = Math.round(Math.min(255, baseRgb.b + inv * 22));
   }
-  ctx.fillStyle=`rgba(${bodyR},${bodyG},${bodyB},0.93)`;
+  const bodyColor = `rgba(${bodyR},${bodyG},${bodyB},0.93)`;
+  ctxRef.fillStyle = bodyColor;
 
-  ctx.beginPath();
-  ctx.arc(0,-size*.2,size,Math.PI,0);
-  const tailW=size,segs=4;
-  for(let s=0;s<=segs;s++){
-    const xOff=tailW-(s/segs)*tailW*2;
-    const yOff=size*.8+Math.sin(t*3+s)*2;
-    if(s===0) ctx.lineTo(tailW,yOff);
-    else ctx.lineTo(xOff,yOff);
+  ctxRef.beginPath();
+  ctxRef.arc(0, -size * .2, size, Math.PI, 0);
+  const tailW = size;
+  const segs = 4;
+  for(let s = 0; s <= segs; s++){
+    const xOff = tailW - (s / segs) * tailW * 2;
+    const yOff = size * .8 + Math.sin(t * 3 + s) * 2;
+    if(s === 0) ctxRef.lineTo(tailW, yOff);
+    else ctxRef.lineTo(xOff, yOff);
   }
-  ctx.closePath();ctx.fill();
-  ctx.shadowBlur=0;
-  drawGhostHatLayer(ctx, playerHat, size, `rgba(${bodyR},${bodyG},${bodyB},0.93)`, ts);
+  ctxRef.closePath();
+  ctxRef.fill();
+  ctxRef.shadowBlur = 0;
 
-  ctx.fillStyle='#080f0a';
-  ctx.beginPath();ctx.arc(-5.5,-size*.25,3,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.arc(5.5, -size*.25,3,0,Math.PI*2);ctx.fill();
-  if(gstate === 'dying'){
-    ctx.strokeStyle='rgba(12,20,16,0.85)';
-    ctx.lineWidth=1.5;
-    ctx.beginPath();ctx.arc(-5.5,-size*.25,1.5,0,Math.PI*2);ctx.stroke();
-    ctx.beginPath();ctx.arc(5.5,-size*.25,1.5,0,Math.PI*2);ctx.stroke();
-    ctx.beginPath();ctx.arc(0,size*.08,4.6,Math.PI+.25,Math.PI*2-.25);ctx.stroke();
+  drawGhostHatLayer(ctxRef, hatKey, size, bodyColor, ts);
+
+  ctxRef.fillStyle = '#080f0a';
+  ctxRef.beginPath(); ctxRef.arc(-5.5, -size * .25, 3, 0, Math.PI * 2); ctxRef.fill();
+  ctxRef.beginPath(); ctxRef.arc(5.5, -size * .25, 3, 0, Math.PI * 2); ctxRef.fill();
+  if(gameState === 'dying'){
+    ctxRef.strokeStyle = 'rgba(12,20,16,0.85)';
+    ctxRef.lineWidth = 1.5;
+    ctxRef.beginPath(); ctxRef.arc(-5.5, -size * .25, 1.5, 0, Math.PI * 2); ctxRef.stroke();
+    ctxRef.beginPath(); ctxRef.arc(5.5, -size * .25, 1.5, 0, Math.PI * 2); ctxRef.stroke();
+    ctxRef.beginPath(); ctxRef.arc(0, size * .08, 4.6, Math.PI + .25, Math.PI * 2 - .25); ctxRef.stroke();
   } else {
-    ctx.fillStyle=C.getRgba(C.green, 0.9);
-    ctx.beginPath();ctx.arc(-4.5,-size*.3,1.3,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.arc(4.5, -size*.3,1.3,0,Math.PI*2);ctx.fill();
+    ctxRef.fillStyle = C.getRgba(C.green, 0.9);
+    ctxRef.beginPath(); ctxRef.arc(-4.5, -size * .3, 1.3, 0, Math.PI * 2); ctxRef.fill();
+    ctxRef.beginPath(); ctxRef.arc(4.5, -size * .3, 1.3, 0, Math.PI * 2); ctxRef.fill();
   }
 
-  if(chargeFrac>0.3 && gstate !== 'dying'){
-    ctx.strokeStyle='rgba(0,0,0,0.55)';ctx.lineWidth=1.5;
-    ctx.beginPath();ctx.arc(0,-size*.1,4.5,.2,Math.PI-.2);ctx.stroke();
+  if(chargeFrac > 0.3 && gameState !== 'dying'){
+    ctxRef.strokeStyle = 'rgba(0,0,0,0.55)';
+    ctxRef.lineWidth = 1.5;
+    ctxRef.beginPath(); ctxRef.arc(0, -size * .1, 4.5, .2, Math.PI - .2); ctxRef.stroke();
   }
 
-  // Shot cooldown ring mirrors the enemy tell ring and shows when auto-fire is primed.
   const ringRadius = size + 8;
-  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(0, 0, ringRadius, 0, Math.PI * 2);
-  ctx.stroke();
-  if(charge >= 1){
-    ctx.strokeStyle = C.green;
-    ctx.shadowColor = C.green;
-    ctx.shadowBlur = 10;
-    ctx.beginPath();
-    ctx.arc(0, 0, ringRadius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * fireFrac);
-    ctx.stroke();
-    ctx.shadowBlur = 0;
+  ctxRef.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctxRef.lineWidth = 2;
+  ctxRef.beginPath();
+  ctxRef.arc(0, 0, ringRadius, 0, Math.PI * 2);
+  ctxRef.stroke();
+  if(chargeValue >= 1){
+    ctxRef.strokeStyle = C.green;
+    ctxRef.shadowColor = C.green;
+    ctxRef.shadowBlur = 10;
+    ctxRef.beginPath();
+    ctxRef.arc(0, 0, ringRadius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * fireFrac);
+    ctxRef.stroke();
+    ctxRef.shadowBlur = 0;
   }
 
-  // ── HP bar above ghost (drawn in local space, above dome)
-  const hpBarScale = Math.max(0.75, Math.min(2.4, Math.pow(Math.max(1, maxHp) / BASE_PLAYER_HP, 0.35)));
-  const barW=size*2.8*hpBarScale, barH=4;
-  const barY = -size * (1.55 + getHatHeightMultiplier(playerHat));
-  const barX=-barW/2;
-  const hpFrac=Math.max(0,hp/maxHp);
-  // Track
-  ctx.fillStyle='rgba(0,0,0,0.55)';
-  ctx.beginPath();ctx.roundRect(barX-1,barY-1,barW+2,barH+2,2);ctx.fill();
-  // Fill uses the selected player accent while still warning at mid/low HP.
+  const hpBarScale = Math.max(0.75, Math.min(2.4, Math.pow(Math.max(1, maxHpValue) / basePlayerHp, 0.35)));
+  const barW = size * 2.8 * hpBarScale;
+  const barH = 4;
+  const barY = -size * (1.55 + getHatHeightMultiplier(hatKey));
+  const barX = -barW / 2;
+  const hpFrac = Math.max(0, hpValue / Math.max(1, maxHpValue));
+  ctxRef.fillStyle = 'rgba(0,0,0,0.55)';
+  ctxRef.beginPath(); ctxRef.roundRect(barX - 1, barY - 1, barW + 2, barH + 2, 2); ctxRef.fill();
   const hpCol = hpFrac > 0.5 ? C.green : hpFrac > 0.25 ? '#fbbf24' : '#f87171';
-  ctx.shadowBlur=6; ctx.shadowColor=hpCol;
-  ctx.fillStyle=hpCol;
-  ctx.beginPath();ctx.roundRect(barX,barY,barW*hpFrac,barH,2);ctx.fill();
-  ctx.shadowBlur=0;
+  ctxRef.shadowBlur = 6; ctxRef.shadowColor = hpCol;
+  ctxRef.fillStyle = hpCol;
+  ctxRef.beginPath(); ctxRef.roundRect(barX, barY, barW * hpFrac, barH, 2); ctxRef.fill();
+  ctxRef.shadowBlur = 0;
 
-  ctx.restore();
+  ctxRef.restore();
+}
+
+// ── GHOST SPRITE ──────────────────────────────────────────────────────────────
+function drawGhost(ts){
+  const shotInterval = 1 / (UPG.sps * 2);
+  drawGhostSprite(ctx, ts, {
+    playerState: player,
+    chargeValue: charge,
+    maxChargeValue: UPG.maxCharge,
+    fireProgress: charge >= 1 ? fireT / shotInterval : 0,
+    gameState: gstate,
+    hpValue: hp,
+    maxHpValue: maxHp,
+    hatKey: playerHat,
+  });
 }
 
 function drawStartGhostPreview(ts = performance.now()) {
   if(!startGhostPreview || !startGhostPreviewCtx) return;
-  const previewCtx = startGhostPreviewCtx;
-  const width = startGhostPreview.width;
-  const height = startGhostPreview.height;
-  previewCtx.clearRect(0, 0, width, height);
-  previewCtx.fillStyle = 'rgba(5,5,5,0)';
-  previewCtx.fillRect(0, 0, width, height);
-
-  const t = ts / 1000;
-  const size = 30 + Math.sin(t * 1.8) * 1.6;
-  const chargeFrac = 0.78 + Math.sin(t * 2.2) * 0.08;
-  const ringRadius = size + 8;
-  const playerScheme = getPlayerColorScheme();
-  const threatPalette = getThreatPalette();
-  const ghostRgb = C.ghostRgb;
-  const bodyRgb = C.ghostBodyRgb;
-  const accentRgb = C.greenRgb;
-  const overloadPulse = Math.sin(t * 12) * 0.3 + 0.7;
-  const tintMix = Math.min(0.55, 0.34 + overloadPulse * 0.18);
-  const bodyR = Math.round(bodyRgb.r + (accentRgb.r - bodyRgb.r) * tintMix);
-  const bodyG = Math.round(bodyRgb.g + (accentRgb.g - bodyRgb.g) * tintMix);
-  const bodyB = Math.round(bodyRgb.b + (accentRgb.b - bodyRgb.b) * tintMix);
-  const bodyColor = `rgba(${bodyR},${bodyG},${bodyB},0.93)`;
-
-  previewCtx.save();
-  previewCtx.translate(width / 2, height / 2 + 12 + Math.sin(t * 3) * 2);
-  previewCtx.rotate(Math.sin(t * 1.5) * 0.08);
-
-  const glow = previewCtx.createRadialGradient(0, 0, 0, 0, 0, size * 3.1);
-  glow.addColorStop(0, `rgba(${ghostRgb.r},${ghostRgb.g},${ghostRgb.b},0.24)`);
-  glow.addColorStop(1, `rgba(${ghostRgb.r},${ghostRgb.g},${ghostRgb.b},0)`);
-  previewCtx.fillStyle = glow;
-  previewCtx.beginPath();
-  previewCtx.arc(0, 0, size * 3.1, 0, Math.PI * 2);
-  previewCtx.fill();
-
-  previewCtx.shadowBlur = 28;
-  previewCtx.shadowColor = playerScheme.light;
-  previewCtx.fillStyle = bodyColor;
-  previewCtx.beginPath();
-  previewCtx.arc(0, -size * 0.2, size, Math.PI, 0);
-  const tailW = size;
-  for(let s = 0; s <= 4; s++) {
-    const xOff = tailW - (s / 4) * tailW * 2;
-    const yOff = size * 0.8 + Math.sin(t * 3 + s) * 2;
-    if(s === 0) previewCtx.lineTo(tailW, yOff);
-    else previewCtx.lineTo(xOff, yOff);
-  }
-  previewCtx.closePath();
-  previewCtx.fill();
-  previewCtx.shadowBlur = 0;
-
-  drawGhostHatLayer(previewCtx, playerHat, size, bodyColor, ts);
-
-  previewCtx.fillStyle = '#080f0a';
-  previewCtx.beginPath(); previewCtx.arc(-5.5, -size * 0.25, 3, 0, Math.PI * 2); previewCtx.fill();
-  previewCtx.beginPath(); previewCtx.arc(5.5, -size * 0.25, 3, 0, Math.PI * 2); previewCtx.fill();
-  previewCtx.fillStyle = C.getRgba(C.green, 0.9);
-  previewCtx.beginPath(); previewCtx.arc(-4.5, -size * 0.3, 1.3, 0, Math.PI * 2); previewCtx.fill();
-  previewCtx.beginPath(); previewCtx.arc(4.5, -size * 0.3, 1.3, 0, Math.PI * 2); previewCtx.fill();
-  previewCtx.strokeStyle = 'rgba(0,0,0,0.55)';
-  previewCtx.lineWidth = 1.5;
-  previewCtx.beginPath(); previewCtx.arc(0, -size * 0.1, 4.5, 0.2, Math.PI - 0.2); previewCtx.stroke();
-
-  previewCtx.strokeStyle = 'rgba(255,255,255,0.12)';
-  previewCtx.lineWidth = 2;
-  previewCtx.beginPath();
-  previewCtx.arc(0, 0, ringRadius, 0, Math.PI * 2);
-  previewCtx.stroke();
-  previewCtx.strokeStyle = playerScheme.hex;
-  previewCtx.shadowColor = playerScheme.light;
-  previewCtx.shadowBlur = 10;
-  previewCtx.beginPath();
-  previewCtx.arc(0, 0, ringRadius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * chargeFrac);
-  previewCtx.stroke();
-  previewCtx.shadowBlur = 0;
-
-  previewCtx.fillStyle = threatPalette.danger.hex;
-  previewCtx.beginPath();
-  previewCtx.arc(size * 1.46, -size * 0.05, 6, 0, Math.PI * 2);
-  previewCtx.fill();
-  previewCtx.strokeStyle = 'rgba(255,255,255,0.16)';
-  previewCtx.beginPath();
-  previewCtx.arc(size * 1.46, -size * 0.05, 10, 0, Math.PI * 2);
-  previewCtx.stroke();
-
-  previewCtx.restore();
+  startGhostPreviewCtx.clearRect(0, 0, startGhostPreview.width, startGhostPreview.height);
+  drawGhostSprite(startGhostPreviewCtx, ts, {
+    playerState: {
+      x: startGhostPreview.width / 2,
+      y: startGhostPreview.height / 2 + 18,
+      r: 9,
+      vx: 0,
+      distort: 0,
+      invincible: 0,
+      deadAt: 0,
+      popAt: 0,
+    },
+    chargeValue: 0,
+    maxChargeValue: 5,
+    fireProgress: 0,
+    gameState: 'start',
+    hpValue: BASE_PLAYER_HP,
+    maxHpValue: BASE_PLAYER_HP,
+    hatKey: playerHat,
+    idleStill: true,
+  });
 }
 
 // ── HUD ───────────────────────────────────────────────────────────────────────
