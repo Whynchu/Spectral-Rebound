@@ -1,5 +1,17 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.85',
+    label: 'PAYLOAD BLAST RETUNE',
+    summary: [
+      'Payload explosions now start much wider and read far more clearly in combat, so the boon immediately feels like splash damage instead of a tiny impact pop.'
+    ],
+    highlights: [
+      'Payload base blast radius was increased substantially, with much larger gains from Payload Bloom tiers.',
+      'The payload radius cap was raised so larger builds can keep scaling into visibly large explosions.',
+      'Impact feedback now uses a dedicated explosion burst instead of only a small spark puff, making the blast obvious on contact.'
+    ]
+  },
+  {
     version: '1.16.84',
     label: 'TELEMETRY + CHARGE TUNING',
     summary: [

@@ -1083,7 +1083,8 @@ function triggerPayloadBlast(bullet, enemies) {
       e.hp -= impactDamage;
     }
   }
-  sparks(bullet.x, bullet.y, '#ff6b35', 8 + Math.min(6, Math.round((aoeRadius - 64) / 8)), 60);
+  burstPayloadExplosion(bullet.x, bullet.y, aoeRadius);
+  sparks(bullet.x, bullet.y, '#ff6b35', 12 + Math.min(12, Math.round((aoeRadius - 80) / 6)), 80 + aoeRadius * 0.2);
 }
 
 function getRoomMaxOnScreen(idx, isBossRoom) {
@@ -1642,6 +1643,42 @@ function burstBlueDissipate(x, y) {
       life: 0.9 + Math.random() * 0.35,
       decay: 2.2 + Math.random() * 0.9,
       grow: 0.8 + Math.random() * 1.2,
+    });
+  }
+}
+
+function burstPayloadExplosion(x, y, radius) {
+  const outerBurstCount = Math.min(28, Math.max(12, Math.round(radius / 8)));
+  const outerBurstRoom = Math.min(outerBurstCount, MAX_PARTICLES - particles.length);
+  for(let i = 0; i < outerBurstRoom; i++){
+    const angle = Math.random() * Math.PI * 2;
+    const speed = radius * (0.55 + Math.random() * 0.4);
+    particles.push({
+      x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      col: Math.random() < 0.35 ? 'rgba(255,246,220,0.82)' : 'rgba(255,122,56,0.78)',
+      life: 0.7 + Math.random() * 0.28,
+      decay: 2.0 + Math.random() * 0.7,
+      grow: Math.max(2.4, radius / 18) + Math.random() * Math.max(1.5, radius / 22),
+    });
+  }
+
+  const coreBurstCount = Math.min(16, Math.max(8, Math.round(radius / 16)));
+  const coreBurstRoom = Math.min(coreBurstCount, MAX_PARTICLES - particles.length);
+  for(let i = 0; i < coreBurstRoom; i++){
+    const angle = Math.random() * Math.PI * 2;
+    const speed = radius * (0.14 + Math.random() * 0.16);
+    particles.push({
+      x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      col: Math.random() < 0.5 ? 'rgba(255,230,170,0.88)' : 'rgba(255,160,84,0.84)',
+      life: 0.5 + Math.random() * 0.2,
+      decay: 2.6 + Math.random() * 0.8,
+      grow: Math.max(3.2, radius / 14) + Math.random() * Math.max(2, radius / 18),
     });
   }
 }

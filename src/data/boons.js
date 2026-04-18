@@ -29,9 +29,9 @@ const KINETIC_FAST_FILL_MIN_PCT = 0.05;
 const KINETIC_FAST_FILL_LOW_CAP = 12;
 const KINETIC_FAST_FILL_HIGH_CAP = 120;
 const KINETIC_FAST_FILL_MULT = 1.75;
-const PAYLOAD_BASE_RADIUS = 64;
-const PAYLOAD_RADIUS_PER_TIER = 14;
-const PAYLOAD_RADIUS_MAX = 112;
+const PAYLOAD_BASE_RADIUS = 96;
+const PAYLOAD_RADIUS_PER_TIER = 28;
+const PAYLOAD_RADIUS_MAX = 192;
 
 function getLateBloomGrowth(roomIndex = 0) {
   const room = roomIndex || 0;
