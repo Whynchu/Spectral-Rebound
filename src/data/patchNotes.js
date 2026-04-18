@@ -1,5 +1,18 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.79',
+    label: 'RING ART HOTFIX',
+    summary: [
+      'Phase and Omega ring art now stays inside the normal buster silhouette and uses the same color as the enemy or bullet body instead of expanding outward with a separate white ring treatment.'
+    ],
+    highlights: [
+      'Ringed busters now keep the same overall outer circle size as the regular buster.',
+      'Ring markers now use the same color as the rest of the enemy body and bullet body.',
+      'The solid center shrinks inward to make room for rings instead of making the sprite larger.',
+      'Settings preview now reflects the same in-body ring treatment.'
+    ]
+  },
+  {
     version: '1.16.78',
     label: 'OVERLOAD + THREAT TUNE',
     summary: [

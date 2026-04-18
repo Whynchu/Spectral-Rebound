@@ -396,7 +396,7 @@ function renderSettingsPanel() {
     swatch.className = `settings-preview-swatch ${entry.kind}`;
     swatch.style.background = entry.color;
     swatch.style.boxShadow = `0 0 18px ${entry.glow}66`;
-    if(entry.kind === 'harvest-bullet') swatch.style.color = entry.color;
+    swatch.style.color = entry.color;
 
     const core = document.createElement('div');
     core.className = 'settings-preview-core';
@@ -1345,20 +1345,30 @@ function getEnemyBounceRingCount(enemy) {
   return 0;
 }
 
-function drawBounceRings(x, y, baseRadius, count, color, alpha = 0.82) {
-  if(count <= 0) return;
+function getRingedBodyRadius(totalRadius, count, lineWidth = 1.6, gap = 1.9) {
+  if(count <= 0) return totalRadius;
+  const outerRadius = Math.max(0, totalRadius - lineWidth * 0.5);
+  const ringDepth = count * lineWidth + Math.max(0, count - 1) * gap;
+  return Math.max(totalRadius * 0.36, outerRadius - ringDepth - gap);
+}
+
+function drawBounceRings(x, y, totalRadius, count, color, alpha = 0.82, lineWidth = 1.6, gap = 1.9) {
+  if(count <= 0) return getRingedBodyRadius(totalRadius, 0, lineWidth, gap);
   ctx.save();
   ctx.globalAlpha *= alpha;
   ctx.strokeStyle = color;
-  ctx.lineWidth = 1.6;
+  ctx.lineWidth = lineWidth;
   ctx.shadowColor = color;
   ctx.shadowBlur = 6;
+  let ringRadius = Math.max(0, totalRadius - lineWidth * 0.5);
   for(let i = 0; i < count; i++) {
     ctx.beginPath();
-    ctx.arc(x, y, baseRadius + 4 + i * 4, 0, Math.PI * 2);
+    ctx.arc(x, y, ringRadius, 0, Math.PI * 2);
     ctx.stroke();
+    ringRadius -= lineWidth + gap;
   }
   ctx.restore();
+  return getRingedBodyRadius(totalRadius, count, lineWidth, gap);
 }
 
 function drawBulletSprite(b, ts) {
@@ -1392,12 +1402,13 @@ function drawBulletSprite(b, ts) {
       ctx.fill();
       ctx.restore();
     } else {
-      ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
-      drawBounceRings(b.x, b.y, b.r, getDangerBounceRingCount(b), bCol, 0.72);
+      const bodyRadius = drawBounceRings(b.x, b.y, b.r, getDangerBounceRingCount(b), bCol, 0.72);
+      ctx.beginPath();ctx.arc(b.x,b.y,bodyRadius,0,Math.PI*2);ctx.fill();
     }
     ctx.shadowBlur=0;ctx.fillStyle=bCore;
     if(!b.isTriangle){
-      ctx.beginPath();ctx.arc(b.x,b.y,b.r*.42,0,Math.PI*2);ctx.fill();
+      const coreRadius = Math.max(1.5, b.r * (getDangerBounceRingCount(b) > 0 ? 0.2 : 0.42));
+      ctx.beginPath();ctx.arc(b.x,b.y,coreRadius,0,Math.PI*2);ctx.fill();
     }
     ctx.globalAlpha = 1;
 
@@ -3100,12 +3111,13 @@ function draw(ts){
       ctx.fill();
       ctx.restore();
     } else {
-      ctx.beginPath();ctx.arc(e.x,e.y,drawR,0,Math.PI*2);ctx.fill();
+      const ringCount = getEnemyBounceRingCount(e);
+      const bodyRadius = drawBounceRings(e.x, e.y, drawR, ringCount, e.col, 0.78);
+      ctx.beginPath();ctx.arc(e.x,e.y,bodyRadius,0,Math.PI*2);ctx.fill();
       ctx.shadowBlur=0;
       // Inner glint
       ctx.fillStyle='rgba(255,255,255,0.18)';
-      ctx.beginPath();ctx.arc(e.x,e.y,drawR*.38,0,Math.PI*2);ctx.fill();
-      drawBounceRings(e.x, e.y, drawR, getEnemyBounceRingCount(e), e.col, 0.78);
+      ctx.beginPath();ctx.arc(e.x,e.y,Math.max(2, bodyRadius * 0.45),0,Math.PI*2);ctx.fill();
     }
 
     if(e.hp<e.maxHp){

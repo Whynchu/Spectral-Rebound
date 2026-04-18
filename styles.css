@@ -218,6 +218,10 @@ body.compact-viewport #wrap {
   background: rgba(255,255,255,0.18);
   opacity: 0.65;
 }
+.settings-preview-swatch.phase .settings-preview-core,
+.settings-preview-swatch.elite .settings-preview-core {
+  inset: 11px;
+}
 .settings-preview-swatch.triangle .settings-preview-core {
   inset: 7px;
 }
@@ -233,15 +237,15 @@ body.compact-viewport #wrap {
 .settings-preview-ring {
   position: absolute;
   border-radius: 999px;
-  border: 1.6px solid rgba(255,255,255,0.58);
-  box-shadow: 0 0 8px rgba(255,255,255,0.16);
+  border: 1.6px solid currentColor;
+  box-shadow: 0 0 8px currentColor;
   pointer-events: none;
 }
 .settings-preview-ring.ring-1 {
-  inset: -5px;
+  inset: 1px;
 }
 .settings-preview-ring.ring-2 {
-  inset: -10px;
+  inset: 5px;
 }
 .settings-preview-meta {
   min-width: 0;
