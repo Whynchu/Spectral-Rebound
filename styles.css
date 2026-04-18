@@ -592,7 +592,24 @@ body.keyboard-open .screen {
 }
 body.menu-chrome-visible:not(.compact-viewport) #s-start {
   justify-content: flex-start;
-  padding-top: 36px;
+  gap: 8px;
+  padding: 18px 22px 16px;
+  overflow: auto;
+}
+body.menu-chrome-visible:not(.compact-viewport) #s-start .big-title {
+  font-size: 42px;
+}
+body.menu-chrome-visible:not(.compact-viewport) #s-start .screen-body {
+  font-size: 11px;
+  line-height: 1.55;
+}
+body.menu-chrome-visible:not(.compact-viewport) #s-start .rule-line {
+  opacity: 0.7;
+}
+body.menu-chrome-visible:not(.compact-viewport) #s-start #btn-start,
+body.menu-chrome-visible:not(.compact-viewport) #s-start .btn-menu-sub {
+  padding-top: 10px;
+  padding-bottom: 10px;
 }
 .screen-body {
   font-size:12px; line-height:1.85; color:var(--muted); text-align:center;
@@ -706,7 +723,7 @@ body.menu-chrome-visible:not(.compact-viewport) #s-start {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
+  padding: 9px 11px;
   border-radius: 8px;
   border: 1px solid var(--border2);
   background: rgba(255,255,255,0.03);
@@ -741,8 +758,7 @@ body.menu-chrome-visible:not(.compact-viewport) #s-start {
   text-transform: uppercase;
 }
 .hat-card-copy {
-  font-size: 9px;
-  line-height: 1.45;
+  display: none;
   color: var(--muted);
 }
 .hat-card-tag {

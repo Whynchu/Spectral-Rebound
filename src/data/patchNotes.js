@@ -1,5 +1,17 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.91',
+    label: 'DESKTOP HATS TIDY',
+    summary: [
+      'This desktop-focused tidy pass compresses the start-screen menu layout again so the hats work stops crowding the bottom of the shell, and trims the hats picker down to a cleaner faster-scanning selection list.'
+    ],
+    highlights: [
+      'Desktop start-screen spacing is tightened so Initiate Run and Leaderboards stay out of the legend region.',
+      'The hats picker drops the extra line of descriptive text on each row for a cleaner layout.',
+      'The hats modal heading copy is shortened to keep the panel compact.'
+    ]
+  },
+  {
     version: '1.16.90',
     label: 'HATS CLEANUP PASS',
     summary: [

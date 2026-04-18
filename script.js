@@ -159,9 +159,9 @@ const PLAYER_COLOR_KEY = 'phantom-player-color';
 const COLOR_ASSIST_KEY = 'phantom-color-assist';
 const PLAYER_HAT_KEY = 'phantom-player-hat';
 const HAT_OPTIONS = [
-  { key: 'none', name: 'No Hat', tag: 'Default', description: 'Plain ghost silhouette.' },
-  { key: 'bunny', name: 'Bunny Ears', tag: 'Spring', description: 'Soft tall ears.' },
-  { key: 'viking', name: 'Viking Helm', tag: 'Founders', description: 'Metal cap with mirrored horns.' },
+  { key: 'none', name: 'No Hat', tag: 'Default', description: '' },
+  { key: 'bunny', name: 'Bunny Ears', tag: 'Spring', description: '' },
+  { key: 'viking', name: 'Viking Helm', tag: 'Founders', description: '' },
 ];
 const storedColorAssist = readText(COLOR_ASSIST_KEY, 'off');
 setColorAssistMode(storedColorAssist);
