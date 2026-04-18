@@ -3473,21 +3473,21 @@ function drawGhostHatLayer(ctxRef, hatKey, size, bodyColor, ts) {
       const bx2 = dir * helmW * 0.58; // outer base (far from center)
       const by2 = -helmH * 0.15;
 
-      // Tip — sweeps outward, not straight up
-      const tx = dir * helmW * 1.05;
-      const ty = -helmH * 0.85;
+      // Tip — high up, slight outward offset for that ~85° upward pitch
+      const tx = dir * helmW * 0.72;
+      const ty = -helmH * 1.45;
 
-      // Inner curve (belly) — pulls inward for the thick base feel
-      const ic1x = dir * helmW * 0.22;
-      const ic1y = -helmH * 0.35;
-      const ic2x = dir * helmW * 0.62;
-      const ic2y = -helmH * 0.95;
+      // Inner curve — sweeps out from base then bends sharply upward
+      const ic1x = dir * helmW * 0.15;
+      const ic1y = -helmH * 0.15;
+      const ic2x = dir * helmW * 0.85;
+      const ic2y = -helmH * 0.7;
 
-      // Outer curve — hugs close to inner curve near tip for taper
-      const oc1x = dir * helmW * 1.0;
-      const oc1y = -helmH * 0.65;
-      const oc2x = dir * helmW * 0.72;
-      const oc2y = -helmH * 0.05;
+      // Outer curve — follows similar arc but tighter, converging at tip
+      const oc1x = dir * helmW * 0.9;
+      const oc1y = -helmH * 0.55;
+      const oc2x = dir * helmW * 0.7;
+      const oc2y = -helmH * 0.0;
 
       // Horn fill
       ctxRef.fillStyle = 'rgba(216,200,160,0.97)';

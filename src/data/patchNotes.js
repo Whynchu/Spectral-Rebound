@@ -1,5 +1,16 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.97',
+    label: 'HORN FINAL TUNE',
+    summary: [
+      'This follow-up tightens the Viking helmet horn shape one more time so the silhouette stays simple and readable.'
+    ],
+    highlights: [
+      'Included the latest Viking horn final-tune pass.',
+      'No gameplay changes in this release.'
+    ]
+  },
+  {
     version: '1.16.96',
     label: 'HORN REFINEMENT',
     summary: [
