@@ -1308,6 +1308,44 @@ function drawGooBall(x, y, radius, fillColor, coreColor, wobbleSeed, alpha = 1) 
   ctx.restore();
 }
 
+function getDangerBounceRingCount(bullet) {
+  if(!bullet || bullet.state !== 'danger') return 0;
+  if(bullet.eliteStage !== undefined) {
+    return Math.max(0, 2 - (bullet.eliteStage || 0));
+  }
+  if(bullet.doubleBounce) {
+    return Math.max(0, 2 - (bullet.bounceCount || 0));
+  }
+  if((bullet.dangerBounceBudget || 0) > 0) {
+    return bullet.dangerBounceBudget;
+  }
+  return 0;
+}
+
+function getEnemyBounceRingCount(enemy) {
+  if(!enemy) return 0;
+  if(enemy.isElite || enemy.type === 'orange_zoner') return 2;
+  if(enemy.forcePurpleShots || enemy.doubleBounce) return 2;
+  if(enemy.dangerBounceBudget > 0) return enemy.dangerBounceBudget;
+  return 0;
+}
+
+function drawBounceRings(x, y, baseRadius, count, color, alpha = 0.82) {
+  if(count <= 0) return;
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.6;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 6;
+  for(let i = 0; i < count; i++) {
+    ctx.beginPath();
+    ctx.arc(x, y, baseRadius + 4 + i * 4, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawBulletSprite(b, ts) {
   if(b.state==='danger'){
     const pulse=.75+.25*Math.sin(ts*.014);
@@ -1324,7 +1362,7 @@ function drawBulletSprite(b, ts) {
       bCore=b.doubleBounce&&b.bounceCount===0 ? doubleBouncePalette.core : C.dangerCore;
     }
     ctx.globalAlpha = 0.88;
-    ctx.shadowColor=bCol;ctx.shadowBlur=16*pulse;
+    ctx.shadowColor=bCol;ctx.shadowBlur=20*pulse;
     ctx.fillStyle=bCol;
     if(b.isTriangle){
       const angle = Math.atan2(b.vy, b.vx);
@@ -1340,6 +1378,7 @@ function drawBulletSprite(b, ts) {
       ctx.restore();
     } else {
       ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
+      drawBounceRings(b.x, b.y, b.r, getDangerBounceRingCount(b), bCol, 0.72);
     }
     ctx.shadowBlur=0;ctx.fillStyle=bCore;
     if(!b.isTriangle){
@@ -1349,10 +1388,11 @@ function drawBulletSprite(b, ts) {
 
   } else if(b.state==='grey'){
     const age=(ts-b.decayStart)/(DECAY_BASE+UPG.decayBonus);
-    ctx.globalAlpha=Math.max(.10,0.82-age*.72);
-    ctx.shadowColor=C.grey;ctx.shadowBlur=5;
-    ctx.fillStyle=C.grey;
-    ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
+    ctx.globalAlpha=Math.max(.12,0.86-age*.7);
+    ctx.shadowColor=C.grey;ctx.shadowBlur=3;
+    ctx.strokeStyle=C.grey;
+    ctx.lineWidth=1.8;
+    ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.stroke();
     ctx.globalAlpha=1;ctx.shadowBlur=0;
 
   } else if(b.state==='output'){
@@ -3040,6 +3080,7 @@ function draw(ts){
       // Inner glint
       ctx.fillStyle='rgba(255,255,255,0.18)';
       ctx.beginPath();ctx.arc(e.x,e.y,drawR*.38,0,Math.PI*2);ctx.fill();
+      drawBounceRings(e.x, e.y, drawR, getEnemyBounceRingCount(e), e.col, 0.78);
     }
 
     if(e.hp<e.maxHp){

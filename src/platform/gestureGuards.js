@@ -9,6 +9,22 @@ function bindGestureGuards({
   const isEditableTarget = (target) => Boolean(
     target && target.closest && target.closest('input, textarea, select, [contenteditable="true"]')
   );
+  const isScrollableTarget = (target) => {
+    if(!(target instanceof Element)) return false;
+    let node = target;
+    const view = doc.defaultView || window;
+    while(node && node !== doc.body && node !== doc.documentElement) {
+      const style = view.getComputedStyle(node);
+      const overflowY = style?.overflowY || '';
+      const touchAction = style?.touchAction || '';
+      const canScrollY = (overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight > node.clientHeight + 1;
+      const allowsPanY = touchAction.includes('pan-y');
+      if(canScrollY || allowsPanY) return true;
+      node = node.parentElement;
+    }
+    return false;
+  };
+  const isNativeTouchTarget = (target) => isEditableTarget(target) || isScrollableTarget(target);
 
   const preventDefault = (event) => event.preventDefault();
   const preventSelectionOutsideInputs = (event) => {
@@ -16,11 +32,11 @@ function bindGestureGuards({
     event.preventDefault();
   };
   const preventTouchMoveOutsideInputs = (event) => {
-    if(isEditableTarget(event.target)) return;
+    if(isNativeTouchTarget(event.target)) return;
     event.preventDefault();
   };
   const preventTouchStartDoubleTap = (event) => {
-    if(isEditableTarget(event.target)) return;
+    if(isNativeTouchTarget(event.target)) return;
     const currentTime = now();
     if(currentTime - lastTouchStartAt < doubleTapWindowMs) {
       event.preventDefault();
@@ -28,7 +44,7 @@ function bindGestureGuards({
     lastTouchStartAt = currentTime;
   };
   const preventDoubleTap = (event) => {
-    if(isEditableTarget(event.target)) return;
+    if(isNativeTouchTarget(event.target)) return;
     const currentTime = now();
     if(currentTime - lastTouchEndAt < doubleTapWindowMs) {
       event.preventDefault();

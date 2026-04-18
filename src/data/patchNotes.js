@@ -1,5 +1,18 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.77',
+    label: 'THREAT READABILITY + SCROLL FIX',
+    summary: [
+      'Danger and harvest projectile states now read more clearly in motion, bounce-cap enemies expose their ricochet tier with ring markers, and vertically scrollable run/leaderboard panels work again on touch devices.'
+    ],
+    highlights: [
+      'Harvest bullets now render as hollow circles instead of filled dots so inactive pickup states separate more cleanly from live danger shots.',
+      'Live danger bullets got a stronger glow pass, while bounce-cap bullets now draw ring markers that count down as wall bounces are spent.',
+      'Bounce-cap circle enemies now mirror that ring language so Buster variants communicate their ricochet tier before they fire.',
+      'Gesture guards now allow native vertical scrolling inside leaderboard, patch notes, and boon list panels instead of suppressing all touch-drag input.'
+    ]
+  },
+  {
     version: '1.16.76',
     label: 'COLOR ASSIST SETTINGS',
     summary: [
