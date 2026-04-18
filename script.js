@@ -384,6 +384,7 @@ function renderSettingsPanel() {
     { label: 'Phase Buster', note: 'Advanced wall-shot lane', color: threat.advanced.hex, glow: threat.advanced.light, kind: 'phase' },
     { label: 'Omega', note: 'Elite late-room threat', color: threat.elite.hex, glow: threat.elite.light, kind: 'elite' },
     { label: 'Danger Shot', note: 'Hostile bullet color', color: threat.danger.hex, glow: threat.danger.light, kind: 'bullet' },
+    { label: 'Harvest Shot', note: 'Recovered bullet state', color: C.grey, glow: C.grey, kind: 'harvest-bullet' },
   ];
 
   settingsPreviewGrid.innerHTML = '';
@@ -395,6 +396,20 @@ function renderSettingsPanel() {
     swatch.className = `settings-preview-swatch ${entry.kind}`;
     swatch.style.background = entry.color;
     swatch.style.boxShadow = `0 0 18px ${entry.glow}66`;
+    if(entry.kind === 'harvest-bullet') swatch.style.color = entry.color;
+
+    const core = document.createElement('div');
+    core.className = 'settings-preview-core';
+    swatch.appendChild(core);
+
+    if(entry.kind === 'phase' || entry.kind === 'elite') {
+      const ringCount = entry.kind === 'elite' ? 2 : 1;
+      for(let i = 0; i < ringCount; i++) {
+        const ring = document.createElement('div');
+        ring.className = `settings-preview-ring ring-${i + 1}`;
+        swatch.appendChild(ring);
+      }
+    }
 
     const meta = document.createElement('div');
     meta.className = 'settings-preview-meta';
@@ -1314,7 +1329,7 @@ function getDangerBounceRingCount(bullet) {
     return Math.max(0, 2 - (bullet.eliteStage || 0));
   }
   if(bullet.doubleBounce) {
-    return Math.max(0, 2 - (bullet.bounceCount || 0));
+    return Math.max(0, 1 - (bullet.bounceCount || 0));
   }
   if((bullet.dangerBounceBudget || 0) > 0) {
     return bullet.dangerBounceBudget;
@@ -1325,7 +1340,7 @@ function getDangerBounceRingCount(bullet) {
 function getEnemyBounceRingCount(enemy) {
   if(!enemy) return 0;
   if(enemy.isElite || enemy.type === 'orange_zoner') return 2;
-  if(enemy.forcePurpleShots || enemy.doubleBounce) return 2;
+  if(enemy.forcePurpleShots || enemy.doubleBounce) return 1;
   if(enemy.dangerBounceBudget > 0) return enemy.dangerBounceBudget;
   return 0;
 }
@@ -1426,6 +1441,11 @@ function getVolleyTotalDamageMultiplier(shotCount) {
   return VOLLEY_TOTAL_DAMAGE_MULTS[Math.min(VOLLEY_TOTAL_DAMAGE_MULTS.length - 1, count - 1)];
 }
 
+function getOverloadSizeScale(chargeSpent) {
+  const spent = Math.max(1, Math.floor(chargeSpent || 1));
+  return 2 + 2 * Math.min(1, Math.max(0, (spent - 5) / 25));
+}
+
 function getChargeRatio() {
   return Math.max(0, Math.min(1, charge / Math.max(1, UPG.maxCharge || 1)));
 }
@@ -1483,13 +1503,16 @@ function firePlayer(tx,ty) {
   const volleyTotalDamageMult = getVolleyTotalDamageMultiplier(availableShots);
   const volleyPerBulletDamageMult = volleyTotalDamageMult / availableShots;
   
-  // Overload: if active and at full charge, apply 2.5x damage multiplier and consume charge
+  // Overload converts the full bank into one scaled volley worth the charge it burns.
   let overloadBonus = 1;
+  let overloadSizeScale = 1;
+  let chargeSpent = availableShots;
   if(UPG.overload && UPG.overloadActive && charge >= UPG.maxCharge){
-    overloadBonus = 2.5;
+    chargeSpent = Math.max(availableShots, Math.floor(charge));
+    overloadBonus = chargeSpent / availableShots;
+    overloadSizeScale = getOverloadSizeScale(chargeSpent);
     UPG.overloadActive = false;
     UPG.overloadCooldown = 3000;
-    charge = 0;
   }
 
   const volleySpecs = buildPlayerVolleySpecs({
@@ -1503,14 +1526,15 @@ function firePlayer(tx,ty) {
     lifeMs,
     overchargeBonus,
     overloadBonus,
+    overloadSizeScale,
     getPierceLeft: (shot) => UPG.pierceTier + ((shot.isRing && UPG.corona) ? 1 : 0),
     getBloodPactHealCap,
     now,
   });
   volleySpecs.forEach((spec) => pushOutputBullet({ bullets, ...spec }));
-  charge=Math.max(0,charge-availableShots);
-  recordShotSpend(availableShots);
-  sparks(player.x,player.y,C.green,4 + Math.min(4, availableShots),55);
+  charge=Math.max(0,charge-chargeSpent);
+  recordShotSpend(chargeSpent);
+  sparks(player.x,player.y,C.green,4 + Math.min(6, availableShots + Math.floor((chargeSpent - availableShots) / Math.max(1, availableShots))),55);
   
   // Shockwave: fire a radial push on full-charge fire
   if(UPG.shockwave && availableShots === Math.floor(UPG.maxCharge) && UPG.shockwaveCooldown <= 0){
@@ -1543,6 +1567,7 @@ function firePlayer(tx,ty) {
         lifeMs,
         overchargeBonus: 1,
         overloadBonus: 1,
+        overloadSizeScale: 1,
         getPierceLeft: (shot) => UPG.pierceTier + ((shot.isRing && UPG.corona) ? 1 : 0),
         getBloodPactHealCap,
         now: eNow,

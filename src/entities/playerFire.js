@@ -50,6 +50,7 @@ function buildPlayerVolleySpecs({
   lifeMs,
   overchargeBonus = 1,
   overloadBonus = 1,
+  overloadSizeScale = 1,
   getPierceLeft = () => 0,
   getBloodPactHealCap = () => 0,
   now,
@@ -62,12 +63,13 @@ function buildPlayerVolleySpecs({
     const sideX = Math.cos(angle + Math.PI / 2) * shot.offset;
     const sideY = Math.sin(angle + Math.PI / 2) * shot.offset;
     const crit = random() < (upg.critChance || 0);
+    const scaledRadius = baseRadius * overloadSizeScale;
     volleySpecs.push({
       x: player.x + sideX,
       y: player.y + sideY,
       vx: Math.cos(angle) * bulletSpeed,
       vy: Math.sin(angle) * bulletSpeed,
-      radius: crit ? baseRadius * 1.28 : baseRadius,
+      radius: crit ? scaledRadius * 1.28 : scaledRadius,
       bounceLeft: (upg.bounceTier || 0) > 0 ? 2 : 0,
       pierceLeft: getPierceLeft(shot) + (shot.isSpreadExtra ? (upg.spreadShotPierceBonus || 0) : 0),
       homing: (upg.homingTier || 0) > 0,

@@ -1,5 +1,19 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.78',
+    label: 'OVERLOAD + THREAT TUNE',
+    summary: [
+      'Overload now converts the full stored bank into a properly scaled giant volley, threat ring counts now match remaining active wall bounces exactly, and the settings preview shows the newer enemy and harvest-shot artwork.'
+    ],
+    highlights: [
+      'Overload damage now scales from the real charge it consumes instead of spending a full bank for near-normal output.',
+      'Overload projectile size now scales from 2x to 4x depending on how large the consumed full-charge bank is.',
+      'Phase-family enemies and bullets now show one ring, Omega shows two, and the ring count drops based on remaining live bounces rather than total lifetime bounces.',
+      'Settings preview now includes the updated Phase/Omega enemy ring treatment and a hollow harvest bullet preview.',
+      'Room 11 now guarantees at least one Phase Buster so that threat family appears on time.'
+    ]
+  },
+  {
     version: '1.16.77',
     label: 'THREAT READABILITY + SCROLL FIX',
     summary: [

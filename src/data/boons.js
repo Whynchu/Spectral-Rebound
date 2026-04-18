@@ -292,7 +292,7 @@ const BOONS = [
   
   // Phase 6: Active Abilities
   {name:'Phase Dash',tag:'SURVIVE',icon:'💨',desc:'On hit, auto-dash and take 5% damage.',apply(upg){if(upg.phaseDashTier>=3)return; upg.phaseDash=true; upg.phaseDashTier++; upg.phaseDashRoomLimit=upg.phaseDashTier;}},
-  {name:'Overload',tag:'OFFENSE',icon:'⚡',desc:'Full charge primes a x2.5 shot.',apply(upg){if(upg.overload)return; upg.overload=true;}},
+  {name:'Overload',tag:'OFFENSE',icon:'⚡',desc:'Full charge converts your whole bank into a giant scaled volley.',apply(upg){if(upg.overload)return; upg.overload=true;}},
   {name:'EMP Burst',tag:'SURVIVE',icon:'💥',desc:'Low-HP hit clears danger bullets.',requires:upg=>upg.capacitorTier>0,apply(upg){if(upg.empBurst)return; upg.empBurst=true;}},
 ];
 
@@ -511,7 +511,7 @@ function getActiveBoonEntries(upg) {
   if(upg.refraction) entries.push({icon:'💡',name:'Refraction',detail:`Cooldown: ${Math.max(0, (upg.refractionCooldown||0)/1000).toFixed(1)}s`});
   if(upg.mirrorTide) entries.push({icon:'🪞',name:'Mirror Tide',detail:`${Math.max(0, (upg.mirrorTideRoomLimit||0) - (upg.mirrorTideRoomUses||0))}/${upg.mirrorTideRoomLimit||0} room uses, ${Math.max(0, (upg.mirrorTideCooldown||0)/1000).toFixed(1)}s cd`});
   if(upg.phaseDash) entries.push({icon:'💨',name:'Phase Dash',detail:`5% damage, ${Math.max(0, (upg.phaseDashRoomLimit||0) - (upg.phaseDashRoomUses||0))}/${upg.phaseDashRoomLimit||0} uses, ${Math.max(0, (upg.phaseDashCooldown||0)/1000).toFixed(1)}s cd`});
-  if(upg.overload) entries.push({icon:'⚡',name:'Overload',detail:'Full charge primes a big shot'});
+  if(upg.overload) entries.push({icon:'⚡',name:'Overload',detail:'Full charge converts the whole bank into a 2x-4x giant volley'});
   if(upg.empBurst) entries.push({icon:'💥',name:'EMP Burst',detail:upg.empBurstUsed?'SPENT':'Ready ≤30% HP'});
   if(upg.voidWalker) entries.push({icon:'🌊',name:'VOID WALKER',detail:'Dashing creates void zone'});
   if(upg.chargedOrbs) entries.push({icon:'⚡',name:'Charged Orbs',detail:`Orbs fire shot every ${(CHARGED_ORB_FIRE_INTERVAL_MS / 1000).toFixed(1)}s`});

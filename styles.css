@@ -177,11 +177,16 @@ body.compact-viewport #wrap {
   flex: 0 0 auto;
   border: 1px solid rgba(255,255,255,0.12);
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
 }
 .settings-preview-swatch.player,
 .settings-preview-swatch.enemy,
 .settings-preview-swatch.phase,
-.settings-preview-swatch.elite {
+.settings-preview-swatch.elite,
+.settings-preview-swatch.harvest-bullet {
   border-radius: 999px;
 }
 .settings-preview-swatch.aggressive {
@@ -198,22 +203,45 @@ body.compact-viewport #wrap {
   margin: 0 7px;
   border-radius: 999px;
 }
-.settings-preview-swatch::after {
-  content: '';
+.settings-preview-swatch.harvest-bullet {
+  width: 16px;
+  height: 16px;
+  margin: 0 7px;
+  background: transparent !important;
+  border: 2px solid currentColor;
+  box-shadow: 0 0 10px rgba(255,255,255,0.12);
+}
+.settings-preview-core {
   position: absolute;
   inset: 6px;
   border-radius: inherit;
   background: rgba(255,255,255,0.18);
   opacity: 0.65;
 }
-.settings-preview-swatch.triangle::after {
+.settings-preview-swatch.triangle .settings-preview-core {
   inset: 7px;
 }
-.settings-preview-swatch.aggressive::after {
+.settings-preview-swatch.aggressive .settings-preview-core {
   inset: 7px;
 }
-.settings-preview-swatch.bullet::after {
+.settings-preview-swatch.bullet .settings-preview-core {
   inset: 3px;
+}
+.settings-preview-swatch.harvest-bullet .settings-preview-core {
+  display: none;
+}
+.settings-preview-ring {
+  position: absolute;
+  border-radius: 999px;
+  border: 1.6px solid rgba(255,255,255,0.58);
+  box-shadow: 0 0 8px rgba(255,255,255,0.16);
+  pointer-events: none;
+}
+.settings-preview-ring.ring-1 {
+  inset: -5px;
+}
+.settings-preview-ring.ring-2 {
+  inset: -10px;
 }
 .settings-preview-meta {
   min-width: 0;

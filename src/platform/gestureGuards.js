@@ -7,12 +7,20 @@ function bindGestureGuards({
   let lastTouchStartAt = 0;
 
   const isEditableTarget = (target) => Boolean(
-    target && target.closest && target.closest('input, textarea, select, [contenteditable="true"]')
+    target
+    && typeof target.closest === 'function'
+    && (
+      target.closest('input, textarea, select')
+      || target.closest('[contenteditable="true"]')
+      || target.closest('[contenteditable]')
+    )
   );
   const isScrollableTarget = (target) => {
-    if(!(target instanceof Element)) return false;
+    if(!target || typeof target !== 'object') return false;
+    if(typeof target.closest !== 'function') return false;
     let node = target;
-    const view = doc.defaultView || window;
+    const view = doc.defaultView || globalThis;
+    if(typeof view.getComputedStyle !== 'function') return false;
     while(node && node !== doc.body && node !== doc.documentElement) {
       const style = view.getComputedStyle(node);
       const overflowY = style?.overflowY || '';

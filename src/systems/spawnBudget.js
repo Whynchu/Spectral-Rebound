@@ -40,11 +40,16 @@ function generateWeightedWave(roomIdx, enemyTypes, randomFn = Math.random) {
     budget -= enemyTypes.purple_chaser.spawnValue;
     shooterCount += 1;
   }
+  if(roomIdx === 11) {
+    entries.set('purple_chaser', Math.max(1, entries.get('purple_chaser') || 0));
+    budget -= enemyTypes.purple_chaser.spawnValue;
+    shooterCount += 1;
+  }
 
   while(budget >= 2) {
     const candidates = unlocked
       .filter((type) => roomIdx > 9 || (type !== 'purple_chaser' && type !== 'purple_disruptor'))
-      .filter((type) => type !== 'purple_chaser' || roomIdx >= 14)
+      .filter((type) => type !== 'purple_chaser' || roomIdx >= 11)
       .filter((type) => type !== 'purple_disruptor' || roomIdx >= 15)
       .filter((type) => enemyTypes[type].spawnValue <= budget + 0.5)
       .filter((type) => entries.size < maxTypes || entries.has(type))
