@@ -1,5 +1,17 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.92',
+    label: 'HATS FOLLOW-UP',
+    summary: [
+      'This small follow-up rolls in the latest hats polish, including additional Viking horn shaping and tighter overlay presentation fixes from the latest UI pass.'
+    ],
+    highlights: [
+      'Included the latest Viking helm horn shape adjustment.',
+      'Included the most recent hats and contributors overlay spacing cleanup.',
+      'No gameplay balance changes in this release.'
+    ]
+  },
+  {
     version: '1.16.91',
     label: 'DESKTOP HATS TIDY',
     summary: [
