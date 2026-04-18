@@ -1,5 +1,17 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.89',
+    label: 'HATS LAYOUT HOTFIX',
+    summary: [
+      'This hotfix corrects the recent hats regressions: the menu ghost preview now stays proportional while zoomed, the hats picker is properly centered above the menu, and the Viking horn triangles now point outward.'
+    ],
+    highlights: [
+      'The start-screen ghost preview now uses uniform scaling instead of distorting the base ghost proportions.',
+      'The hats picker is now a true centered modal over the start screen instead of sitting underneath the start buttons.',
+      'Viking helm horn triangles now face outward away from the ghost head.'
+    ]
+  },
+  {
     version: '1.16.88',
     label: 'HATS UI POLISH',
     summary: [

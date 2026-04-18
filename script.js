@@ -3487,9 +3487,9 @@ function drawGhostHatLayer(ctxRef, hatKey, size, bodyColor, ts) {
       ctxRef.rotate(direction * 0.34);
       ctxRef.fillStyle = 'rgba(244,228,198,0.96)';
       ctxRef.beginPath();
-      ctxRef.moveTo(-hornW * 0.12, hornH * 0.34);
-      ctxRef.lineTo(hornW * 0.98, -hornH * 0.12);
-      ctxRef.lineTo(hornW * 0.08, -hornH * 0.46);
+      ctxRef.moveTo(hornW * 0.12, hornH * 0.34);
+      ctxRef.lineTo(-hornW * 0.98, -hornH * 0.12);
+      ctxRef.lineTo(-hornW * 0.08, -hornH * 0.46);
       ctxRef.closePath();
       ctxRef.fill();
       ctxRef.strokeStyle = 'rgba(116,86,44,0.45)';
@@ -3678,11 +3678,15 @@ function drawGhost(ts){
 function drawStartGhostPreview(ts = performance.now()) {
   if(!startGhostPreview || !startGhostPreviewCtx) return;
   startGhostPreviewCtx.clearRect(0, 0, startGhostPreview.width, startGhostPreview.height);
+  startGhostPreviewCtx.save();
+  startGhostPreviewCtx.translate(startGhostPreview.width / 2, startGhostPreview.height / 2 + 12);
+  startGhostPreviewCtx.scale(2, 2);
+  startGhostPreviewCtx.translate(-startGhostPreview.width / 2, -(startGhostPreview.height / 2 + 12));
   drawGhostSprite(startGhostPreviewCtx, ts, {
     playerState: {
       x: startGhostPreview.width / 2,
-      y: startGhostPreview.height / 2 + 24,
-      r: 12.5,
+      y: startGhostPreview.height / 2 + 12,
+      r: 9,
       vx: 0,
       distort: 0,
       invincible: 0,
@@ -3698,6 +3702,7 @@ function drawStartGhostPreview(ts = performance.now()) {
     hatKey: playerHat,
     idleStill: true,
   });
+  startGhostPreviewCtx.restore();
 }
 
 function drawHatOptionPreview(canvas, hatKey) {
