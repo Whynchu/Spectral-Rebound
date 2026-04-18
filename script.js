@@ -879,7 +879,7 @@ function captureTelemetrySnapshot(roomNumber) {
     maxCharge: roundTelemetryValue(UPG.maxCharge || 0),
     currentCharge: roundTelemetryValue(charge || 0),
     requiredShotCount: getRequiredShotCount(UPG),
-    damageMult: roundTelemetryValue((UPG.playerDamageMult || 1) * (UPG.denseDamageMult || 1) * (UPG.heavyRoundsDamageMult || 1)),
+    damageMult: roundTelemetryValue((UPG.playerDamageMult || 1) * (UPG.denseDamageMult || 1) * (UPG.heavyRoundsDamageMult || 1) * Math.min(1.45, 1 + Math.min(UPG.sustainedFireShots || 0, 15) * 0.03)),
     denseTier: UPG.denseTier || 0,
     denseDamageMult: roundTelemetryValue(UPG.denseDamageMult || 1),
     chargeCapTier: UPG.chargeCapTier || 0,
@@ -1625,7 +1625,9 @@ function firePlayer(tx,ty) {
   const lateBloomMods = getLateBloomMods(roomIndex || 0);
   // Escalation: per-kill damage in current room (max +40%)
   const escalationBonus = UPG.escalation ? 1 + Math.min((UPG.escalationKills || 0) * ESCALATION_KILL_PCT, ESCALATION_MAX_BONUS) : 1;
-  const baseDmg = (1 + UPG.snipePower * 0.35) * (UPG.playerDamageMult || 1) * (UPG.denseDamageMult || 1) * (UPG.heavyRoundsDamageMult || 1) * predatorBonus * denseDesperationBonus * lateBloomMods.damage * escalationBonus;
+  // Sustained Fire bonus: +3% damage per consecutive shot, max +45%, decays 1s after last shot
+  const sustainedFireBonus = Math.min(1.45, 1 + Math.min(UPG.sustainedFireShots || 0, 15) * 0.03);
+  const baseDmg = (1 + UPG.snipePower * 0.35) * (UPG.playerDamageMult || 1) * (UPG.denseDamageMult || 1) * (UPG.heavyRoundsDamageMult || 1) * predatorBonus * denseDesperationBonus * lateBloomMods.damage * escalationBonus * sustainedFireBonus;
   const lifeMs = PLAYER_SHOT_LIFE_MS * (UPG.shotLifeMult || 1);
   const now = performance.now();
   const overchargeBonus = (UPG.overchargeVent && charge >= UPG.maxCharge) ? 1.6 : 1;
@@ -2308,7 +2310,18 @@ function update(dt,ts){
     const interval = 1 / (UPG.sps * 2 * (UPG.heavyRoundsFireMult || 1));
     if(fireT >= interval){
       fireT = fireT % interval;
-      if(autoTarget) firePlayer(autoTarget.e.x,autoTarget.e.y);
+      if(autoTarget) {
+        firePlayer(autoTarget.e.x,autoTarget.e.y);
+        UPG.sustainedFireShots = (UPG.sustainedFireShots || 0) + 1;
+        UPG.sustainedFireLastShotTime = performance.now();
+      }
+    }
+  } else {
+    // Decay sustained fire when not actively firing
+    const now = performance.now();
+    if((UPG.sustainedFireLastShotTime || 0) > 0 && now - UPG.sustainedFireLastShotTime > 1000) {
+      UPG.sustainedFireShots = 0;
+      UPG.sustainedFireBonus = 1;
     }
   }
 

@@ -1,5 +1,19 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.99',
+    label: 'SUSTAINED FIRE & SPS SYNERGY',
+    summary: [
+      'Sustained Fire: builds damage (+3% per shot, max +45%) while firing consecutively. Resets 1s after stopping.',
+      'Kinetic Harvest now scales with fire-rate tiers: base rate × (1 + 0.15 × SPS tier), so faster builds refill charge more efficiently while moving.'
+    ],
+    highlights: [
+      'Sustained Fire: passive mechanic that stacks +3% damage per consecutive shot while standing still and firing (caps at +45% after 15 shots).',
+      'Bonus decays if you stop firing for >1s, rewarding sustained positioning and encouraging a playstyle of continuous pressure.',
+      'Kinetic Harvest SPS synergy: move charge rate now scales 1.0× → 1.9× depending on fire-rate tiers picked (0 tiers to 6 tiers).',
+      'Enables fast builds to actually sustain high SPS via movement, creating a true fast-and-constant playstyle alternative to slow-and-heavy.'
+    ]
+  },
+  {
     version: '1.16.98',
     label: 'HEAVY ROUNDS & TEMPO',
     summary: [

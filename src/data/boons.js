@@ -213,6 +213,9 @@ function getDefaultUpgrades() {
     heavyRoundsTier: 0,
     heavyRoundsDamageMult: 1,
     heavyRoundsFireMult: 1,
+    sustainedFireShots: 0,
+    sustainedFireBonus: 1,
+    sustainedFireLastShotTime: 0,
     boonSelectionOrder: [],
   };
   syncChargeCapacity(upg);
@@ -237,7 +240,7 @@ const BOONS = [
   {name:'Deep Reserve',tag:'UTILITY',icon:'▣',desc:'+flat charge. Starts at +16, caps at +120.',apply(upg){if((upg.chargeCapFlatBonus||0) >= MAX_DEEP_RESERVE_BONUS)return; upg.chargeCapFlatTier++;upg.chargeCapFlatBonus = Math.min(MAX_DEEP_RESERVE_BONUS, (upg.chargeCapFlatBonus||0) + getFlatChargeGain(upg.chargeCapFlatTier));syncChargeCapacity(upg);}},
   {name:'Wider Absorb',tag:'UTILITY',icon:'🧲',desc:'More absorb range. Max +60.',apply(upg){upg.absorbRange=Math.min(60,upg.absorbRange+15);}},
   {name:'Long Reach',tag:'UTILITY',icon:'➶',desc:'Shots last longer.',apply(upg){upg.shotLifeTier++;upg.shotLifeMult=getHyperbolicScale(upg.shotLifeTier);}},
-  {name:'Kinetic Harvest',tag:'UTILITY',icon:'🌀',desc:'Gain charge while moving. Low charge refills faster.',apply(upg){upg.kineticTier++;upg.moveChargeRate=getHyperbolicScale(upg.kineticTier)*0.45;}},
+  {name:'Kinetic Harvest',tag:'UTILITY',icon:'🌀',desc:'Gain charge while moving. Low charge refills faster.',apply(upg){upg.kineticTier++;const baseMoveRate=getHyperbolicScale(upg.kineticTier)*0.45;const spsSynergy=1+(upg.spsTier||0)*0.15;upg.moveChargeRate=baseMoveRate*spsSynergy;}},
   {name:'Extra Life',tag:'SURVIVE',icon:'◉',desc:'+max HP and heal on pickup.',apply(upg, state){upg.extraLifeTier++;const idx=Math.min(EXTRA_LIFE_GAINS.length-1, upg.extraLifeTier-1);const heal=EXTRA_LIFE_GAINS[idx];state.maxHp+=heal;state.hp=Math.min(state.hp+heal,state.maxHp);}},
   {name:'Ghost Velocity',tag:'SURVIVE',icon:'👻',desc:'Move faster. Diminishing returns.',apply(upg){upg.speedTier++;upg.speedMult=getHyperbolicScale(upg.speedTier);}},
   {name:'Room Regen',tag:'SURVIVE',icon:'💚',desc:'+18 HP on room clear. Max 54.',apply(upg){upg.regenTick=Math.min(ROOM_REGEN_MAX,upg.regenTick+ROOM_REGEN_PER_PICK);}},

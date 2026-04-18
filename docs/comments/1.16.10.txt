@@ -1,0 +1,13 @@
+I am feeling as though single shot builds don’t deal enough damage. I had 2 dense core, 2 snipe shot, escalation, and predator instincts, didn’t even make it to the first boss… 2+ shots on every enemy.
+On the verse hand, as soon as you pick up twin lance, you once shot everything before wave 10
+
+I’m not sure if there’s some sort of balance issue, but there’s definitely a major difference between single shot builds and twin lance
+
+I do have a true complaint though!
+After wave 40, there are enemies that fire the same color rounds as you. They ricochet twice. Can’t tell what’s my shots or theirs, cause too much hysteria to actually follow any pattern or shot orientation.
+
+triangle enemies balls seem to be able to hit the wall (already turned into balls from hitting the wall) and they get to bounce off the wall extra. they should only hit once.
+
+also, there were comments about users wanting to be able to see more user stats between rooms in the boon menu. 
+
+Let's be careful with these changes and use the telemetry from out supabase scores folder. 
