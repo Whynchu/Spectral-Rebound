@@ -3467,27 +3467,27 @@ function drawGhostHatLayer(ctxRef, hatKey, size, bodyColor, ts) {
     // --- Horns (drawn behind helmet) ---
     const drawHorn = (dir) => {
       ctxRef.save();
-      // Base of horn sits at the side of the dome
-      const bx1 = dir * helmW * 0.38; // inner base
-      const by1 = helmH * 0.08;
-      const bx2 = dir * helmW * 0.52; // outer base
-      const by2 = -helmH * 0.32;
+      // Wide base anchored at side of dome — thick here
+      const bx1 = dir * helmW * 0.34; // inner base (closer to center)
+      const by1 = helmH * 0.15;
+      const bx2 = dir * helmW * 0.58; // outer base (far from center)
+      const by2 = -helmH * 0.15;
 
-      // Tip of horn — far out and up
-      const tx = dir * helmW * 0.88;
-      const ty = -helmH * 1.1;
+      // Tip — sweeps outward, not straight up
+      const tx = dir * helmW * 1.05;
+      const ty = -helmH * 0.85;
 
-      // Control points for the thick inner curve (belly of the horn)
-      const ic1x = dir * helmW * 0.28;
-      const ic1y = -helmH * 0.55;
-      const ic2x = dir * helmW * 0.52;
-      const ic2y = -helmH * 1.15;
+      // Inner curve (belly) — pulls inward for the thick base feel
+      const ic1x = dir * helmW * 0.22;
+      const ic1y = -helmH * 0.35;
+      const ic2x = dir * helmW * 0.62;
+      const ic2y = -helmH * 0.95;
 
-      // Control points for the thin outer curve (back of the horn)
-      const oc1x = dir * helmW * 0.95;
-      const oc1y = -helmH * 0.95;
+      // Outer curve — hugs close to inner curve near tip for taper
+      const oc1x = dir * helmW * 1.0;
+      const oc1y = -helmH * 0.65;
       const oc2x = dir * helmW * 0.72;
-      const oc2y = -helmH * 0.22;
+      const oc2y = -helmH * 0.05;
 
       // Horn fill
       ctxRef.fillStyle = 'rgba(216,200,160,0.97)';

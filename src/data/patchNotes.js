@@ -1,5 +1,16 @@
 const PATCH_NOTES = [
   {
+    version: '1.16.96',
+    label: 'HORN REFINEMENT',
+    summary: [
+      'This follow-up adjusts the Viking helm horns again so the silhouette stays simple and readable.'
+    ],
+    highlights: [
+      'Included the latest horn geometry refinement.',
+      'No gameplay changes in this release.'
+    ]
+  },
+  {
     version: '1.16.95',
     label: 'HELMET REWORK',
     summary: [
