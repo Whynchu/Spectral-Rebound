@@ -1275,9 +1275,8 @@ body.tight-viewport #legend {
   font-size: 7px;
 }
 
-/* Pause button — only visible during gameplay */
+/* Pause button — hidden by default, shown via inline style during gameplay */
 #btn-pause { display:none; }
-body.game-playing #btn-pause { display:inline-flex; }
 
 #pause-panel {
   z-index: 20;

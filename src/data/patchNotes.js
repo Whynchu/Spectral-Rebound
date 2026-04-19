@@ -1,6 +1,6 @@
 const PATCH_NOTES = [
   {
-    version: '1.17.3',
+    version: '1.17.4',
     label: 'IMPACT FEEDBACK',
     summary: [
       'Damage numbers, payload overhaul with kill processing and cooldown, ghost face polish, fracture payload bug fix, and homing tiers.',

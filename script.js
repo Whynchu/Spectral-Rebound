@@ -1852,7 +1852,7 @@ function showUpgrades() {
       document.getElementById('s-up').classList.add('off');
       startRoom(roomIndex+1);
       gstate='playing'; lastT=performance.now(); raf=requestAnimationFrame(loop);
-      btnPause.style.display = '';
+      btnPause.style.display = 'inline-flex';
     },
     onSelect: (boon) => {
       const state = { hp, maxHp };
@@ -1873,7 +1873,7 @@ function showUpgrades() {
       startRoom(roomIndex+1);
       gstate='playing'; lastT=performance.now();
       raf=requestAnimationFrame(loop);
-      btnPause.style.display = '';
+      btnPause.style.display = 'inline-flex';
     },
   });
 }
@@ -2056,7 +2056,7 @@ function resumeGame() {
   pausePanel.classList.add('off');
   pausePanel.setAttribute('aria-hidden', 'true');
   pauseBoonsPanel.classList.add('off');
-  btnPause.style.display = '';
+  btnPause.style.display = 'inline-flex';
   lastT = performance.now();
   raf = requestAnimationFrame(loop);
 }
@@ -2239,6 +2239,7 @@ function init() {
   syncPlayerScale();
   startRoom(0);
   hudUpdate();
+  btnPause.style.display = 'inline-flex';
 }
 
 // ── MAIN LOOP ─────────────────────────────────────────────────────────────────
@@ -3995,7 +3996,7 @@ function drawGhostSprite(ctxRef, ts, {
     ctxRef.lineWidth = 1.5;
     ctxRef.beginPath(); ctxRef.arc(-5.5, -size * .25 - 2, 1.5, 0, Math.PI * 2); ctxRef.stroke();
     ctxRef.beginPath(); ctxRef.arc(5.5, -size * .25 - 2, 1.5, 0, Math.PI * 2); ctxRef.stroke();
-    ctxRef.beginPath(); ctxRef.arc(0, size * .08 + 2, 4.6, Math.PI + .25, Math.PI * 2 - .25); ctxRef.stroke();
+    ctxRef.beginPath(); ctxRef.arc(0, size * .08 + 1, 4.6, Math.PI + .25, Math.PI * 2 - .25); ctxRef.stroke();
   } else {
     ctxRef.fillStyle = C.getRgba(C.green, 0.9);
     ctxRef.beginPath(); ctxRef.arc(-4.5, -size * .3 - 2, 1.3, 0, Math.PI * 2); ctxRef.fill();
@@ -4005,7 +4006,7 @@ function drawGhostSprite(ctxRef, ts, {
   if(chargeFrac > 0.3 && gameState !== 'dying'){
     ctxRef.strokeStyle = 'rgba(0,0,0,0.55)';
     ctxRef.lineWidth = 1.5;
-    ctxRef.beginPath(); ctxRef.arc(0, -size * .1 + 2, 4.5, .2, Math.PI - .2); ctxRef.stroke();
+    ctxRef.beginPath(); ctxRef.arc(0, -size * .1 + 1, 4.5, .2, Math.PI - .2); ctxRef.stroke();
   }
 
   const ringRadius = size + 8;
