@@ -1274,3 +1274,11 @@ body.tight-viewport #legend {
   gap: 10px;
   font-size: 7px;
 }
+
+/* Pause button — only visible during gameplay */
+#btn-pause { display:none; }
+body.game-playing #btn-pause { display:inline-flex; }
+
+#pause-panel {
+  z-index: 20;
+}

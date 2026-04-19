@@ -1,5 +1,22 @@
 const PATCH_NOTES = [
   {
+    version: '1.17.1',
+    label: 'POWER DREAM',
+    summary: [
+      'Six new features: mobile charging, orb build boons, pause menu, run persistence, the Phantom Rebound legendary, and a Blood Moon display fix.',
+      'Quality-of-life overhaul with save & resume, mid-run pause, and deeper build diversity.'
+    ],
+    highlights: [
+      'Mobile Charge: shots charge at 10% speed while moving (cannot fire). New "Steady Aim" boon boosts mobile rate +15%/tier.',
+      'Massive Orbs boon: +30% orb size per tier (max 3). Wide Orbit boon: +20px orbit distance per tier (max 3).',
+      'Pause Menu: ⏸ button or Escape key. Continue, view boons, leaderboards, restart, or return to menu.',
+      'Run Persistence: auto-saves at each room clear. Close the browser and pick up where you left off.',
+      'Phantom Rebound legendary (requires Pierce + Ricochet + Long Reach): last ricochet bounce converts bullet to grey charge orb. Long Reach doubled while active.',
+      'Blood Moon boon now correctly appears in Active Boons display.',
+      'Sustained Fire decay now runs every frame — no longer stalls while moving with charge.',
+    ]
+  },
+  {
     version: '1.17.0',
     label: 'BALANCE OVERHAUL',
     summary: [

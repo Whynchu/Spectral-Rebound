@@ -532,6 +532,7 @@ function applyOrbitSphereContact(enemy, {
   originY,
   orbitalFocus = false,
   chargeRatio = 0,
+  orbSphereRadius = 5,
   baseDamage = 2,
   focusDamageBonus = 1.5,
   focusChargeScale = 1.5,
@@ -552,7 +553,7 @@ function applyOrbitSphereContact(enemy, {
     });
     const lastHitAt = enemy.orbitHitAt[si] || -99999;
     if(ts - lastHitAt < 220) continue;
-    if(Math.hypot(enemy.x - orbitSlot.x, enemy.y - orbitSlot.y) >= enemy.r + 6) continue;
+    if(Math.hypot(enemy.x - orbitSlot.x, enemy.y - orbitSlot.y) >= enemy.r + orbSphereRadius + 1) continue;
 
     enemy.orbitHitAt[si] = ts;
     const damage = baseDamage + (orbitalFocus ? focusDamageBonus + chargeRatio * focusChargeScale : 0);

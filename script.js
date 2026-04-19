@@ -608,6 +608,7 @@ async function refreshVersionStatus() {
 // ── STATE ─────────────────────────────────────────────────────────────────────
 const BASE_PLAYER_HP = 200;
 let gstate = 'start';
+let pauseStartedAt = 0;
 let player = {};
 let bullets = [], enemies = [], particles = [];
 let score=0, kills=0;
@@ -625,6 +626,8 @@ const SHIELD_COOLDOWN   = 4.5;  // seconds a shield is inactive after absorbing 
 const SHIELD_ROTATION_SPD  = 0.001; // radians per millisecond (≈1 rev / 6.3 s)
 const ORBIT_SPHERE_R    = 40;   // orbital radius of passive orbit spheres (px)
 const ORBIT_ROTATION_SPD   = 0.003; // radians per millisecond (≈1 rev / 2.1 s)
+function getOrbitRadius() { return ORBIT_SPHERE_R + (UPG.orbitRadiusBonus || 0); }
+function getOrbVisualRadius() { return 5 * (UPG.orbSizeMult || 1); }
 const GRID_SIZE = 28;
 const WALL_CUBE_SIZE = GRID_SIZE;
 const TARGET_LOS_SOFT_PENALTY_PX = 30;
@@ -1630,7 +1633,7 @@ function firePlayer(tx,ty) {
   // Sustained Fire bonus: +3% damage per consecutive shot, max +45%, decays 1s after last shot
   const sustainedFireBonus = Math.min(1.45, 1 + Math.min(UPG.sustainedFireShots || 0, 15) * 0.03);
   const baseDmg = (1 + UPG.snipePower * 0.35) * (UPG.playerDamageMult || 1) * (UPG.denseDamageMult || 1) * (UPG.heavyRoundsDamageMult || 1) * predatorBonus * denseDesperationBonus * lateBloomMods.damage * escalationBonus * sustainedFireBonus * spsFireRateScaling;
-  const lifeMs = PLAYER_SHOT_LIFE_MS * (UPG.shotLifeMult || 1);
+  const lifeMs = PLAYER_SHOT_LIFE_MS * (UPG.shotLifeMult || 1) * (UPG.phantomRebound ? 2.0 : 1.0);
   const now = performance.now();
   const overchargeBonus = (UPG.overchargeVent && charge >= UPG.maxCharge) ? 1.6 : 1;
   const volleyTotalDamageMult = getVolleyTotalDamageMultiplier(availableShots);
@@ -1789,6 +1792,8 @@ function burstPayloadExplosion(x, y, radius) {
 
 function showUpgrades() {
   gstate='upgrade'; cancelAnimationFrame(raf);
+  btnPause.style.display = 'none';
+  saveRunState();
   UPG._roomIndex = roomIndex;
   showBoonSelection({
     upg: UPG,
@@ -1804,6 +1809,7 @@ function showUpgrades() {
       document.getElementById('s-up').classList.add('off');
       startRoom(roomIndex+1);
       gstate='playing'; lastT=performance.now(); raf=requestAnimationFrame(loop);
+      btnPause.style.display = '';
     },
     onSelect: (boon) => {
       const state = { hp, maxHp };
@@ -1824,6 +1830,7 @@ function showUpgrades() {
       startRoom(roomIndex+1);
       gstate='playing'; lastT=performance.now();
       raf=requestAnimationFrame(loop);
+      btnPause.style.display = '';
     },
   });
 }
@@ -1847,7 +1854,7 @@ function buildScoreEntry() {
   const boons = getActiveBoonEntries(UPG);
   const playerColor = getPlayerColor();
   const boonOrder = (UPG.boonSelectionOrder || []).join(',');
-  return buildLocalScoreEntry({
+  const entry = buildLocalScoreEntry({
     playerName,
     score,
     room: roomIndex + 1,
@@ -1857,7 +1864,9 @@ function buildScoreEntry() {
     boonOrder,
     boons,
     telemetry: buildRunTelemetryPayload(),
+    continued: UPG._continued || false,
   });
+  return entry;
 }
 
 function clearLegacyRunRecovery() {
@@ -1969,9 +1978,174 @@ function handleGameLoopCrash(error) {
   });
 }
 
+// ── PAUSE / RESUME ────────────────────────────────────────────────────────────
+const pausePanel = document.getElementById('pause-panel');
+const btnPause = document.getElementById('btn-pause');
+const pauseBoonsPanel = document.getElementById('pause-boons-panel');
+
+function offsetAbsoluteTimestamps(pauseDuration) {
+  for (const b of bullets) {
+    if (b.expireAt) b.expireAt += pauseDuration;
+    if (b.decayStart) b.decayStart += pauseDuration;
+  }
+  if (UPG.predatorKillStreakTime) UPG.predatorKillStreakTime += pauseDuration;
+  if (UPG.bloodRushTimer) UPG.bloodRushTimer += pauseDuration;
+  if (UPG.voidZoneTimer) UPG.voidZoneTimer += pauseDuration;
+  if (UPG.sustainedFireLastShotTime) UPG.sustainedFireLastShotTime += pauseDuration;
+  if (UPG.aegisBatteryTimer) UPG.aegisBatteryTimer += pauseDuration;
+}
+
+function pauseGame() {
+  if (gstate !== 'playing') return;
+  gstate = 'paused';
+  pauseStartedAt = performance.now();
+  cancelAnimationFrame(raf);
+  pausePanel.classList.remove('off');
+  pausePanel.setAttribute('aria-hidden', 'false');
+  btnPause.style.display = 'none';
+}
+
+function resumeGame() {
+  if (gstate !== 'paused') return;
+  const pauseDuration = performance.now() - pauseStartedAt;
+  offsetAbsoluteTimestamps(pauseDuration);
+  gstate = 'playing';
+  pausePanel.classList.add('off');
+  pausePanel.setAttribute('aria-hidden', 'true');
+  pauseBoonsPanel.classList.add('off');
+  btnPause.style.display = '';
+  lastT = performance.now();
+  raf = requestAnimationFrame(loop);
+}
+
+function renderPauseBoons() {
+  const list = document.getElementById('pause-boons-list');
+  if (!list) return;
+  const entries = getActiveBoonEntries(UPG);
+  list.innerHTML = entries.map(e =>
+    `<div class="up-active-row"><span class="up-active-icon">${e.icon}</span> ${e.label}</div>`
+  ).join('');
+}
+
+btnPause.addEventListener('click', pauseGame);
+document.getElementById('btn-pause-continue').addEventListener('click', resumeGame);
+document.getElementById('btn-pause-boons').addEventListener('click', () => {
+  renderPauseBoons();
+  pauseBoonsPanel.classList.remove('off');
+});
+document.getElementById('btn-pause-boons-close').addEventListener('click', () => {
+  pauseBoonsPanel.classList.add('off');
+});
+document.getElementById('btn-pause-restart').addEventListener('click', () => {
+  if (!confirm('Restart this run? Progress will be lost.')) return;
+  clearSavedRun();
+  resumeGame();
+  gstate = 'start';
+  cancelAnimationFrame(raf);
+  pausePanel.classList.add('off');
+  document.getElementById('s-start').classList.remove('off');
+});
+document.getElementById('btn-pause-main-menu').addEventListener('click', () => {
+  if (!confirm('Return to main menu? Progress will be lost.')) return;
+  clearSavedRun();
+  resumeGame();
+  gstate = 'start';
+  cancelAnimationFrame(raf);
+  pausePanel.classList.add('off');
+  document.getElementById('s-start').classList.remove('off');
+});
+document.getElementById('btn-pause-lb').addEventListener('click', () => {
+  // Show leaderboard overlay; when closed it reveals the still-paused game
+  // so re-show pause panel on close via a one-time listener
+  pausePanel.classList.add('off');
+  openLeaderboardScreen();
+  const lbClose = document.getElementById('btn-lb-close');
+  const restore = () => {
+    if (gstate === 'paused') pausePanel.classList.remove('off');
+    lbClose.removeEventListener('click', restore);
+  };
+  if (lbClose) lbClose.addEventListener('click', restore);
+});
+
+// Keyboard shortcut: Escape to toggle pause
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (gstate === 'playing') pauseGame();
+    else if (gstate === 'paused') resumeGame();
+  }
+});
+
+// ── RUN PERSISTENCE ────────────────────────────────────────────────────────────
+const SAVED_RUN_KEY = 'phantom-saved-run';
+
+function saveRunState() {
+  const state = {
+    UPG: { ...UPG },
+    score, kills, hp, maxHp, charge,
+    roomIndex, runElapsedMs,
+    boonRerolls, damagelessRooms,
+    boonHistory: [...boonHistory],
+    legendaryOffered,
+    pendingLegendaryId: pendingLegendary ? pendingLegendary.id : null,
+    bossClears,
+    runTelemetry: { ...runTelemetry, roomHistory: [...(runTelemetry.roomHistory || [])] },
+    savedAt: Date.now(),
+  };
+  // Strip any function values from UPG (safety)
+  delete state.UPG._pendingLegendary;
+  writeJson(SAVED_RUN_KEY, state);
+}
+
+function clearSavedRun() {
+  removeKey(SAVED_RUN_KEY);
+}
+
+function loadSavedRun() {
+  return readJson(SAVED_RUN_KEY, null);
+}
+
+function restoreRun(saved) {
+  const freshDefaults = getDefaultUpgrades();
+  UPG = Object.assign(freshDefaults, saved.UPG);
+  score = saved.score || 0;
+  kills = saved.kills || 0;
+  hp = saved.hp || BASE_PLAYER_HP;
+  maxHp = saved.maxHp || BASE_PLAYER_HP;
+  charge = saved.charge || 0;
+  roomIndex = saved.roomIndex || 0;
+  runElapsedMs = saved.runElapsedMs || 0;
+  boonRerolls = saved.boonRerolls ?? 1;
+  damagelessRooms = saved.damagelessRooms || 0;
+  boonHistory = saved.boonHistory || [];
+  legendaryOffered = saved.legendaryOffered || false;
+  bossClears = saved.bossClears || 0;
+  if (saved.runTelemetry) {
+    runTelemetry = saved.runTelemetry;
+  }
+  // Rehydrate pending legendary by id
+  if (saved.pendingLegendaryId && !legendaryOffered) {
+    const leg = checkLegendarySequences(boonHistory, UPG);
+    if (leg) pendingLegendary = leg;
+  }
+  // Mark as continued run
+  UPG._continued = true;
+  // Re-sync derived state
+  syncRunChargeCapacity();
+  syncPlayerScale();
+  player = createInitialPlayerState(cv.width, cv.height);
+  bullets = []; enemies = []; particles = [];
+  _orbFireTimers = []; _orbCooldown = [];
+  resetJoystickState(joy);
+  fireT = 0; stillTimer = 0; prevStill = false;
+  gameOverShown = false;
+  tookDamageThisRoom = false;
+  clearSavedRun();
+}
+
 function gameOver(){
   if(gameOverShown) return;
   gameOverShown = true;
+  clearSavedRun();
   finalizeCurrentRoomTelemetry('death');
   gstate='dying';
   player.deadAt = performance.now();
@@ -1985,6 +2159,8 @@ function init() {
   const runMetrics = createInitialRunMetrics(BASE_PLAYER_HP);
   const runtimeTimers = createInitialRuntimeTimers();
   clearLegacyRunRecovery();
+  clearSavedRun();
+  if (continueRunBtn) continueRunBtn.classList.add('off');
   score = runMetrics.score; kills = runMetrics.kills;
   charge = runMetrics.charge; fireT = runMetrics.fireT; stillTimer = runMetrics.stillTimer; prevStill = runMetrics.prevStill;
   hp = runMetrics.hp; maxHp = runMetrics.maxHp;
@@ -2307,10 +2483,11 @@ function update(dt,ts){
     playerAimHasTarget = false;
   }
 
-  if(combatActive && charge >= 1 && isStill){
-    fireT += dt;
+  if(combatActive && charge >= 1){
+    const mobileChargeMult = isStill ? 1.0 : (UPG.mobileChargeRate || 0.10);
+    fireT += dt * mobileChargeMult;
     const interval = 1 / (UPG.sps * 2 * (UPG.heavyRoundsFireMult || 1));
-    if(fireT >= interval){
+    if(fireT >= interval && isStill){
       fireT = fireT % interval;
       if(autoTarget) {
         firePlayer(autoTarget.e.x,autoTarget.e.y);
@@ -2318,8 +2495,10 @@ function update(dt,ts){
         UPG.sustainedFireLastShotTime = performance.now();
       }
     }
-  } else {
-    // Decay sustained fire when not actively firing
+  }
+
+  // Decay sustained fire when not actively firing (always checked)
+  {
     const now = performance.now();
     if((UPG.sustainedFireLastShotTime || 0) > 0 && now - UPG.sustainedFireLastShotTime > 1000) {
       UPG.sustainedFireShots = 0;
@@ -2432,11 +2611,12 @@ function update(dt,ts){
           ts,
           getOrbitSlotPosition,
           rotationSpeed: ORBIT_ROTATION_SPD,
-          radius: ORBIT_SPHERE_R,
+          radius: getOrbitRadius(),
           originX: player.x,
           originY: player.y,
           orbitalFocus: UPG.orbitalFocus,
           chargeRatio: getChargeRatio(),
+          orbSphereRadius: getOrbVisualRadius(),
           baseDamage: 2,
           focusDamageBonus: ORBITAL_FOCUS_CONTACT_BONUS,
           focusChargeScale: 1.5,
@@ -2491,7 +2671,7 @@ function update(dt,ts){
         orbitSphereTier: UPG.orbitSphereTier,
         ts,
         rotationSpeed: ORBIT_ROTATION_SPD,
-        radius: ORBIT_SPHERE_R,
+        radius: getOrbitRadius(),
         originX: player.x,
         originY: player.y,
         enemies,
@@ -2658,10 +2838,16 @@ function update(dt,ts){
             fallbackBloodPactHealCap: getBloodPactHealCap(),
           });
         } else if(outputBounce.removeBullet) {
-          // Payload: explode when no bounces left, damaging enemies in AoE
-          triggerPayloadBlast(b, enemies);
-          bullets.splice(i,1);
-          continue;
+          // Phantom Rebound: convert to grey charge bullet instead of removing
+          if(UPG.phantomRebound && UPG.bounceTier > 0) {
+            b.state = 'grey';
+            b.decayStart = ts;
+            sparks(b.x, b.y, C.ghost, 6, 50);
+          } else {
+            triggerPayloadBlast(b, enemies);
+            bullets.splice(i,1);
+            continue;
+          }
         }
       }
     }
@@ -2732,13 +2918,14 @@ function update(dt,ts){
             orbitSphereTier: UPG.orbitSphereTier,
             ts,
             rotationSpeed: ORBIT_ROTATION_SPD,
-            radius: ORBIT_SPHERE_R,
+            radius: getOrbitRadius(),
             originX: player.x,
             originY: player.y,
           });
           const sx=orbitSlot.x;
           const sy=orbitSlot.y;
-          if(Math.hypot(b.x-sx,b.y-sy)<b.r+12){
+          const orbAbsorbR = getOrbVisualRadius() + 7;
+          if(Math.hypot(b.x-sx,b.y-sy)<b.r+orbAbsorbR){
             gainCharge(UPG.absorbValue, 'orbAbsorb');
             sparks(sx,sy,C.ghost,4,40);
             bullets.splice(i,1); absorbed=true; break;
@@ -2759,13 +2946,14 @@ function update(dt,ts){
           orbitSphereTier: UPG.orbitSphereTier,
           ts,
           rotationSpeed: ORBIT_ROTATION_SPD,
-          radius: ORBIT_SPHERE_R,
+          radius: getOrbitRadius(),
           originX: player.x,
           originY: player.y,
         });
         const sx=orbitSlot.x;
         const sy=orbitSlot.y;
-        if(Math.hypot(b.x-sx,b.y-sy)<b.r+7){
+        const orbHitR = getOrbVisualRadius() + 2;
+        if(Math.hypot(b.x-sx,b.y-sy)<b.r+orbHitR){
           _orbCooldown[si] = VOLATILE_ORB_COOLDOWN;
           _volatileOrbGlobalCooldown = VOLATILE_ORB_SHARED_COOLDOWN;
           sparks(sx,sy,C.green,10,80);
@@ -3368,16 +3556,18 @@ function draw(ts){
 
   // Orbit Spheres
   if(UPG.orbitSphereTier>0){
+    const orbR = getOrbitRadius();
+    const orbVis = getOrbVisualRadius();
+    const orbInner = 2 * (UPG.orbSizeMult || 1);
     for(let si=0;si<UPG.orbitSphereTier;si++){
       const sAngle=Math.PI*2/UPG.orbitSphereTier*si+ts*ORBIT_ROTATION_SPD;
-      const sx=player.x+Math.cos(sAngle)*ORBIT_SPHERE_R;
-      const sy=player.y+Math.sin(sAngle)*ORBIT_SPHERE_R;
+      const sx=player.x+Math.cos(sAngle)*orbR;
+      const sy=player.y+Math.sin(sAngle)*orbR;
       if(_orbCooldown[si]>0){
-        // Recharging — show as dim ghost with progress ring
         ctx.save();
         ctx.globalAlpha=0.18;
         ctx.fillStyle=C.green;
-        ctx.beginPath();ctx.arc(sx,sy,5,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.arc(sx,sy,orbVis,0,Math.PI*2);ctx.fill();
         ctx.restore();
         continue;
       }
@@ -3385,10 +3575,10 @@ function draw(ts){
       ctx.shadowColor=C.green;ctx.shadowBlur=12;
       ctx.fillStyle=C.green;
       ctx.globalAlpha=0.85;
-      ctx.beginPath();ctx.arc(sx,sy,5,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(sx,sy,orbVis,0,Math.PI*2);ctx.fill();
       ctx.shadowBlur=0;
       ctx.fillStyle=C.getRgba(C.ghost, 0.92);
-      ctx.beginPath();ctx.arc(sx,sy,2,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(sx,sy,orbInner,0,Math.PI*2);ctx.fill();
       ctx.restore();
     }
   }
@@ -4021,6 +4211,23 @@ function showLbBoonsPopup(runnerName, boons, boonOrder = '') {
 
 loadLeaderboard();
 clearLegacyRunRecovery();
+
+// Continue Run — show button if saved run exists
+const continueRunBtn = document.getElementById('btn-continue-run');
+const savedRun = loadSavedRun();
+if (savedRun && continueRunBtn) {
+  continueRunBtn.classList.remove('off');
+  continueRunBtn.textContent = `Continue Run (Room ${(savedRun.roomIndex || 0) + 1})`;
+  continueRunBtn.addEventListener('click', () => {
+    restoreRun(savedRun);
+    continueRunBtn.classList.add('off');
+    startScreen.classList.add('off');
+    setMenuChromeVisible(false);
+    // Go straight to upgrade screen for the restored room
+    showUpgrades();
+  });
+}
+
 forceLocalLeaderboardFallback(lbSync, 'LOCAL FALLBACK');
 syncLeaderboardStatusBadgeView(lbStatus, lbSync.statusMode, lbSync.statusText);
 setPlayerName(loadSavedPlayerName(), { syncInputs: true });

@@ -216,6 +216,10 @@ function getDefaultUpgrades() {
     sustainedFireShots: 0,
     sustainedFireBonus: 1,
     sustainedFireLastShotTime: 0,
+    mobileChargeRate: 0.10,
+    orbSizeMult: 1,
+    orbitRadiusBonus: 0,
+    phantomRebound: false,
     boonSelectionOrder: [],
   };
   syncChargeCapacity(upg);
@@ -241,6 +245,7 @@ const BOONS = [
   {name:'Wider Absorb',tag:'UTILITY',icon:'🧲',desc:'More absorb range. Max +60.',apply(upg){upg.absorbRange=Math.min(60,upg.absorbRange+15);}},
   {name:'Long Reach',tag:'UTILITY',icon:'➶',desc:'Shots last longer.',apply(upg){upg.shotLifeTier++;upg.shotLifeMult=getHyperbolicScale(upg.shotLifeTier);}},
   {name:'Kinetic Harvest',tag:'UTILITY',icon:'🌀',desc:'Gain charge while moving. Low charge refills faster.',apply(upg){upg.kineticTier++;const baseMoveRate=getHyperbolicScale(upg.kineticTier)*0.45;const spsSynergy=1+(upg.spsTier||0)*0.15;upg.moveChargeRate=baseMoveRate*spsSynergy;}},
+  {name:'Steady Aim',tag:'UTILITY',icon:'🎯+',desc:'+15% mobile charge rate. Max 3.',apply(upg){if((upg.mobileChargeRate||0.10)>=0.55)return; upg.mobileChargeRate=Math.min(0.55,(upg.mobileChargeRate||0.10)+0.15);}},
   {name:'Extra Life',tag:'SURVIVE',icon:'◉',desc:'+max HP and heal on pickup.',apply(upg, state){upg.extraLifeTier++;const idx=Math.min(EXTRA_LIFE_GAINS.length-1, upg.extraLifeTier-1);const heal=EXTRA_LIFE_GAINS[idx];state.maxHp+=heal;state.hp=Math.min(state.hp+heal,state.maxHp);}},
   {name:'Ghost Velocity',tag:'SURVIVE',icon:'👻',desc:'Move faster. Diminishing returns.',apply(upg){upg.speedTier++;upg.speedMult=getHyperbolicScale(upg.speedTier);}},
   {name:'Room Regen',tag:'SURVIVE',icon:'💚',desc:'+18 HP on room clear. Max 54.',apply(upg){upg.regenTick=Math.min(ROOM_REGEN_MAX,upg.regenTick+ROOM_REGEN_PER_PICK);}},
@@ -255,6 +260,8 @@ const BOONS = [
   {name:'Barrier Pulse',tag:'SURVIVE',icon:'⬡',desc:'Shield break: +2 charge and magnet.',requires:upg=>upg.shieldTier>0,apply(upg){if(upg.barrierPulse)return; upg.barrierPulse=true;}},
   {name:'Swift Ward',tag:'SURVIVE',icon:'⚡🛡️',desc:'Shields recharge faster. Max 2.',requires:upg=>upg.shieldTier>0,apply(upg){if(upg.shieldRegenTier>=2)return; upg.shieldRegenTier++;}},
   {name:'Orbit Spheres',tag:'UTILITY',icon:'🔮',desc:'+1 orbiting sphere per pick. Max 5.',apply(upg){upg.orbitSphereTier=Math.min(5,upg.orbitSphereTier+1);}},
+  {name:'Massive Orbs',tag:'UTILITY',icon:'🔮+',desc:'+30% orb size per tier. Max 3.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if((upg.orbSizeMult||1)>=1.30*1.30*1.30)return; upg.orbSizeMult=(upg.orbSizeMult||1)*1.30;}},
+  {name:'Wide Orbit',tag:'UTILITY',icon:'🔮↔',desc:'+20px orbit distance. Max 3.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if((upg.orbitRadiusBonus||0)>=60)return; upg.orbitRadiusBonus=(upg.orbitRadiusBonus||0)+20;}},
   {name:'Volatile Orbs',tag:'OFFENSE',icon:'💥',desc:'Orbs explode on contact. Shared cooldown.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if(upg.volatileOrbs)return; upg.volatileOrbs=true;}},
   {name:'Charged Orbs',tag:'OFFENSE',icon:'⚡',desc:'Orbs spend charge to fire at nearby enemies.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if(upg.chargedOrbs)return; upg.chargedOrbs=true;}},
   {name:'Absorb Orbs',tag:'UTILITY',icon:'🌀',desc:'Orbs auto-absorb nearby grey bullets.',requires:upg=>upg.orbitSphereTier>0,apply(upg){if(upg.absorbOrbs)return; upg.absorbOrbs=true;}},
@@ -319,7 +326,7 @@ function getBoonWeight(boon, upg) {
   if(boon.name === 'Twin Lance') return 1 / (1 + upg.forwardShotTier * 1.35);
   // Build-bias: boost modifier boons when the player already owns the base
   const SHIELD_MODS = new Set(['Tempered Shield','Mirror Shield','Shield Burst','Aegis Nova','Barrier Pulse','Swift Ward','Aegis Battery']);
-  const ORB_MODS    = new Set(['Volatile Orbs','Charged Orbs','Absorb Orbs','Orb Twin','Orb Pierce','Orb Overcharge','Orbital Focus']);
+  const ORB_MODS    = new Set(['Volatile Orbs','Charged Orbs','Absorb Orbs','Orb Twin','Orb Pierce','Orb Overcharge','Orbital Focus','Massive Orbs','Wide Orbit']);
   const BOUNCE_MODS = new Set(['Split Shot','Fracture']);
   const PIERCE_MODS = new Set(['Volatile Rounds','Chain Reaction']);
   if(boon.name === 'Payload Bloom' && upg.payload) return 3;
@@ -391,6 +398,12 @@ const LEGENDARY_SEQUENCES = [
     check: (h) => ['Phase Dash','Slipstream','Gravity Well'].every(n => h.includes(n)),
     boon: { name:'VOID WALKER', tag:'LEGENDARY', icon:'🌊', desc:'Dashing leaves a 2s void zone. Combined evasion + defensive synergy.',
       apply(upg){ upg.voidWalker=true; } }
+  },
+  {
+    id: 'phantomRebound',
+    check: (h) => ['Pierce','Ricochet','Long Reach'].every(n => h.includes(n)),
+    boon: { name:'PHANTOM REBOUND', tag:'LEGENDARY', icon:'👻', desc:'Last wall bounce converts shots into grey charge bullets. Long Reach doubled.',
+      apply(upg){ upg.phantomRebound=true; } }
   },
 ];
 
@@ -501,6 +514,7 @@ function getActiveBoonEntries(upg) {
   if(upg.corona) entries.push({icon:'☀️',name:'CORONA',detail:'Ring pierce +1, kills refund charge'});
   if(upg.finalForm) entries.push({icon:'💀',name:'FINAL FORM',detail:'Dead Man ≤15% HP ×2.5, kill→charge'});
   if(upg.colossus) entries.push({icon:'⬡',name:'COLOSSUS',detail:'Hit→shockwave, halved titan slow'});
+  if(upg.bloodMoon) entries.push({icon:'🩸',name:'BLOOD MOON',detail:'Kills restore +8 HP and drop +3 grey bullets'});
   if(upg.volatileOrbs) entries.push({icon:'💥',name:'Volatile Orbs',detail:'Orb detonation has shared cooldown'});
   if(upg.bloodRush) entries.push({icon:'🩸→',name:'Blood Rush',detail:`+${upg.bloodRushStacks||0} stacks (${((upg.bloodRushStacks||0)*10)}% speed)`});
   if(upg.crimsonHarvest) entries.push({icon:'🩸+',name:'Crimson Harvest',detail:'Kills drop extra grey bullet'});
@@ -530,6 +544,10 @@ function getActiveBoonEntries(upg) {
   if(upg.orbPierce) entries.push({icon:'⚡→',name:'Orb Pierce',detail:'Orb shots pierce 1 enemy'});
   if(upg.orbOvercharge) entries.push({icon:'⚡⬆',name:'Orb Overcharge',detail:'Orb shots scale harder from charge'});
   if(upg.orbitalFocus) entries.push({icon:'🌐',name:'Orbital Focus',detail:'Orbs scale from charge, faster orb fire'});
+  if((upg.orbSizeMult||1) > 1) entries.push({icon:'🔮+',name:'Massive Orbs',detail:`×${(upg.orbSizeMult||1).toFixed(2)} orb size`});
+  if((upg.orbitRadiusBonus||0) > 0) entries.push({icon:'🔮↔',name:'Wide Orbit',detail:`+${upg.orbitRadiusBonus}px orbit distance`});
+  if((upg.mobileChargeRate||0.10) > 0.10) entries.push({icon:'🎯+',name:'Steady Aim',detail:`${Math.round((upg.mobileChargeRate||0.10)*100)}% mobile charge rate`});
+  if(upg.phantomRebound) entries.push({icon:'👻',name:'PHANTOM REBOUND',detail:'Last bounce → grey bullet, 2× Long Reach'});
   return entries;
 }
 
