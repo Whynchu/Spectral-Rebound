@@ -134,7 +134,7 @@ body.compact-viewport #wrap {
 }
 .hats-modal {
   width: min(280px, calc(100% - 32px));
-  max-height: min(316px, calc(100% - 36px));
+  max-height: min(420px, calc(100% - 36px));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -696,6 +696,12 @@ body.menu-chrome-visible:not(.compact-viewport) #s-start .btn-menu-sub {
   border-color:rgba(var(--accent-rgb),0.22);
   color:var(--accent);
 }
+/* Continue Run button: greyed out when no saved run exists */
+#btn-continue-run.off {
+  opacity: 0.38;
+  pointer-events: none;
+  cursor: default;
+}
 .btn-menu-sub {
   padding:10px 22px;
   font-size:10px;
@@ -721,6 +727,10 @@ body.menu-chrome-visible:not(.compact-viewport) #s-start .btn-menu-sub {
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-right: 2px;
 }
 .hat-card {
   display: flex;

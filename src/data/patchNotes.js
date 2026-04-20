@@ -1,5 +1,17 @@
 const PATCH_NOTES = [
   {
+    version: '1.19.0',
+    label: 'CAT EARS FINAL',
+    summary: [
+      'Cat ears correctly positioned at the top of the ghost head. Continue Run button is now greyed out when no save exists. Hats menu scrolls cleanly with any number of hats.',
+    ],
+    highlights: [
+      'Cat ears now sit at the true top of the ghost head (arc center offset accounted for).',
+      'Continue Run button is visible but greyed out when no saved run exists, instead of being hidden.',
+      'Hats menu is now scrollable — no overflow regardless of how many hats are added.',
+    ]
+  },
+  {
     version: '1.18.9',
     label: 'CAT EARS FIX 2',
     summary: [
