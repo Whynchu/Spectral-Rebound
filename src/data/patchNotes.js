@@ -1,5 +1,14 @@
 const PATCH_NOTES = [
   {
+    version: '1.19.3',
+    label: 'HP BAR FIX',
+    summary: ['HP bar repositioned above shot ring. Cat ears redrawn as clean outward-angled triangles.'],
+    highlights: [
+      'HP bar: anchored above the shot-charge ring for all hat states (no hat, cat ears, viking, bunny).',
+      'Cat ears: redrawn as straight-sided triangles angling outward — no more curved inner edge.',
+    ]
+  },
+  {
     version: '1.19.2',
     label: 'LEGENDARY FIX',
     summary: [

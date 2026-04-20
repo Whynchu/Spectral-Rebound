@@ -3848,28 +3848,24 @@ function drawGhostHatLayer(ctxRef, hatKey, size, bodyColor, ts) {
     return;
   }
   if(hatKey === 'cat') {
-    const earH  = size * 0.80;   // shorter
-    const earW  = size * 0.70;   // wider base spread
-    const yBase = -size * 1.17;  // just above actual head top (arc center at -size*0.2, radius=size)
+    const earH  = size * 0.82;
+    const yBase = -size * 1.17;
 
     const drawCatEar = (dir) => {
-      // Inner base sits close to center; outer base fans wide and sits slightly lower
-      const innerX = dir * size * 0.14;
+      // Straight triangular ear angled outward: inner base near center, outer base at side, tip beyond outer
+      const innerX = dir * size * 0.12;
       const innerY = yBase;
-      const outerX = dir * (size * 0.14 + earW);
-      const outerY = yBase + size * 0.10;   // outer base is a touch lower → outward lean
-      // Tip angles outward: 82% across the ear width
-      const tipX = dir * (size * 0.14 + earW * 0.82);
-      const tipY = yBase - earH;
+      const outerX = dir * size * 0.78;
+      const outerY = yBase + size * 0.05;
+      const tipX   = dir * size * 0.88;  // tip beyond outer base → ear angles outward
+      const tipY   = yBase - earH;
 
       ctxRef.save();
 
-      // Outer ear — inner edge curves gently outward to tip; outer edge sweeps wide back down
       ctxRef.beginPath();
       ctxRef.moveTo(innerX, innerY);
-      ctxRef.quadraticCurveTo(tipX - dir * earW * 0.28, tipY + earH * 0.45, tipX, tipY);
-      ctxRef.quadraticCurveTo(outerX + dir * earW * 0.12, outerY - earH * 0.38, outerX, outerY);
-      ctxRef.quadraticCurveTo((innerX + outerX) * 0.5, innerY + size * 0.07, innerX, innerY);
+      ctxRef.lineTo(tipX, tipY);
+      ctxRef.lineTo(outerX, outerY);
       ctxRef.closePath();
       ctxRef.fillStyle = bodyColor;
       ctxRef.fill();
@@ -3877,19 +3873,19 @@ function drawGhostHatLayer(ctxRef, hatKey, size, bodyColor, ts) {
       ctxRef.lineWidth = Math.max(1.2, size * 0.07);
       ctxRef.stroke();
 
-      // Pink inner triangle, inset from the edges
-      const iInnerX = innerX + dir * earW * 0.14;
-      const iInnerY = innerY - earH * 0.16;
-      const iOuterX = outerX - dir * earW * 0.16;
-      const iOuterY = outerY - earH * 0.16;
-      const iTipX   = tipX;
-      const iTipY   = tipY + earH * 0.30;
+      // Pink inner triangle, inset from all edges
+      const iInnerX = innerX + dir * size * 0.12;
+      const iInnerY = innerY - earH * 0.14;
+      const iOuterX = outerX - dir * size * 0.12;
+      const iOuterY = outerY - earH * 0.14;
+      const iTipX   = tipX - dir * size * 0.08;
+      const iTipY   = tipY + earH * 0.28;
       ctxRef.beginPath();
       ctxRef.moveTo(iInnerX, iInnerY);
       ctxRef.lineTo(iTipX, iTipY);
       ctxRef.lineTo(iOuterX, iOuterY);
       ctxRef.closePath();
-      ctxRef.fillStyle = 'rgba(255,170,195,0.62)';
+      ctxRef.fillStyle = 'rgba(255,170,195,0.65)';
       ctxRef.fill();
 
       ctxRef.restore();
@@ -4054,7 +4050,7 @@ function getHatHeightMultiplier(hatKey) {
     case 'bunny': return 1.5;
     case 'cat': return 0.85;
     case 'viking': return 0.9;
-    default: return 0.16;
+    default: return 0.9;
   }
 }
 
@@ -4186,7 +4182,7 @@ function drawGhostSprite(ctxRef, ts, {
   const hpBarScale = Math.max(0.75, Math.min(2.4, Math.pow(Math.max(1, maxHpValue) / basePlayerHp, 0.35)));
   const barW = size * 2.8 * hpBarScale;
   const barH = 4;
-  const barY = -size * (1.55 + getHatHeightMultiplier(hatKey));
+  const barY = -(size + 20) - size * getHatHeightMultiplier(hatKey);
   const barX = -barW / 2;
   const hpFrac = Math.max(0, hpValue / Math.max(1, maxHpValue));
   ctxRef.fillStyle = 'rgba(0,0,0,0.55)';
