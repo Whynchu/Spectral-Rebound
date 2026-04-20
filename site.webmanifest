@@ -1,6 +1,6 @@
 {
   "name": "Phantom Rebound",
-  "short_name": "Phantom",
+  "short_name": "PhantomRebound",
   "description": "Arena dodge-and-harvest action built for quick mobile runs.",
   "start_url": "./",
   "display": "standalone",
