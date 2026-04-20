@@ -102,7 +102,7 @@ function getBossEscortRespawnMs(idx) {
   if(idx >= 100) return 4200;
   if(idx >= 80) return 5000;
   if(idx >= 40) return 5800;
-  return 7000;
+  return 9000;
 }
 
 export { getRoomDef, getRoomMaxOnScreen, getReinforcementIntervalMs, getBossEscortRespawnMs };

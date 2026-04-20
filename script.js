@@ -647,7 +647,7 @@ const MIRROR_SHIELD_DAMAGE_FACTOR = 0.60;
 const AEGIS_NOVA_DAMAGE_FACTOR = 0.55;
 const VOLATILE_ORB_COOLDOWN = 8;
 const VOLATILE_ORB_SHARED_COOLDOWN = 1.0;
-const PHASE_DASH_DAMAGE_MULT = 0.05;
+const PHASE_DASH_DAMAGE_MULT = 0.25;
 const GLOBAL_SPEED_LIFT = 1.55;
 const VAMPIRIC_HEAL_PER_KILL = 4;
 const VAMPIRIC_CHARGE_PER_KILL = 0.25;
@@ -1839,7 +1839,26 @@ function burstPayloadExplosion(x, y, radius) {
 function spawnDmgNumber(x, y, value, color = '#fff') {
   if (dmgNumbers.length >= MAX_DMG_NUMBERS) dmgNumbers.shift();
   const display = value >= 1 ? Math.round(value) : value.toFixed(1);
-  dmgNumbers.push({ x: x + (Math.random() - 0.5) * 10, y, text: String(display), color, life: 1 });
+  let nx = x + (Math.random() - 0.5) * 10;
+  let ny = y;
+  // nudge horizontally to avoid stacking with nearby live numbers
+  const PROX = 18;
+  let bumped = true;
+  let dir = 1;
+  let step = 0;
+  while (bumped) {
+    bumped = false;
+    for (const d of dmgNumbers) {
+      if (Math.abs(d.x - nx) < PROX && Math.abs(d.y - ny) < PROX) {
+        step++;
+        nx = x + dir * PROX * step;
+        dir *= -1;
+        bumped = true;
+        break;
+      }
+    }
+  }
+  dmgNumbers.push({ x: nx, y: ny, text: String(display), color, life: 1 });
 }
 
 function showUpgrades() {
@@ -3853,11 +3872,11 @@ function drawGhostHatLayer(ctxRef, hatKey, size, bodyColor, ts) {
     const yBase = -size * 1.17;
 
     const drawCatEar = (dir) => {
-      const innerX = dir * size * 0.20;
+      const innerX = dir * size * 0.08;
       const innerY = yBase;
-      const outerX = dir * size * 0.68;
+      const outerX = dir * size * 0.82;
       const outerY = yBase + size * 0.06;
-      const tipX   = dir * size * 0.76;  // beyond outer → leans outward
+      const tipX   = dir * size * 0.88;
       const tipY   = yBase - earH;
 
       ctxRef.save();
@@ -3879,9 +3898,9 @@ function drawGhostHatLayer(ctxRef, hatKey, size, bodyColor, ts) {
       // Pink inner triangle
       const iInnerX = innerX + dir * size * 0.10;
       const iInnerY = innerY - earH * 0.12;
-      const iOuterX = outerX - dir * size * 0.10;
+      const iOuterX = outerX - dir * size * 0.12;
       const iOuterY = outerY - earH * 0.12;
-      const iTipX   = tipX - dir * size * 0.06;
+      const iTipX   = tipX - dir * size * 0.08;
       const iTipY   = tipY + earH * 0.26;
       ctxRef.beginPath();
       ctxRef.moveTo(iInnerX, iInnerY);

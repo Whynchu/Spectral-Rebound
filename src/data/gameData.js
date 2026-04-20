@@ -56,10 +56,10 @@ const ROOM_SCRIPTS = [
 ];
 
 const BOSS_ROOMS = {
-  9:  { name: 'MEGA ZONER',       bossType: 'zoner',            escortType: 'chaser',        escortCount: 1, chaos: 0.24 },
-  19: { name: 'MEGA TRIANGLE',    bossType: 'triangle',         escortType: 'rusher',        escortCount: 2, chaos: 0.4 },
+  9:  { name: 'MEGA ZONER',       bossType: 'zoner',            escortType: 'chaser',        escortCount: 2, chaos: 0.24 },
+  19: { name: 'MEGA TRIANGLE',    bossType: 'triangle',         escortType: 'rusher',        escortCount: 4, chaos: 0.4 },
   29: { name: 'MEGA DISRUPTOR',   bossType: 'purple_disruptor', escortType: 'purple_chaser', escortCount: 2, chaos: 0.5 },
-  39: { name: 'MEGA ZONER II',    bossType: 'orange_zoner',     escortType: 'sniper',        escortCount: 2, chaos: 0.55 },
+  39: { name: 'MEGA ZONER II',    bossType: 'orange_zoner',     escortType: 'sniper',        escortCount: 5, chaos: 0.55 },
 };
 
 const DECAY_BASE = 3500;
