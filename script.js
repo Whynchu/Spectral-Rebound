@@ -510,6 +510,7 @@ function setPatchNotesOpen(isOpen) {
     setSettingsPanelOpen(false);
     setHatsPanelOpen(false);
     setContributorsPanelOpen(false);
+    pauseBoonsPanel.classList.add('off'); // Close pause boons panel if open
   }
   setPatchNotesVisibility(patchNotesPanel, isOpen);
 }
@@ -2037,6 +2038,7 @@ function handleGameLoopCrash(error) {
 // ── PAUSE / RESUME ────────────────────────────────────────────────────────────
 const pausePanel = document.getElementById('pause-panel');
 const btnPause = document.getElementById('btn-pause');
+const btnPatchNotes = document.getElementById('btn-patch-notes');
 const pauseBoonsPanel = document.getElementById('pause-boons-panel');
 
 function offsetAbsoluteTimestamps(pauseDuration) {
@@ -2059,6 +2061,7 @@ function pauseGame() {
   pausePanel.classList.remove('off');
   pausePanel.setAttribute('aria-hidden', 'false');
   btnPause.style.display = 'none';
+  btnPatchNotes.style.display = 'inline-flex'; // Show patch notes button in pause menu
 }
 
 function resumeGame() {
@@ -2070,6 +2073,7 @@ function resumeGame() {
   pausePanel.setAttribute('aria-hidden', 'true');
   pauseBoonsPanel.classList.add('off');
   btnPause.style.display = 'inline-flex';
+  btnPatchNotes.style.display = 'none'; // Hide patch notes button when returning to gameplay
   lastT = performance.now();
   raf = requestAnimationFrame(loop);
 }
@@ -2088,9 +2092,6 @@ document.getElementById('btn-pause-continue').addEventListener('click', resumeGa
 document.getElementById('btn-pause-boons').addEventListener('click', () => {
   renderPauseBoons();
   pauseBoonsPanel.classList.remove('off');
-});
-document.getElementById('btn-pause-boons-close').addEventListener('click', () => {
-  pauseBoonsPanel.classList.add('off');
 });
 document.getElementById('btn-pause-restart').addEventListener('click', () => {
   if (!confirm('Restart this run? Progress will be lost.')) return;
