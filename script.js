@@ -2599,9 +2599,10 @@ function update(dt,ts){
   }
 
   if(combatActive && charge >= 1){
+    const interval = 1 / (UPG.sps * 2 * (UPG.heavyRoundsFireMult || 1));
     const mobileChargeMult = isStill ? 1.0 : (UPG.mobileChargeRate || 0.10);
     fireT += dt * mobileChargeMult;
-    const interval = 1 / (UPG.sps * 2 * (UPG.heavyRoundsFireMult || 1));
+    if(!isStill) fireT = Math.min(fireT, interval); // cap while moving — prevents pre-accumulated double shot
     if(fireT >= interval && isStill){
       fireT = fireT % interval;
       if(autoTarget) {
@@ -3852,20 +3853,22 @@ function drawGhostHatLayer(ctxRef, hatKey, size, bodyColor, ts) {
     const yBase = -size * 1.17;
 
     const drawCatEar = (dir) => {
-      // Straight triangular ear angled outward: inner base near center, outer base at side, tip beyond outer
-      const innerX = dir * size * 0.12;
+      const innerX = dir * size * 0.20;
       const innerY = yBase;
-      const outerX = dir * size * 0.78;
-      const outerY = yBase + size * 0.05;
-      const tipX   = dir * size * 0.88;  // tip beyond outer base → ear angles outward
+      const outerX = dir * size * 0.68;
+      const outerY = yBase + size * 0.06;
+      const tipX   = dir * size * 0.76;  // beyond outer → leans outward
       const tipY   = yBase - earH;
 
       ctxRef.save();
 
       ctxRef.beginPath();
       ctxRef.moveTo(innerX, innerY);
-      ctxRef.lineTo(tipX, tipY);
-      ctxRef.lineTo(outerX, outerY);
+      ctxRef.lineTo(tipX, tipY);         // straight inner edge
+      ctxRef.quadraticCurveTo(           // gently curved outer edge
+        outerX + dir * size * 0.10, outerY - earH * 0.48,
+        outerX, outerY
+      );
       ctxRef.closePath();
       ctxRef.fillStyle = bodyColor;
       ctxRef.fill();
@@ -3873,13 +3876,13 @@ function drawGhostHatLayer(ctxRef, hatKey, size, bodyColor, ts) {
       ctxRef.lineWidth = Math.max(1.2, size * 0.07);
       ctxRef.stroke();
 
-      // Pink inner triangle, inset from all edges
-      const iInnerX = innerX + dir * size * 0.12;
-      const iInnerY = innerY - earH * 0.14;
-      const iOuterX = outerX - dir * size * 0.12;
-      const iOuterY = outerY - earH * 0.14;
-      const iTipX   = tipX - dir * size * 0.08;
-      const iTipY   = tipY + earH * 0.28;
+      // Pink inner triangle
+      const iInnerX = innerX + dir * size * 0.10;
+      const iInnerY = innerY - earH * 0.12;
+      const iOuterX = outerX - dir * size * 0.10;
+      const iOuterY = outerY - earH * 0.12;
+      const iTipX   = tipX - dir * size * 0.06;
+      const iTipY   = tipY + earH * 0.26;
       ctxRef.beginPath();
       ctxRef.moveTo(iInnerX, iInnerY);
       ctxRef.lineTo(iTipX, iTipY);
@@ -4182,7 +4185,7 @@ function drawGhostSprite(ctxRef, ts, {
   const hpBarScale = Math.max(0.75, Math.min(2.4, Math.pow(Math.max(1, maxHpValue) / basePlayerHp, 0.35)));
   const barW = size * 2.8 * hpBarScale;
   const barH = 4;
-  const barY = -(size + 20) - size * getHatHeightMultiplier(hatKey);
+  const barY = -size * (1.55 + getHatHeightMultiplier(hatKey));
   const barX = -barW / 2;
   const hpFrac = Math.max(0, hpValue / Math.max(1, maxHpValue));
   ctxRef.fillStyle = 'rgba(0,0,0,0.55)';
