@@ -1,4 +1,4 @@
-const VERSION = { num: '1.18.3', label: 'PAUSE MENU REFACTOR' };
+const VERSION = { num: '1.18.4', label: 'BUTTON SWAP FIX' };
 
 function formatVersionTag(version = VERSION) {
   return `// prototype v${version.num} - ${version.label}`;
