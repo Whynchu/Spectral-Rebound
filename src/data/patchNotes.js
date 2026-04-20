@@ -1,5 +1,16 @@
 const PATCH_NOTES = [
   {
+    version: '1.19.2',
+    label: 'LEGENDARY FIX',
+    summary: [
+      'Legendary boon cards no longer show Accept/Reject buttons — click the card to accept, pick a regular boon to skip. Phantom Rebound grey-bullet fall-through fixed.',
+    ],
+    highlights: [
+      'Legendary boons: removed the Accept/Skip buttons. Click the legendary card to accept it. Choosing a regular boon while a legendary is offered counts as skipping it (2-room cooldown still applies).',
+      'Phantom Rebound: fixed a bug where a shot converted to a grey bullet at the wall could be instantly absorbed on the same frame, creating unintended rapid charge.',
+    ]
+  },
+  {
     version: '1.19.1',
     label: 'CAT EARS TWEAK',
     summary: ['Cat ears nudged down 1px and tips angled further outward.'],

@@ -2965,6 +2965,7 @@ function update(dt,ts){
             b.state = 'grey';
             b.decayStart = ts;
             sparks(b.x, b.y, C.ghost, 6, 50);
+            continue;
           } else {
             triggerPayloadBlast(b, enemies, ts);
             bullets.splice(i,1);
