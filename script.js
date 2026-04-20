@@ -3849,7 +3849,7 @@ function drawGhostHatLayer(ctxRef, hatKey, size, bodyColor, ts) {
   if(hatKey === 'cat') {
     const earH  = size * 0.80;   // shorter
     const earW  = size * 0.70;   // wider base spread
-    const yBase = -size * 1.22;  // just above actual head top (arc center at -size*0.2, radius=size)
+    const yBase = -size * 1.17;  // just above actual head top (arc center at -size*0.2, radius=size)
 
     const drawCatEar = (dir) => {
       // Inner base sits close to center; outer base fans wide and sits slightly lower
@@ -3857,8 +3857,8 @@ function drawGhostHatLayer(ctxRef, hatKey, size, bodyColor, ts) {
       const innerY = yBase;
       const outerX = dir * (size * 0.14 + earW);
       const outerY = yBase + size * 0.10;   // outer base is a touch lower → outward lean
-      // Tip angles outward: 68% across the ear width
-      const tipX = dir * (size * 0.14 + earW * 0.68);
+      // Tip angles outward: 82% across the ear width
+      const tipX = dir * (size * 0.14 + earW * 0.82);
       const tipY = yBase - earH;
 
       ctxRef.save();

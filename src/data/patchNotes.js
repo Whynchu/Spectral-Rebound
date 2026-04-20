@@ -1,5 +1,11 @@
 const PATCH_NOTES = [
   {
+    version: '1.19.1',
+    label: 'CAT EARS TWEAK',
+    summary: ['Cat ears nudged down 1px and tips angled further outward.'],
+    highlights: ['Cat ears: position adjusted down 1px, tips angle out more.']
+  },
+  {
     version: '1.19.0',
     label: 'CAT EARS FINAL',
     summary: [
