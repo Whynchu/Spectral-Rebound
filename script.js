@@ -1841,7 +1841,6 @@ function spawnDmgNumber(x, y, value, color = '#fff') {
 
 function showUpgrades() {
   gstate='upgrade'; cancelAnimationFrame(raf);
-  btnPause.style.display = 'none';
   saveRunState();
   UPG._roomIndex = roomIndex;
   showBoonSelection({
@@ -2058,29 +2057,32 @@ function offsetAbsoluteTimestamps(pauseDuration) {
   if (UPG.aegisBatteryTimer) UPG.aegisBatteryTimer += pauseDuration;
 }
 
+let prePauseState = null;
+
 function pauseGame() {
-  if (gstate !== 'playing') return;
+  if (gstate !== 'playing' && gstate !== 'upgrade') return;
+  prePauseState = gstate;
   gstate = 'paused';
   pauseStartedAt = performance.now();
   cancelAnimationFrame(raf);
   pausePanel.classList.remove('off');
   pausePanel.setAttribute('aria-hidden', 'false');
   btnPause.style.display = 'none';
-  btnPatchNotes.style.display = 'inline-flex'; // Show patch notes button in pause menu
 }
 
 function resumeGame() {
   if (gstate !== 'paused') return;
   const pauseDuration = performance.now() - pauseStartedAt;
   offsetAbsoluteTimestamps(pauseDuration);
-  gstate = 'playing';
+  gstate = prePauseState || 'playing';
   pausePanel.classList.add('off');
   pausePanel.setAttribute('aria-hidden', 'true');
   pauseBoonsPanel.classList.add('off');
   btnPause.style.display = 'inline-flex';
-  btnPatchNotes.style.display = 'none'; // Hide patch notes button when returning to gameplay
-  lastT = performance.now();
-  raf = requestAnimationFrame(loop);
+  if (gstate === 'playing') {
+    lastT = performance.now();
+    raf = requestAnimationFrame(loop);
+  }
 }
 
 function renderPauseBoons() {
@@ -2106,6 +2108,8 @@ document.getElementById('btn-pause-restart').addEventListener('click', () => {
   cancelAnimationFrame(raf);
   pausePanel.classList.add('off');
   document.getElementById('s-start').classList.remove('off');
+  btnPatchNotes.style.display = 'inline-flex';
+  btnPause.style.display = 'none';
 });
 document.getElementById('btn-pause-main-menu').addEventListener('click', () => {
   if (!confirm('Return to main menu? Progress will be lost.')) return;
@@ -2115,6 +2119,8 @@ document.getElementById('btn-pause-main-menu').addEventListener('click', () => {
   cancelAnimationFrame(raf);
   pausePanel.classList.add('off');
   document.getElementById('s-start').classList.remove('off');
+  btnPatchNotes.style.display = 'inline-flex';
+  btnPause.style.display = 'none';
 });
 document.getElementById('btn-pause-lb').addEventListener('click', () => {
   // Show leaderboard overlay; when closed it reveals the still-paused game
@@ -2136,7 +2142,7 @@ document.getElementById('btn-pause-patch-notes').addEventListener('click', () =>
 // Keyboard shortcut: Escape to toggle pause
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    if (gstate === 'playing') pauseGame();
+    if (gstate === 'playing' || gstate === 'upgrade') pauseGame();
     else if (gstate === 'paused') resumeGame();
   }
 });
@@ -2264,6 +2270,7 @@ function init() {
   startRoom(0);
   hudUpdate();
   btnPause.style.display = 'inline-flex';
+  btnPatchNotes.style.display = 'none';
 }
 
 // ── MAIN LOOP ─────────────────────────────────────────────────────────────────
