@@ -511,6 +511,8 @@ function setPatchNotesOpen(isOpen) {
     setHatsPanelOpen(false);
     setContributorsPanelOpen(false);
     pauseBoonsPanel.classList.add('off'); // Close pause boons panel if open
+  } else if(gstate === 'paused') {
+    pausePanel.classList.remove('off'); // Restore pause panel if we're still paused
   }
   setPatchNotesVisibility(patchNotesPanel, isOpen);
 }
@@ -2125,6 +2127,10 @@ document.getElementById('btn-pause-lb').addEventListener('click', () => {
     lbClose.removeEventListener('click', restore);
   };
   if (lbClose) lbClose.addEventListener('click', restore);
+});
+document.getElementById('btn-pause-patch-notes').addEventListener('click', () => {
+  pausePanel.classList.add('off');
+  setPatchNotesVisibility(true);
 });
 
 // Keyboard shortcut: Escape to toggle pause
