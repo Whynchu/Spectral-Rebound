@@ -34,6 +34,14 @@ import {
   applyOrbitSphereContact,
 } from './src/entities/enemyRuntime.js';
 import {
+  createRoomObstacles as createRoomObstaclesImpl,
+  resolveEntityObstacleCollisions as resolveEntityObstacleCollisionsImpl,
+  isEntityOverlappingObstacle as isEntityOverlappingObstacleImpl,
+  ejectEntityFromObstacles as ejectEntityFromObstaclesImpl,
+  resolveBulletObstacleCollision as resolveBulletObstacleCollisionImpl,
+  hasObstacleLineBlock as hasObstacleLineBlockImpl,
+} from './src/systems/obstacles.js';
+import {
   applyEliteBulletStage as applyEliteBulletStageValue,
   getDoubleBounceBulletPalette as getDoubleBounceBulletPaletteValue,
   spawnAimedEnemyBullet,
@@ -1045,143 +1053,31 @@ function buildSpawnQueue(roomDef) {
 }
 
 function createRoomObstacles(width, height) {
-  const arenaWidth = Math.max(0, width - 2 * M);
-  const arenaHeight = Math.max(0, height - 2 * M);
-  const cols = Math.max(1, Math.floor(arenaWidth / GRID_SIZE));
-  const rows = Math.max(1, Math.floor(arenaHeight / GRID_SIZE));
-  const cx = Math.floor(cols / 2);
-  const cy = Math.floor(rows / 2);
-  const leftCol = Math.max(1, Math.min(cols - 2, cx - 3));
-  const rightCol = Math.max(1, Math.min(cols - 2, cx + 2));
-  const topRow = Math.max(1, cy - 2);
-  const bottomRow = Math.min(rows - 2, cy + 1);
-  const inset = (GRID_SIZE - WALL_CUBE_SIZE) * 0.5;
-
-  const cells = [];
-  for(let y = topRow; y <= bottomRow; y++){
-    cells.push({ col: leftCol, row: y });
-    cells.push({ col: rightCol, row: y });
-  }
-
-  return cells.map(({ col, row }) => ({
-    x: M + col * GRID_SIZE + inset,
-    y: M + row * GRID_SIZE + inset,
-    w: WALL_CUBE_SIZE,
-    h: WALL_CUBE_SIZE,
-  }));
-}
-
-function getCircleRectContactNormal(x, y, radius, rect) {
-  const nearestX = Math.max(rect.x, Math.min(x, rect.x + rect.w));
-  const nearestY = Math.max(rect.y, Math.min(y, rect.y + rect.h));
-  const dx = x - nearestX;
-  const dy = y - nearestY;
-  const distSq = dx * dx + dy * dy;
-  if(distSq > radius * radius) return null;
-
-  if(distSq > 0.0001){
-    const dist = Math.sqrt(distSq);
-    return { nx: dx / dist, ny: dy / dist, push: radius - dist };
-  }
-
-  const leftPen = Math.abs(x - rect.x);
-  const rightPen = Math.abs((rect.x + rect.w) - x);
-  const topPen = Math.abs(y - rect.y);
-  const bottomPen = Math.abs((rect.y + rect.h) - y);
-  const minPen = Math.min(leftPen, rightPen, topPen, bottomPen);
-  if(minPen === leftPen) return { nx: -1, ny: 0, push: radius };
-  if(minPen === rightPen) return { nx: 1, ny: 0, push: radius };
-  if(minPen === topPen) return { nx: 0, ny: -1, push: radius };
-  return { nx: 0, ny: 1, push: radius };
+  return createRoomObstaclesImpl(width, height, {
+    margin: M,
+    gridSize: GRID_SIZE,
+    wallCubeSize: WALL_CUBE_SIZE,
+  });
 }
 
 function resolveEntityObstacleCollisions(entity, maxPasses = 3) {
-  if(!entity || !roomObstacles.length) return;
-  for(let pass = 0; pass < maxPasses; pass++){
-    let hadContact = false;
-    for(const obstacle of roomObstacles){
-      const contact = getCircleRectContactNormal(entity.x, entity.y, entity.r, obstacle);
-      if(!contact) continue;
-      hadContact = true;
-      entity.x += contact.nx * (contact.push + 0.05);
-      entity.y += contact.ny * (contact.push + 0.05);
-    }
-    if(!hadContact) break;
-  }
+  return resolveEntityObstacleCollisionsImpl(entity, roomObstacles, maxPasses);
 }
 
 function isEntityOverlappingObstacle(entity) {
-  if(!entity || !roomObstacles.length) return false;
-  for(const obstacle of roomObstacles){
-    if(getCircleRectContactNormal(entity.x, entity.y, entity.r, obstacle)) return true;
-  }
-  return false;
+  return isEntityOverlappingObstacleImpl(entity, roomObstacles);
 }
 
 function ejectEntityFromObstacles(entity) {
-  if(!entity) return;
-  resolveEntityObstacleCollisions(entity, 14);
-  if(!isEntityOverlappingObstacle(entity)) return;
-  for(const obstacle of roomObstacles){
-    const contact = getCircleRectContactNormal(entity.x, entity.y, entity.r, obstacle);
-    if(!contact) continue;
-    entity.x += contact.nx * (contact.push + entity.r + 2);
-    entity.y += contact.ny * (contact.push + entity.r + 2);
-  }
-  resolveEntityObstacleCollisions(entity, 14);
+  return ejectEntityFromObstaclesImpl(entity, roomObstacles);
 }
 
 function resolveBulletObstacleCollision(bullet) {
-  if(!bullet || !roomObstacles.length) return false;
-  for(const obstacle of roomObstacles){
-    const contact = getCircleRectContactNormal(bullet.x, bullet.y, bullet.r, obstacle);
-    if(!contact) continue;
-    bullet.x += contact.nx * (contact.push + 0.05);
-    bullet.y += contact.ny * (contact.push + 0.05);
-    if(Math.abs(contact.nx) >= Math.abs(contact.ny)) bullet.vx = -bullet.vx;
-    else bullet.vy = -bullet.vy;
-    return true;
-  }
-  return false;
-}
-
-function segmentIntersectsRect(ax, ay, bx, by, rect, pad = 0) {
-  const minX = rect.x - pad;
-  const maxX = rect.x + rect.w + pad;
-  const minY = rect.y - pad;
-  const maxY = rect.y + rect.h + pad;
-  const dx = bx - ax;
-  const dy = by - ay;
-  let tMin = 0;
-  let tMax = 1;
-  const tests = [
-    { p: -dx, q: ax - minX },
-    { p: dx, q: maxX - ax },
-    { p: -dy, q: ay - minY },
-    { p: dy, q: maxY - ay },
-  ];
-  for(const { p, q } of tests){
-    if(Math.abs(p) < 0.000001){
-      if(q < 0) return false;
-      continue;
-    }
-    const t = q / p;
-    if(p < 0){
-      if(t > tMax) return false;
-      if(t > tMin) tMin = t;
-    } else {
-      if(t < tMin) return false;
-      if(t < tMax) tMax = t;
-    }
-  }
-  return tMax >= tMin;
+  return resolveBulletObstacleCollisionImpl(bullet, roomObstacles);
 }
 
 function hasObstacleLineBlock(ax, ay, bx, by, pad = 1.5) {
-  for(const obstacle of roomObstacles){
-    if(segmentIntersectsRect(ax, ay, bx, by, obstacle, pad)) return true;
-  }
-  return false;
+  return hasObstacleLineBlockImpl(ax, ay, bx, by, roomObstacles, pad);
 }
 
 function pickPlayerAutoTarget(px, py) {

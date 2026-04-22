@@ -2,6 +2,15 @@ import { PATCH_NOTES_ARCHIVE } from './patchNotesArchive.js';
 
 const PATCH_NOTES_RECENT = [
   {
+      version: '1.19.28',
+      label: 'EXTRACT OBSTACLES',
+      summary: ['Refactor — no gameplay changes.'],
+      highlights: [
+        'Extracted 8 obstacle/collision functions (createRoomObstacles, getCircleRectContactNormal, resolveEntityObstacleCollisions, isEntityOverlappingObstacle, ejectEntityFromObstacles, resolveBulletObstacleCollision, segmentIntersectsRect, hasObstacleLineBlock) from script.js into src/systems/obstacles.js.',
+        'script.js is now 98 lines smaller (3705 → 3607). The obstacle module takes the obstacles array as an argument so it has no hidden globals — easy to test and reason about.',
+      ]
+    },
+  {
       version: '1.19.27',
       label: 'AGENT FRIENDLINESS',
       summary: ['Internal / docs only — no gameplay changes.'],
