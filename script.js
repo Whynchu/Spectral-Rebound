@@ -2223,7 +2223,7 @@ function update(dt,ts){
         noteEl: goNoteEl,
         breakdownEl: goBreakdownEl,
         score,
-        note: `Room ${roomIndex+1} · ${kills} enemies eliminated`,
+        note: '',
         breakdown: { ...scoreBreakdown },
         stats: { kills, rooms: roomIndex + 1, elapsedMs: runElapsedMs, damagelessRooms },
         renderBoons: renderGameOverBoons,

@@ -947,13 +947,14 @@ body.menu-chrome-visible:not(.compact-viewport) #hats-panel .settings-copy {
 .up-desc { font-size:9px; color:var(--muted); line-height:1.45; }
 .up-tag  { font-size:7px; letter-spacing:.14em; text-transform:uppercase; margin-top:2px; }
 /* GAME OVER */
-#go-score { font-family:'Syne',sans-serif; font-weight:800; font-size:54px; color:var(--accent); line-height:1; }
+#go-score { font-family:'Syne',sans-serif; font-weight:800; font-size:44px; color:var(--accent); line-height:1; }
 #go-sub   { font-size:9px; letter-spacing:.18em; color:var(--dim); text-transform:uppercase; }
 #go-note  { font-size:11px; color:var(--muted); text-align:center; max-width:250px; line-height:1.7; }
+#go-note:empty { display:none; }
 .go-breakdown {
   display:flex;
   flex-direction:column;
-  gap:4px;
+  gap:2px;
   width:100%;
   max-width:260px;
   margin:2px auto 0;
@@ -967,7 +968,7 @@ body.menu-chrome-visible:not(.compact-viewport) #hats-panel .settings-copy {
   justify-content:space-between;
   align-items:baseline;
   gap:12px;
-  padding:2px 4px;
+  padding:1px 4px;
   border-bottom:1px dashed rgba(255,255,255,0.06);
 }
 .go-breakdown-label { color:var(--dim); text-transform:uppercase; font-size:9px; letter-spacing:.16em; }
@@ -1395,7 +1396,7 @@ body.tight-viewport #legend {
   body.tight-viewport .screen { gap: 8px; padding: 12px 12px; }
   body.tight-viewport .eyebrow { font-size: 7px; }
   body.tight-viewport .big-title { font-size: 34px; }
-  body.tight-viewport #go-score { font-size: 42px; }
+  body.tight-viewport #go-score { font-size: 36px; }
 }
 
 /* Standalone/PWA gets no extra scaling — already optimised */

@@ -1,5 +1,15 @@
 const PATCH_NOTES = [
   {
+      version: '1.19.18',
+      label: 'GAME OVER POLISH',
+      summary: ['Tighter Game Over screen — the full breakdown fits without fighting you.'],
+      highlights: [
+        'Final score heading is smaller so the breakdown (now 11 categories) fits on phone screens without dominating the view.',
+        'Removed the redundant "Room X · N enemies eliminated" caption; that info already appears once below the breakdown alongside run time.',
+        'Tightened spacing between breakdown rows.',
+      ]
+    },
+    {
       version: '1.19.17',
       label: 'DYNAMIC SCORING',
       summary: ['Score now reacts to every second and every playstyle.'],
