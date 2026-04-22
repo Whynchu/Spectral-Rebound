@@ -1,5 +1,14 @@
 const PATCH_NOTES = [
   {
+      version: '1.19.19',
+      label: 'STATE ENCAPSULATION',
+      summary: ['Under-the-hood refactor — no gameplay changes.'],
+      highlights: [
+        'Moved the live entity arrays (bullets, enemies, shockwaves, spawn queue) into a dedicated src/core/gameState.js module so future systems can import them directly instead of reaching into script.js.',
+        'Room/wave reset paths now clear arrays in place instead of reassigning, keeping every module\'s reference stable.',
+      ]
+    },
+    {
       version: '1.19.18',
       label: 'GAME OVER POLISH',
       summary: ['Tighter Game Over screen — the full breakdown fits without fighting you.'],

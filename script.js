@@ -78,6 +78,7 @@ import { iconHTML } from './src/ui/iconRenderer.js';
 import { renderPatchNotesPanel } from './src/ui/patchNotes.js';
 import { createPanelManager } from './src/ui/panelManager.js';
 import { showGameOverScreen } from './src/ui/gameOver.js';
+import { bullets, enemies, shockwaves, spawnQueue } from './src/core/gameState.js';
 import {
   bindPatchNotesControls,
   bindLeaderboardControls,
@@ -629,7 +630,6 @@ const BASE_PLAYER_HP = 200;
 let gstate = 'start';
 let pauseStartedAt = 0;
 let player = {};
-let bullets = [], enemies = [], shockwaves = [];
 let score=0, kills=0;
 let scoreBreakdown = makeScoreBreakdown();
 function makeScoreBreakdown() {
@@ -740,7 +740,6 @@ let roomIndex = 0;
 let roomPhase = 'intro';
 let roomTimer = 0;
 let runElapsedMs = 0;
-let spawnQueue = [];
 let activeWaveIndex = 0;
 let roomClearTimer = 0;
 let roomPurpleShooterAssigned = false;
@@ -1181,7 +1180,7 @@ function beginWaveIntro(nextWaveIndex) {
   activeWaveIndex = nextWaveIndex;
   roomPhase = 'intro';
   roomIntroTimer = 0;
-  bullets = [];
+  bullets.length = 0;
   clearParticles();
   player.x = cv.width / 2;
   player.y = cv.height / 2;
@@ -1210,16 +1209,17 @@ function startRoom(idx) {
   bossClears = 0;
   roomPurpleShooterAssigned = false;
   const def = getRoomDef(idx);
-  spawnQueue = buildSpawnQueue(def);
+  spawnQueue.length = 0;
+  spawnQueue.push(...buildSpawnQueue(def));
   activeWaveIndex = 0;
   roomTimer = 0;
   roomIntroTimer = 0;
   roomPhase = 'intro';
   roomObstacles = createRoomObstacles(cv.width, cv.height);
-  enemies = [];
-  bullets = [];
+  enemies.length = 0;
+  bullets.length = 0;
   clearDmgNumbers();
-  shockwaves = [];
+  shockwaves.length = 0;
   payloadCooldownMs = 0;
   // Boss room state
   currentRoomIsBoss = Boolean(def.isBossRoom);
@@ -2117,7 +2117,7 @@ function restoreRun(saved) {
   syncRunChargeCapacity();
   syncPlayerScale();
   player = createInitialPlayerState(cv.width, cv.height);
-  bullets = []; enemies = []; clearParticles(); shockwaves = [];
+  bullets.length = 0; enemies.length = 0; clearParticles(); shockwaves.length = 0;
   _orbFireTimers = []; _orbCooldown = [];
   resetJoystickState(joy);
   fireT = 0; stillTimer = 0; prevStill = false;
@@ -2174,7 +2174,7 @@ function init() {
   legendaryRejectedIds=new Set(); legendaryRoomsSinceRejection=new Map(); // Reset rejection tracking on new run
   runTelemetry = createRunTelemetry();
   currentRoomTelemetry = null;
-  bullets=[];enemies=[];clearParticles();clearDmgNumbers();shockwaves=[];
+  bullets.length=0;enemies.length=0;clearParticles();clearDmgNumbers();shockwaves.length=0;
   payloadCooldownMs = 0;
   resetJoystickState(joy);
   resetUpgrades();
@@ -2348,7 +2348,8 @@ function update(dt,ts){
       maxOnScreen: currentRoomMaxOnScreen,
       enemiesCount: enemies.length,
     });
-    spawnQueue = spawnedWaveEntries.remainingQueue;
+    const _remQ = spawnedWaveEntries.remainingQueue;
+    if (_remQ !== spawnQueue) { spawnQueue.length = 0; spawnQueue.push(..._remQ); }
     for(const entry of spawnedWaveEntries.spawnEntries) {
       spawnEnemy(entry.t, entry.isBoss, entry.bossScale || 1);
     }
@@ -2360,7 +2361,7 @@ function update(dt,ts){
     if(postSpawningPhase === 'clear'){
       roomPhase='clear';
       roomClearTimer=0;
-      bullets=[]; clearParticles();
+      bullets.length=0; clearParticles();
       if(UPG.regenTick>0) healPlayer(UPG.regenTick, 'roomRegen');
       // Escalation: reset kill count for next room
       if(UPG.escalation) UPG.escalationKills = 0;
@@ -2380,7 +2381,7 @@ function update(dt,ts){
       roomPhase='clear';
       roomClearTimer=0;
       // Clear all projectiles immediately
-      bullets=[]; clearParticles();
+      bullets.length=0; clearParticles();
       // Room clear regen
       if(UPG.regenTick>0) healPlayer(UPG.regenTick, 'roomRegen');
       // Escalation: reset kill count for next room
@@ -2423,7 +2424,8 @@ function update(dt,ts){
       intervalMs: getReinforcementIntervalMs(roomIndex),
     });
     reinforceTimer = reinforceSpawnState.reinforceTimer;
-    spawnQueue = reinforceSpawnState.remainingQueue;
+    const _reinQ = reinforceSpawnState.remainingQueue;
+    if (_reinQ !== spawnQueue) { spawnQueue.length = 0; spawnQueue.push(..._reinQ); }
     if(reinforceSpawnState.spawnEntry) {
       const entry = reinforceSpawnState.spawnEntry;
       spawnEnemy(entry.t, entry.isBoss, entry.bossScale || 1);
