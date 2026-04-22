@@ -1,5 +1,14 @@
 const PATCH_NOTES = [
   {
+      version: '1.19.26',
+      label: 'ROOM CLEAR DEDUPE + JANITOR',
+      summary: ['Internal refactor — no gameplay changes.'],
+      highlights: [
+        'Collapsed the two duplicated room-clear transition blocks into a single finalizeRoomClearState() helper so any future addition to the room-clear sequence happens in exactly one spot.',
+        'Janitor pass: removed five stale .gitkeep placeholder files from directories that now hold real source (assets/, example.assets/, src/core/, src/entities/, src/input/).',
+      ]
+    },
+    {
       version: '1.19.25',
       label: 'BOON HOOKS: ROOM START',
       summary: ['Internal refactor — boon registry phase wraps up.'],

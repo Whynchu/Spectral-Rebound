@@ -2183,6 +2183,17 @@ function loop(ts){
 }
 
 // ── UPDATE ────────────────────────────────────────────────────────────────────
+function finalizeRoomClearState(){
+  roomPhase = 'clear';
+  roomClearTimer = 0;
+  bullets.length = 0;
+  clearParticles();
+  runBoonHook('onRoomClear', { UPG, healPlayer });
+  finalizeCurrentRoomTelemetry('clear');
+  applyRoomClearProgression();
+  showRoomClear();
+}
+
 function update(dt,ts){
   if(gstate === 'dying'){
     if(!player.deadPop && ts >= player.popAt){
@@ -2330,13 +2341,7 @@ function update(dt,ts){
     });
     if(postSpawningPhase === 'fighting') roomPhase='fighting';
     if(postSpawningPhase === 'clear'){
-      roomPhase='clear';
-      roomClearTimer=0;
-      bullets.length=0; clearParticles();
-      runBoonHook('onRoomClear', { UPG, healPlayer });
-      finalizeCurrentRoomTelemetry('clear');
-      applyRoomClearProgression();
-      showRoomClear();
+      finalizeRoomClearState();
     }
   }
 
@@ -2345,15 +2350,8 @@ function update(dt,ts){
     enemiesCount: enemies.length,
     spawnQueueLen: spawnQueue.length,
   })){
-      roomPhase='clear';
-      roomClearTimer=0;
-      // Clear all projectiles immediately
-      bullets.length=0; clearParticles();
-      runBoonHook('onRoomClear', { UPG, healPlayer });
-      finalizeCurrentRoomTelemetry('clear');
-      applyRoomClearProgression();
-      showRoomClear();
-    }
+    finalizeRoomClearState();
+  }
 
   if(roomPhase==='fighting' || roomPhase==='spawning'){
     ensureShooterPressure();
