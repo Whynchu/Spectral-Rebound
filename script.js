@@ -97,6 +97,15 @@ import {
 } from './src/ui/roomOverlays.js';
 import { HAT_OPTIONS, getHatHeightMultiplier } from './src/data/hats.js';
 import { drawGhostHatLayer } from './src/ui/drawing/hatRenderer.js';
+import { drawGhostSprite } from './src/ui/drawing/ghostRenderer.js';
+import {
+  drawGooBall as drawGooBallImpl,
+  drawBounceRings as drawBounceRingsImpl,
+  drawBulletSprite as drawBulletSpriteImpl,
+  getDangerBounceRingCount,
+  getEnemyBounceRingCount,
+  getBounceRingMetrics,
+} from './src/ui/drawing/bulletRenderer.js';
 import {
   STORAGE_KEYS,
   MAX_PARTICLES,
@@ -1475,147 +1484,18 @@ function createLaneOffsets(count, spacing) {
 }
 
 function drawGooBall(x, y, radius, fillColor, coreColor, wobbleSeed, alpha = 1) {
-  ctx.save();
-  ctx.globalAlpha *= alpha;
-  ctx.fillStyle = fillColor;
-  ctx.beginPath();
-  for(let i=0;i<8;i++){
-    const angle = (Math.PI * 2 / 8) * i;
-    const wobble = 0.86 + 0.22 * Math.sin(wobbleSeed + i * 1.37);
-    const px = x + Math.cos(angle) * radius * wobble;
-    const py = y + Math.sin(angle) * radius * wobble;
-    if(i===0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
-  }
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = coreColor;
-  ctx.beginPath();
-  ctx.arc(x + Math.sin(wobbleSeed) * radius * 0.08, y + Math.cos(wobbleSeed * 1.2) * radius * 0.08, radius * 0.42, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
-
-function getDangerBounceRingCount(bullet) {
-  if(!bullet || bullet.state !== 'danger') return 0;
-  if(bullet.eliteStage !== undefined) {
-    return Math.max(0, 2 - (bullet.eliteStage || 0));
-  }
-  if(bullet.doubleBounce) {
-    return Math.max(0, 1 - (bullet.bounceCount || 0));
-  }
-  if((bullet.dangerBounceBudget || 0) > 0) {
-    return bullet.dangerBounceBudget;
-  }
-  return 0;
-}
-
-function getEnemyBounceRingCount(enemy) {
-  if(!enemy) return 0;
-  if(enemy.isElite || enemy.type === 'orange_zoner') return 2;
-  if(enemy.forcePurpleShots || enemy.doubleBounce) return 1;
-  if(enemy.dangerBounceBudget > 0) return enemy.dangerBounceBudget;
-  return 0;
-}
-
-function getBounceRingMetrics(totalRadius, count) {
-  const lineWidth = Math.max(1.2, totalRadius * 0.16);
-  const gap = Math.max(1.15, totalRadius * 0.13);
-  const outerRadius = Math.max(0, totalRadius - lineWidth * 0.5);
-  if(count <= 0) {
-    return { lineWidth, gap, outerRadius, bodyRadius: totalRadius };
-  }
-  const ringDepth = count * lineWidth + count * gap;
-  const bodyRadius = Math.max(totalRadius * 0.24, outerRadius - ringDepth);
-  return { lineWidth, gap, outerRadius, bodyRadius };
+  drawGooBallImpl(ctx, x, y, radius, fillColor, coreColor, wobbleSeed, alpha);
 }
 
 function drawBounceRings(x, y, totalRadius, count, color, alpha = 0.92) {
-  const metrics = getBounceRingMetrics(totalRadius, count);
-  if(count <= 0) return metrics.bodyRadius;
-  ctx.save();
-  ctx.globalAlpha *= alpha;
-  ctx.strokeStyle = color;
-  ctx.lineWidth = metrics.lineWidth;
-  ctx.shadowBlur = 0;
-  let ringRadius = metrics.outerRadius;
-  for(let i = 0; i < count; i++) {
-    ctx.beginPath();
-    ctx.arc(x, y, ringRadius, 0, Math.PI * 2);
-    ctx.stroke();
-    ringRadius -= metrics.lineWidth + metrics.gap;
-  }
-  ctx.restore();
-  return metrics.bodyRadius;
+  return drawBounceRingsImpl(ctx, x, y, totalRadius, count, color, alpha);
 }
 
 function drawBulletSprite(b, ts) {
-  if(b.state==='danger'){
-    const pulse=.75+.25*Math.sin(ts*.014);
-    const doubleBouncePalette = getDoubleBounceBulletPalette();
-    let bCol, bCore;
-    if(b.eliteColor){
-      bCol = b.eliteColor;
-      bCore = b.eliteCore || C.dangerCore;
-    } else if(b.isTriangle){
-      bCol=C.danger;
-      bCore=C.dangerCore;
-    } else {
-      bCol=b.doubleBounce&&b.bounceCount===0 ? doubleBouncePalette.fill : C.danger;
-      bCore=b.doubleBounce&&b.bounceCount===0 ? doubleBouncePalette.core : C.dangerCore;
-    }
-    ctx.globalAlpha = 0.88;
-    ctx.shadowColor=bCol;ctx.shadowBlur=20*pulse;
-    ctx.fillStyle=bCol;
-    if(b.isTriangle){
-      const angle = Math.atan2(b.vy, b.vx);
-      ctx.save();
-      ctx.translate(b.x, b.y);
-      ctx.rotate(angle);
-      ctx.beginPath();
-      ctx.moveTo(b.r, 0);
-      ctx.lineTo(-b.r*.6, b.r*.6);
-      ctx.lineTo(-b.r*.6, -b.r*.6);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-    } else {
-      const ringCount = getDangerBounceRingCount(b);
-      const bodyRadius = drawBounceRings(b.x, b.y, b.r, ringCount, bCol, 0.94);
-      ctx.beginPath();ctx.arc(b.x,b.y,bodyRadius,0,Math.PI*2);ctx.fill();
-      drawBounceRings(b.x, b.y, b.r, ringCount, bCol, 0.98);
-    }
-    ctx.shadowBlur=0;ctx.fillStyle=bCore;
-    if(!b.isTriangle){
-      const coreRadius = Math.max(1.5, b.r * (getDangerBounceRingCount(b) > 0 ? 0.2 : 0.42));
-      ctx.beginPath();ctx.arc(b.x,b.y,coreRadius,0,Math.PI*2);ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-
-  } else if(b.state==='grey'){
-    const age=(ts-b.decayStart)/(DECAY_BASE+UPG.decayBonus);
-    ctx.globalAlpha=Math.max(.12,0.86-age*.7);
-    ctx.shadowColor=C.grey;ctx.shadowBlur=3;
-    ctx.strokeStyle=C.grey;
-    ctx.lineWidth=1.8;
-    ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.stroke();
-    ctx.globalAlpha=1;ctx.shadowBlur=0;
-
-  } else if(b.state==='output'){
-    const col = b.crit?C.ghost:C.green;
-    ctx.shadowColor=col;ctx.shadowBlur=b.crit?28:18;
-    drawGooBall(
-      b.x,
-      b.y,
-      b.r,
-      b.crit ? C.getRgba(C.ghost, 0.82) : C.getRgba(C.green, 0.72),
-      b.crit ? 'rgba(255,255,255,0.94)' : C.getRgba(C.ghost, 0.84),
-      ts * 0.013 + b.x * 0.09 + b.y * 0.07,
-      0.92
-    );
-    ctx.shadowBlur=0;
-  }
-  ctx.shadowBlur=0;
+  drawBulletSpriteImpl(ctx, b, ts, {
+    decayBonus: UPG.decayBonus,
+    doubleBouncePalette: getDoubleBounceBulletPalette(),
+  });
 }
 
 const VOLLEY_TOTAL_DAMAGE_MULTS = [1.00, 1.75, 2.40, 2.95, 3.40, 3.75, 4.00];
@@ -3754,148 +3634,6 @@ function draw(ts){
     ctx.beginPath();ctx.arc(joy.ax,joy.ay,3,0,Math.PI*2);ctx.fill();
     ctx.globalAlpha=1;
   }
-}
-
-function drawGhostSprite(ctxRef, ts, {
-  playerState,
-  chargeValue,
-  maxChargeValue,
-  fireProgress,
-  gameState = gstate,
-  hpValue = hp,
-  maxHpValue = maxHp,
-  hatKey = playerHat,
-  basePlayerHp = BASE_PLAYER_HP,
-  idleStill = false,
-} = {}) {
-  const p = playerState;
-  if(!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return;
-  const t = ts / 1000;
-  const chargeFrac = Math.min(1, chargeValue / Math.max(1, maxChargeValue || 10));
-  const fireFrac = chargeValue >= 1 ? Math.max(0, Math.min(1, fireProgress || 0)) : 0;
-  const overload = chargeFrac >= 0.95;
-  const overloadPulse = overload ? Math.sin(t * 12) * 0.3 + 0.7 : 1;
-  const lean = idleStill ? 0 : Math.max(-.3, Math.min(.3, p.vx / 300));
-  const wobble = idleStill ? 0 : Math.sin(t * 3) * 2;
-  const deathFrac = gameState === 'dying' ? Math.max(0, Math.min(1, (ts - p.deadAt) / GAME_OVER_ANIM_MS)) : 0;
-  const popFrac = gameState === 'dying' ? Math.max(0, Math.min(1, (ts - p.popAt) / (GAME_OVER_ANIM_MS * 0.28))) : 0;
-  const size = p.r * 1.18 + chargeFrac * 3.9 - deathFrac * 1.2;
-
-  ctxRef.save();
-  if((p.distort || 0) > 0 || gameState === 'dying'){
-    ctxRef.translate(p.x, p.y + wobble);
-    const deathScale = gameState === 'dying' ? 1 + deathFrac * 0.22 - popFrac * 1.1 : 1;
-    ctxRef.scale((1 + .12 * Math.sin(ts * .06)) * deathScale, (1 + .12 * Math.cos(ts * .07)) * deathScale);
-    ctxRef.rotate(lean);
-  } else {
-    ctxRef.translate(p.x, p.y + wobble);
-    ctxRef.rotate(lean);
-  }
-
-  const pulse = .55 + .45 * Math.sin(ts * .0025);
-  const gRgb = C.ghostRgb;
-  const ga = ctxRef.createRadialGradient(0, 0, 0, 0, 0, size * 3);
-  ga.addColorStop(0, gameState === 'dying'
-    ? `rgba(248,180,199,${0.14 + deathFrac * 0.16})`
-    : overload
-      ? `rgba(${gRgb.r},${gRgb.g},${gRgb.b},${0.20 + 0.08 * pulse})`
-      : `rgba(${gRgb.r},${gRgb.g},${gRgb.b},${0.18 * pulse})`);
-  ga.addColorStop(1, `rgba(${gRgb.r},${gRgb.g},${gRgb.b},0)`);
-  ctxRef.fillStyle = ga;
-  ctxRef.beginPath(); ctxRef.arc(0, 0, size * 3, 0, Math.PI * 2); ctxRef.fill();
-
-  ctxRef.shadowBlur = 22 + chargeFrac * 14;
-  ctxRef.shadowColor = gameState === 'dying' ? '#f8b4c7' : C.ghost;
-
-  const inv = (p.invincible || 0) > 0 ? Math.min(1, (p.invincible || 0) / .4) : 0;
-  const baseRgb = C.ghostBodyRgb;
-  const accentRgb = C.greenRgb;
-  let bodyR, bodyG, bodyB;
-  if(gameState === 'dying'){
-    bodyR = 208;
-    bodyG = 244 - Math.round(deathFrac * 36);
-    bodyB = 224 + Math.round(deathFrac * 12);
-  } else if(overload){
-    const tintMix = Math.min(0.55, 0.34 + overloadPulse * 0.18);
-    bodyR = Math.round(baseRgb.r + (accentRgb.r - baseRgb.r) * tintMix);
-    bodyG = Math.round(baseRgb.g + (accentRgb.g - baseRgb.g) * tintMix);
-    bodyB = Math.round(baseRgb.b + (accentRgb.b - baseRgb.b) * tintMix);
-  } else {
-    bodyR = Math.round(Math.min(255, baseRgb.r + inv * 26));
-    bodyG = Math.round(Math.min(255, baseRgb.g + inv * 12));
-    bodyB = Math.round(Math.min(255, baseRgb.b + inv * 22));
-  }
-  const bodyColor = `rgba(${bodyR},${bodyG},${bodyB},0.93)`;
-  ctxRef.fillStyle = bodyColor;
-
-  ctxRef.beginPath();
-  ctxRef.arc(0, -size * .2, size, Math.PI, 0);
-  const tailW = size;
-  const segs = 4;
-  for(let s = 0; s <= segs; s++){
-    const xOff = tailW - (s / segs) * tailW * 2;
-    const yOff = size * .8 + Math.sin(t * 3 + s) * 2;
-    if(s === 0) ctxRef.lineTo(tailW, yOff);
-    else ctxRef.lineTo(xOff, yOff);
-  }
-  ctxRef.closePath();
-  ctxRef.fill();
-  ctxRef.shadowBlur = 0;
-
-  drawGhostHatLayer(ctxRef, hatKey, size, bodyColor, ts);
-
-  ctxRef.fillStyle = '#080f0a';
-  ctxRef.beginPath(); ctxRef.arc(-5.5, -size * .25 - 2, 3, 0, Math.PI * 2); ctxRef.fill();
-  ctxRef.beginPath(); ctxRef.arc(5.5, -size * .25 - 2, 3, 0, Math.PI * 2); ctxRef.fill();
-  if(gameState === 'dying'){
-    ctxRef.strokeStyle = 'rgba(12,20,16,0.85)';
-    ctxRef.lineWidth = 1.5;
-    ctxRef.beginPath(); ctxRef.arc(-5.5, -size * .25 - 2, 1.5, 0, Math.PI * 2); ctxRef.stroke();
-    ctxRef.beginPath(); ctxRef.arc(5.5, -size * .25 - 2, 1.5, 0, Math.PI * 2); ctxRef.stroke();
-    ctxRef.beginPath(); ctxRef.arc(0, size * .08, 4.6, Math.PI + .25, Math.PI * 2 - .25); ctxRef.stroke();
-  } else {
-    ctxRef.fillStyle = C.getRgba(C.green, 0.9);
-    ctxRef.beginPath(); ctxRef.arc(-4.5, -size * .3 - 2, 1.3, 0, Math.PI * 2); ctxRef.fill();
-    ctxRef.beginPath(); ctxRef.arc(4.5, -size * .3 - 2, 1.3, 0, Math.PI * 2); ctxRef.fill();
-  }
-
-  if(chargeFrac > 0.3 && gameState !== 'dying'){
-    ctxRef.strokeStyle = 'rgba(0,0,0,0.55)';
-    ctxRef.lineWidth = 1.5;
-    ctxRef.beginPath(); ctxRef.arc(0, -size * .15, 4.5, .65, Math.PI - .65); ctxRef.stroke();
-  }
-
-  const ringRadius = size + 8;
-  ctxRef.strokeStyle = 'rgba(255,255,255,0.12)';
-  ctxRef.lineWidth = 2;
-  ctxRef.beginPath();
-  ctxRef.arc(0, 0, ringRadius, 0, Math.PI * 2);
-  ctxRef.stroke();
-  if(chargeValue >= 1){
-    ctxRef.strokeStyle = C.green;
-    ctxRef.shadowColor = C.green;
-    ctxRef.shadowBlur = 10;
-    ctxRef.beginPath();
-    ctxRef.arc(0, 0, ringRadius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * fireFrac);
-    ctxRef.stroke();
-    ctxRef.shadowBlur = 0;
-  }
-
-  const hpBarScale = Math.max(0.75, Math.min(2.4, Math.pow(Math.max(1, maxHpValue) / basePlayerHp, 0.35)));
-  const barW = size * 2.8 * hpBarScale;
-  const barH = 4;
-  const barY = -size * (1.55 + getHatHeightMultiplier(hatKey));
-  const barX = -barW / 2;
-  const hpFrac = Math.max(0, hpValue / Math.max(1, maxHpValue));
-  ctxRef.fillStyle = 'rgba(0,0,0,0.55)';
-  ctxRef.beginPath(); ctxRef.roundRect(barX - 1, barY - 1, barW + 2, barH + 2, 2); ctxRef.fill();
-  const hpCol = hpFrac > 0.5 ? C.green : hpFrac > 0.25 ? '#fbbf24' : '#f87171';
-  ctxRef.shadowBlur = 6; ctxRef.shadowColor = hpCol;
-  ctxRef.fillStyle = hpCol;
-  ctxRef.beginPath(); ctxRef.roundRect(barX, barY, barW * hpFrac, barH, 2); ctxRef.fill();
-  ctxRef.shadowBlur = 0;
-
-  ctxRef.restore();
 }
 
 // ── GHOST SPRITE ──────────────────────────────────────────────────────────────
