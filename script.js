@@ -202,12 +202,8 @@ import {
   convertNearbyDangerBulletsToGrey,
   resolvePostHitAftermath,
 } from './src/systems/dangerHit.js';
-import {
-  createRunTelemetry as createRunTelemetryValue,
-  createRoomTelemetry as createRoomTelemetryValue,
-  buildRunTelemetryPayload as buildRunTelemetryPayloadValue,
-} from './src/systems/telemetry.js';
 import { createInitialPlayerState, createInitialRunMetrics, createInitialRuntimeTimers } from './src/core/runState.js';
+import { createRunTelemetryController } from './src/systems/runTelemetryController.js';
 import {
   getRoomDef as getRoomDefValue,
   getRoomMaxOnScreen as getRoomMaxOnScreenValue,
@@ -683,7 +679,8 @@ function awardOverkillFromEnemy(e) {
   if (!pts) return 0;
   score += pts;
   scoreBreakdown.overkill += pts;
-  if (currentRoomTelemetry) currentRoomTelemetry.overkillDamage = (currentRoomTelemetry.overkillDamage || 0) + eff;
+  const overkillRoom = telemetryController.getCurrentRoom();
+  if (overkillRoom) overkillRoom.overkillDamage = (overkillRoom.overkillDamage || 0) + eff;
   return pts;
 }
 function awardScore(amount, category) {
@@ -793,12 +790,47 @@ let reinforceTimer = 0;
 let currentRoomIsBoss = false;
 let currentRoomMaxOnScreen = 99;
 let currentBossDamageMultiplier = 1;
-let runTelemetry = null;
-let currentRoomTelemetry = null;
 
-function roundTelemetryValue(value) {
-  return Math.round(value * 100) / 100;
-}
+const telemetryController = createRunTelemetryController({
+  getHp: () => hp,
+  getMaxHp: () => maxHp,
+  getCharge: () => charge,
+  getUpg: () => UPG,
+  getRoomPhase: () => roomPhase,
+  getRoomTimer: () => roomTimer,
+  getRoomIndex: () => roomIndex,
+  getScore: () => score,
+  getTookDamageThisRoom: () => tookDamageThisRoom,
+  getEnemies: () => enemies,
+  getBullets: () => bullets,
+  getPlayerColor: () => getPlayerColor(),
+  getViewportModeLabel: () => getViewportModeLabel(),
+  getCanvasSize: () => ({ width: cv.width, height: cv.height }),
+  getVersionNum: () => VERSION.num,
+  getRequiredShotCount: (u) => getRequiredShotCount(u),
+  getKineticChargeRate: (u) => getKineticChargeRate(u),
+  onRoomClear: (room) => {
+    awardRoomClearBonuses(room);
+    awardFiveRoomScoreBonus();
+  },
+});
+const {
+  recordRoomPeakState,
+  recordDangerBulletSpawn,
+  recordChargeGain,
+  recordChargeWasted,
+  recordHeal,
+  recordPlayerDamage,
+  recordShotSpend,
+  recordControlTelemetry,
+  recordKill,
+  captureTelemetrySnapshot,
+  startRoomTelemetry,
+  finalizeCurrentRoomTelemetry,
+  buildRunTelemetryPayload,
+  createRunTelemetry,
+  roundTelemetryValue,
+} = telemetryController;
 
 function getPostHitInvulnSeconds(kind = 'projectile') {
   const reduction = bossClears * BOSS_CLEAR_INVULN_REDUCTION_S;
@@ -826,8 +858,9 @@ function applyKillSustainHeal(amount, source) {
 }
 
 function awardFiveRoomScoreBonus() {
-  if(!runTelemetry) return;
-  awardScore(computeFiveRoomCheckpointBonus(runTelemetry.rooms), 'streak');
+  const runForStreak = telemetryController.getRun();
+  if (!runForStreak) return;
+  awardScore(computeFiveRoomCheckpointBonus(runForStreak.rooms), 'streak');
 }
 
 function awardRoomClearBonuses(room) {
@@ -861,179 +894,23 @@ function getViewportModeLabel() {
   return 'default';
 }
 
-function createRunTelemetry() {
-  return createRunTelemetryValue({
-    build: VERSION.num,
-    playerColor: getPlayerColor(),
-    viewportMode: getViewportModeLabel(),
-    canvasWidth: cv.width,
-    canvasHeight: cv.height,
-  });
-}
-
-function createRoomTelemetry(roomNumber, roomDef) {
-  return createRoomTelemetryValue({
-    roomNumber,
-    roomDef,
-    viewportMode: getViewportModeLabel(),
-    canvasWidth: cv.width,
-    canvasHeight: cv.height,
-    hpStart: roundTelemetryValue(hp),
-  });
-}
-
-function recordRoomPeakState() {
-  if(!currentRoomTelemetry) return;
-  currentRoomTelemetry.pressure.peakEnemies = Math.max(currentRoomTelemetry.pressure.peakEnemies, enemies.length);
-  const liveDangerBullets = bullets.reduce((count, bullet) => count + (bullet.state === 'danger' ? 1 : 0), 0);
-  currentRoomTelemetry.pressure.peakDangerBullets = Math.max(currentRoomTelemetry.pressure.peakDangerBullets, liveDangerBullets);
-}
-
-function recordDangerBulletSpawn(count = 1) {
-  if(!currentRoomTelemetry || count <= 0) return;
-  currentRoomTelemetry.pressure.dangerBulletsSpawned += count;
-}
-
-function recordChargeGain(source, amount) {
-  if(!currentRoomTelemetry || amount <= 0) return 0;
-  const delta = roundTelemetryValue(amount);
-  currentRoomTelemetry.charge[source] = roundTelemetryValue((currentRoomTelemetry.charge[source] || 0) + delta);
-  return delta;
-}
-
+// gainCharge / healPlayer live here because they mutate actual game state
+// (charge, hp) in addition to calling the telemetry recorders.
 function gainCharge(amount, source) {
-  if(amount <= 0) return 0;
+  if (amount <= 0) return 0;
   const before = charge;
   charge = Math.min(UPG.maxCharge, charge + amount);
   const gained = charge - before;
   const wasted = amount - gained;
-  if(currentRoomTelemetry && wasted > 0) {
-    currentRoomTelemetry.charge.wasted = roundTelemetryValue((currentRoomTelemetry.charge.wasted || 0) + wasted);
-  }
+  if (wasted > 0) recordChargeWasted(wasted);
   return recordChargeGain(source, gained);
 }
 
-function recordHeal(source, amount) {
-  if(!currentRoomTelemetry || amount <= 0) return 0;
-  const delta = roundTelemetryValue(amount);
-  currentRoomTelemetry.heal[source] = roundTelemetryValue((currentRoomTelemetry.heal[source] || 0) + delta);
-  currentRoomTelemetry.hpEnd = roundTelemetryValue(hp);
-  return delta;
-}
-
 function healPlayer(amount, source) {
-  if(amount <= 0) return 0;
+  if (amount <= 0) return 0;
   const before = hp;
   hp = Math.min(maxHp, hp + amount);
   return recordHeal(source, hp - before);
-}
-
-function recordPlayerDamage(amount, source) {
-  if(!currentRoomTelemetry || amount <= 0) return 0;
-  const delta = roundTelemetryValue(amount);
-  currentRoomTelemetry.hpLost = roundTelemetryValue(currentRoomTelemetry.hpLost + delta);
-  currentRoomTelemetry.hitsTaken += 1;
-  currentRoomTelemetry.damageless = false;
-  currentRoomTelemetry.damage[source] = roundTelemetryValue((currentRoomTelemetry.damage[source] || 0) + delta);
-  currentRoomTelemetry.hpEnd = roundTelemetryValue(hp);
-  return delta;
-}
-
-function recordShotSpend(count) {
-  if(!currentRoomTelemetry || count <= 0) return;
-  currentRoomTelemetry.offense.shotsFired += count;
-  currentRoomTelemetry.offense.chargeSpent = roundTelemetryValue(currentRoomTelemetry.offense.chargeSpent + count);
-}
-
-function recordControlTelemetry(dt, isStill) {
-  if(!currentRoomTelemetry || !(roomPhase === 'spawning' || roomPhase === 'fighting')) return;
-  const ms = dt * 1000;
-  const control = currentRoomTelemetry.control;
-  if(isStill) control.stillMs = roundTelemetryValue(control.stillMs + ms);
-  else control.movingMs = roundTelemetryValue(control.movingMs + ms);
-  if(charge >= UPG.maxCharge) control.fullChargeMs = roundTelemetryValue(control.fullChargeMs + ms);
-  if(enemies.length > 0) {
-    if(!isStill) control.movingWithEnemiesMs = roundTelemetryValue(control.movingWithEnemiesMs + ms);
-    if(!isStill && charge >= 1) control.movingNoFireMs = roundTelemetryValue(control.movingNoFireMs + ms);
-    if(isStill && charge >= 1) control.firingReadyMs = roundTelemetryValue(control.firingReadyMs + ms);
-  }
-}
-
-function recordKill(source = 'output') {
-  if(!currentRoomTelemetry) return;
-  currentRoomTelemetry.kills += 1;
-  if(source === 'orbit') currentRoomTelemetry.offense.orbitKills += 1;
-  else currentRoomTelemetry.offense.outputKills += 1;
-}
-
-function captureTelemetrySnapshot(roomNumber) {
-  if(!runTelemetry) return;
-  runTelemetry.snapshots.push({
-    room: roomNumber,
-    hp: roundTelemetryValue(hp),
-    maxHp: roundTelemetryValue(maxHp),
-    sps: roundTelemetryValue((UPG.sps || 0) * (UPG.heavyRoundsFireMult || 1)),
-    maxCharge: roundTelemetryValue(UPG.maxCharge || 0),
-    currentCharge: roundTelemetryValue(charge || 0),
-    requiredShotCount: getRequiredShotCount(UPG),
-    damageMult: roundTelemetryValue((UPG.playerDamageMult || 1) * (UPG.denseDamageMult || 1) * (UPG.heavyRoundsDamageMult || 1) * Math.min(1.45, 1 + Math.min(UPG.sustainedFireShots || 0, 15) * 0.03) * Math.max(0.5, 1 - (UPG.spsTier || 0) * 0.04)),
-    denseTier: UPG.denseTier || 0,
-    denseDamageMult: roundTelemetryValue(UPG.denseDamageMult || 1),
-    chargeCapTier: UPG.chargeCapTier || 0,
-    chargeCapMult: roundTelemetryValue(UPG.chargeCapMult || 1),
-    chargeCapFlatTier: UPG.chargeCapFlatTier || 0,
-    chargeCapFlatBonus: roundTelemetryValue(UPG.chargeCapFlatBonus || 0),
-    damageReductionPct: roundTelemetryValue((1 - (UPG.damageTakenMult || 1)) * 100),
-    critChancePct: roundTelemetryValue((UPG.critChance || 0) * 100),
-    moveChargeRate: roundTelemetryValue(getKineticChargeRate(UPG) * (UPG.fluxState ? 2 : 1)),
-    shieldCount: UPG.shieldTier || 0,
-    orbitCount: UPG.orbitSphereTier || 0,
-    playerSizeMult: roundTelemetryValue(UPG.playerSizeMult || 1),
-    viewportMode: getViewportModeLabel(),
-    canvasWidth: cv.width,
-    canvasHeight: cv.height,
-  });
-}
-
-function startRoomTelemetry(roomNumber, roomDef) {
-  if(!runTelemetry) runTelemetry = createRunTelemetry();
-  runTelemetry.meta = {
-    ...runTelemetry.meta,
-    build: VERSION.num,
-    playerColor: getPlayerColor(),
-    viewportMode: getViewportModeLabel(),
-    canvasWidth: cv.width,
-    canvasHeight: cv.height,
-  };
-  currentRoomTelemetry = createRoomTelemetry(roomNumber, roomDef);
-  captureTelemetrySnapshot(roomNumber);
-}
-
-function finalizeCurrentRoomTelemetry(endState, clearMs = roomTimer) {
-  if(!currentRoomTelemetry || !runTelemetry) return;
-  currentRoomTelemetry.end = endState;
-  currentRoomTelemetry.clearMs = Math.round(clearMs);
-  currentRoomTelemetry.hpEnd = roundTelemetryValue(hp);
-  currentRoomTelemetry.damageless = currentRoomTelemetry.damageless && !tookDamageThisRoom;
-  runTelemetry.rooms.push(currentRoomTelemetry);
-  if(endState === 'clear') {
-    awardRoomClearBonuses(currentRoomTelemetry);
-    awardFiveRoomScoreBonus();
-  }
-  currentRoomTelemetry = null;
-}
-
-function buildRunTelemetryPayload() {
-  return buildRunTelemetryPayloadValue({
-    runTelemetry,
-    currentRoomTelemetry,
-    hp,
-    tookDamageThisRoom,
-    roomTimer,
-    roomIndex,
-    score,
-    roundTelemetryValue,
-  });
 }
 
 function getRoomDef(idx) {
@@ -1553,7 +1430,8 @@ function firePlayer(tx,ty) {
     now,
   });
   volleySpecs.forEach((spec) => pushOutputBullet({ bullets, ...spec }));
-  if(currentRoomTelemetry) currentRoomTelemetry.shotsFired = (currentRoomTelemetry.shotsFired || 0) + volleySpecs.length;
+  const shotsVolleyRoom = telemetryController.getCurrentRoom();
+  if (shotsVolleyRoom) shotsVolleyRoom.shotsFired = (shotsVolleyRoom.shotsFired || 0) + volleySpecs.length;
   charge=Math.max(0,charge-chargeSpent);
   recordShotSpend(chargeSpent);
   sparks(player.x,player.y,C.green,4 + Math.min(6, availableShots + Math.floor((chargeSpent - availableShots) / Math.max(1, availableShots))),55);
@@ -1597,7 +1475,8 @@ function firePlayer(tx,ty) {
         random: () => 1,
       });
       echoSpecs.forEach((spec) => pushOutputBullet({ bullets, ...spec }));
-      if(currentRoomTelemetry) currentRoomTelemetry.shotsFired = (currentRoomTelemetry.shotsFired || 0) + echoSpecs.length;
+      const shotsEchoRoom = telemetryController.getCurrentRoom();
+      if (shotsEchoRoom) shotsEchoRoom.shotsFired = (shotsEchoRoom.shotsFired || 0) + echoSpecs.length;
     }
   }
 }
@@ -1863,7 +1742,10 @@ function saveRunState() {
     legendaryOffered,
     pendingLegendaryId: pendingLegendary ? pendingLegendary.id : null,
     bossClears,
-    runTelemetry: { ...runTelemetry, roomHistory: [...(runTelemetry.roomHistory || [])] },
+    runTelemetry: (() => {
+      const rt = telemetryController.getRun() || {};
+      return { ...rt, roomHistory: [...(rt.roomHistory || [])] };
+    })(),
     savedAt: Date.now(),
     boonAppliedForRoom: (UPG._boonAppliedForRoom || -1),
   };
@@ -1896,7 +1778,7 @@ function restoreRun(saved) {
   legendaryOffered = saved.legendaryOffered || false;
   bossClears = saved.bossClears || 0;
   if (saved.runTelemetry) {
-    runTelemetry = saved.runTelemetry;
+    telemetryController.setRun(saved.runTelemetry);
   }
   // Rehydrate pending legendary by id
   if (saved.pendingLegendaryId && !legendaryOffered) {
@@ -1965,8 +1847,7 @@ function init() {
   _orbFireTimers=[]; _orbCooldown=[];
   boonHistory=[]; pendingLegendary=null; legendaryOffered=false;
   legendaryRejectedIds=new Set(); legendaryRoomsSinceRejection=new Map(); // Reset rejection tracking on new run
-  runTelemetry = createRunTelemetry();
-  currentRoomTelemetry = null;
+  telemetryController.resetRun();
   bullets.length=0;enemies.length=0;clearParticles();clearDmgNumbers();shockwaves.length=0;
   payloadCooldownMs = 0;
   resetJoystickState(joy);
@@ -2582,11 +2463,12 @@ function update(dt,ts){
       if(resolveBulletObstacleCollision(b)) bounced = true;
     }
 
-    if(b.state==='danger' && !b.nearMissed && currentRoomTelemetry && player.invincible <= 0){
+    const nmRoom = telemetryController.getCurrentRoom();
+    if(b.state==='danger' && !b.nearMissed && nmRoom && player.invincible <= 0){
       const nmDist = Math.hypot(b.x - player.x, b.y - player.y);
       if(nmDist < player.r * 2.75 + b.r && nmDist > player.r + b.r){
         b.nearMissed = true;
-        currentRoomTelemetry.nearMisses = (currentRoomTelemetry.nearMisses || 0) + 1;
+        nmRoom.nearMisses = (nmRoom.nearMisses || 0) + 1;
       }
     }
 
@@ -2766,7 +2648,8 @@ function update(dt,ts){
           const sy=shieldSlot.y;
           const shieldFacing = shieldSlot.facing;
           if(circleIntersectsShieldPlate(b.x, b.y, b.r, sx, sy, shieldFacing)){
-            if(currentRoomTelemetry) currentRoomTelemetry.safety.shieldBlocks += 1;
+            const shieldRoom = telemetryController.getCurrentRoom();
+            if (shieldRoom) shieldRoom.safety.shieldBlocks += 1;
             // Mirror Shield: reflect bullet back as output
             if(UPG.shieldMirror && (ts - (s.mirrorCooldown||0)) > 300){
               s.mirrorCooldown = ts;
@@ -2848,7 +2731,8 @@ function update(dt,ts){
       }
 
       if(dangerHit.kind === 'phase-dash'){
-        if(currentRoomTelemetry) currentRoomTelemetry.safety.phaseDashProcs += 1;
+        const phaseRoom = telemetryController.getCurrentRoom();
+        if (phaseRoom) phaseRoom.safety.phaseDashProcs += 1;
         UPG.phaseDashRoomUses = dangerHit.nextPhaseDashRoomUses;
         UPG.phaseDashCooldown = dangerHit.nextPhaseDashCooldown;
         UPG.isDashing = true;
@@ -2883,7 +2767,8 @@ function update(dt,ts){
       }
 
       if(dangerHit.kind === 'mirror-tide'){
-        if(currentRoomTelemetry) currentRoomTelemetry.safety.mirrorTideProcs += 1;
+        const mirrorRoom = telemetryController.getCurrentRoom();
+        if (mirrorRoom) mirrorRoom.safety.mirrorTideProcs += 1;
         UPG.mirrorTideRoomUses = dangerHit.nextMirrorTideRoomUses;
         UPG.mirrorTideCooldown = dangerHit.nextMirrorTideCooldown;
         const mNow = performance.now();

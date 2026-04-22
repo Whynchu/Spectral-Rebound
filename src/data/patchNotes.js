@@ -2,6 +2,14 @@ import { PATCH_NOTES_ARCHIVE } from './patchNotesArchive.js';
 
 const PATCH_NOTES_RECENT = [
   {
+      version: '1.19.30',
+      label: 'EXTRACT TELEMETRY',
+      summary: ['Decomposition: run telemetry + per-room recorders now live in src/systems/runTelemetryController.js.'],
+      highlights: [
+        'script.js trimmed another 115 lines (3755 to 3640).',
+      ]
+    },
+  {
       version: '1.19.29',
       label: 'EXTRACT PAUSE',
       summary: ['Decomposition: pause overlay + Escape toggle + confirm dialog now live in src/ui/pauseController.js.'],
