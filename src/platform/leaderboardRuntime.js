@@ -48,6 +48,7 @@ async function submitLeaderboardEntryRemote({
       gameVersion,
       boons: entry.boons,
       playerColor: entry.color,
+      durationSeconds: entry.runTimeMs != null ? Math.round(entry.runTimeMs / 1000) : null,
     });
     return { ok: true };
   } catch {

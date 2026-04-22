@@ -1,5 +1,14 @@
 const PATCH_NOTES = [
   {
+      version: '1.19.20',
+      label: 'LEADERBOARD DURATION',
+      summary: ['Run length is now recorded alongside scores.'],
+      highlights: [
+        'Remote leaderboard submissions now include duration_seconds so future views/analytics can sort by time-to-finish, show pace, or split fast vs. slow runs.',
+        'Schema migration: added duration_seconds column to leaderboard_scores and a new p_duration_seconds parameter on the submit_score RPC (both optional/nullable, fully backwards-compatible).',
+      ]
+    },
+    {
       version: '1.19.19',
       label: 'STATE ENCAPSULATION',
       summary: ['Under-the-hood refactor — no gameplay changes.'],

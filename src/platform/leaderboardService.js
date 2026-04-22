@@ -17,6 +17,7 @@ function mapRemoteRow(row) {
     boons: row.boons || null,
     color: row.player_color || 'green',
     boonOrder: row.boon_order || '',
+    durationSeconds: row.duration_seconds != null ? Number(row.duration_seconds) : null,
   };
 }
 
@@ -52,15 +53,19 @@ async function fetchRemoteLeaderboard({ period, scope, playerName, gameVersion, 
   return Array.isArray(rows) ? rows.map(mapRemoteRow) : [];
 }
 
-async function submitRemoteScore({ playerName, score, room, gameVersion, boons, playerColor = 'green' }) {
-  return callLeaderboardRpc('submit_score', {
+async function submitRemoteScore({ playerName, score, room, gameVersion, boons, playerColor = 'green', durationSeconds = null }) {
+  const payload = {
     p_player_name: playerName,
     p_score: score,
     p_room: room,
     p_game_version: gameVersion,
     p_boons: boons || null,
     p_player_color: playerColor,
-  });
+  };
+  if (durationSeconds != null && Number.isFinite(durationSeconds) && durationSeconds >= 0) {
+    payload.p_duration_seconds = Math.max(0, Math.round(durationSeconds));
+  }
+  return callLeaderboardRpc('submit_score', payload);
 }
 
 async function submitRunDiagnostic({ playerName, score, room, gameVersion, report, playerColor = 'green' }) {

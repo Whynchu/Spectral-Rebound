@@ -55,6 +55,9 @@ alter table public.leaderboard_scores
 alter table public.leaderboard_scores
   add column if not exists boon_order text default null;
 
+alter table public.leaderboard_scores
+  add column if not exists duration_seconds integer default null;
+
 create index if not exists leaderboard_scores_score_idx
   on public.leaderboard_scores (game_version, score desc, created_at desc);
 
@@ -105,13 +108,15 @@ revoke all on public.run_diagnostics from anon, authenticated;
 drop function if exists public.submit_score(text, integer, integer, text);
 drop function if exists public.submit_score(text, integer, integer, text, jsonb);
 drop function if exists public.submit_score(text, integer, integer, text, jsonb, text);
+drop function if exists public.submit_score(text, integer, integer, text, jsonb, text, integer);
 create or replace function public.submit_score(
   p_player_name text,
   p_score integer,
   p_room integer,
   p_game_version text,
   p_boons jsonb default null,
-  p_player_color text default 'green'
+  p_player_color text default 'green',
+  p_duration_seconds integer default null
 )
 returns jsonb
 language plpgsql
@@ -123,10 +128,17 @@ declare
   v_version text;
   v_color text;
   v_boon_order text;
+  v_duration integer;
 begin
   v_name := upper(trim(coalesce(p_player_name, '')));
   v_version := trim(coalesce(p_game_version, ''));
   v_color := coalesce(p_player_color, 'green');
+  v_duration := case
+    when p_duration_seconds is null then null
+    when p_duration_seconds < 0 then 0
+    when p_duration_seconds > 86400 then 86400
+    else p_duration_seconds
+  end;
 
   if v_name !~ '^[A-Z0-9 _-]{1,14}$' then
     raise exception 'invalid player_name';
@@ -166,8 +178,8 @@ begin
     end if;
   end if;
 
-  insert into public.leaderboard_scores (player_name, score, room, game_version, boons, player_color, boon_order)
-  values (v_name, p_score, p_room, v_version, p_boons, v_color, v_boon_order);
+  insert into public.leaderboard_scores (player_name, score, room, game_version, boons, player_color, boon_order, duration_seconds)
+  values (v_name, p_score, p_room, v_version, p_boons, v_color, v_boon_order, v_duration);
 
   return jsonb_build_object('ok', true);
 end;
