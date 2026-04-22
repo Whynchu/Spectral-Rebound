@@ -67,7 +67,6 @@ import {
 import { showBoonSelection } from './src/ui/boonSelection.js';
 import { renderVersionTag } from './src/ui/versionTag.js';
 import { PLAYER_COLORS, getPlayerColor, getPlayerColorScheme, getThreatPalette, setPlayerColor, getColorAssistMode, getColorAssistOptions, setColorAssistMode, getColorSchemeForKey } from './src/data/colorScheme.js';
-import { PATCH_NOTES, PATCH_NOTES_ARCHIVE_MESSAGE } from './src/data/patchNotes.js';
 import { renderColorSelector } from './src/ui/colorSelector.js';
 import { formatRunTime, renderHud } from './src/ui/hud.js';
 import {
@@ -392,17 +391,36 @@ function syncPlayerScale() {
   player.r = 9 * (UPG.playerSizeMult || 1);
 }
 
-function renderPatchNotes() {
-  renderPatchNotesPanel({
-    currentEl: patchNotesCurrent,
-    listEl: patchNotesList,
-    archiveEl: patchNotesArchiveNote,
-    versionNumber: VERSION.num,
-    versionLabel: VERSION.label,
-    notes: PATCH_NOTES,
-    archiveMessage: PATCH_NOTES_ARCHIVE_MESSAGE,
-    doc: document,
-  });
+let _patchNotesDataPromise = null;
+function loadPatchNotesData() {
+  if(!_patchNotesDataPromise) {
+    _patchNotesDataPromise = import('./src/data/patchNotes.js').catch(err => {
+      _patchNotesDataPromise = null; // allow retry on failure
+      throw err;
+    });
+  }
+  return _patchNotesDataPromise;
+}
+
+let _patchNotesRendered = false;
+async function renderPatchNotes() {
+  try {
+    const { PATCH_NOTES, PATCH_NOTES_ARCHIVE_MESSAGE } = await loadPatchNotesData();
+    renderPatchNotesPanel({
+      currentEl: patchNotesCurrent,
+      listEl: patchNotesList,
+      archiveEl: patchNotesArchiveNote,
+      versionNumber: VERSION.num,
+      versionLabel: VERSION.label,
+      notes: PATCH_NOTES,
+      archiveMessage: PATCH_NOTES_ARCHIVE_MESSAGE,
+      doc: document,
+    });
+    _patchNotesRendered = true;
+  } catch(err) {
+    console.warn('Failed to load patch notes:', err);
+    if(patchNotesList) patchNotesList.textContent = 'Failed to load patch notes. Please refresh.';
+  }
 }
 
 function buildResolvedPlayerColorMap() {
@@ -538,6 +556,10 @@ function setPatchNotesOpen(isOpen) {
     setHatsPanelOpen(false);
     setContributorsPanelOpen(false);
     pauseBoonsPanel.classList.add('off'); // Close pause boons panel if open
+    if(!_patchNotesRendered) {
+      // Lazy-load on first open. Show panel immediately; populate when ready.
+      renderPatchNotes();
+    }
   } else if(gstate === 'paused') {
     pausePanel.classList.remove('off'); // Restore pause panel if we're still paused
   }
@@ -3738,7 +3760,7 @@ bindJoystickControls({
   getGameState: () => gstate,
 });
 
-renderPatchNotes();
+// Patch notes render lazily on first panel open (see setPatchNotesOpen).
 function openLeaderboardScreen() {
   lbScreen.classList.remove('off');
   refreshLeaderboardView();
