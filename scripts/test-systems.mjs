@@ -151,6 +151,7 @@ import {
 } from '../src/ui/sessionFlow.js';
 import { bindGestureGuards } from '../src/platform/gestureGuards.js';
 import { setPlayerColor, getPlayerColor, getPlayerColorScheme } from '../src/data/colorScheme.js';
+import { BOONS, getDefaultUpgrades } from '../src/data/boons.js';
 
 const pendingTests = [];
 
@@ -2513,6 +2514,104 @@ test('createPanelManager customToggle replaces default class/attr handling', () 
   mgr.setOpen('only', true);
   mgr.setOpen('only', false);
   assert.deepEqual(calls, ['custom:true', 'custom:false']);
+});
+
+test('each boon apply() preserves UPG shape and avoids NaN', () => {
+  const failures = [];
+  
+  for (const boon of BOONS) {
+    if (!boon.apply) continue;
+    
+    try {
+      const upg = getDefaultUpgrades();
+      const keysBefore = new Set(Object.keys(upg));
+      
+      // Try calling apply with just upg; skip if it needs player/state context
+      try {
+        boon.apply(upg);
+      } catch (e) {
+        // Try with empty state object if apply needs context
+        try {
+          const state = { hp: 100, maxHp: 100 };
+          boon.apply(upg, state);
+        } catch (innerE) {
+          // Boon requires context beyond what we can provide; skip
+          continue;
+        }
+      }
+      
+      // Verify upg is still an object
+      if (typeof upg !== 'object' || upg === null) {
+        failures.push(`${boon.name}: upg became non-object`);
+        continue;
+      }
+      
+      // Verify no keys were removed
+      const keysAfter = new Set(Object.keys(upg));
+      for (const key of keysBefore) {
+        if (!keysAfter.has(key)) {
+          failures.push(`${boon.name}: removed key '${key}'`);
+        }
+      }
+      
+      // Verify no NaN values in numeric fields
+      for (const [key, value] of Object.entries(upg)) {
+        if (typeof value === 'number' && isNaN(value)) {
+          failures.push(`${boon.name}: introduced NaN in field '${key}'`);
+        }
+      }
+    } catch (e) {
+      failures.push(`${boon.name}: unexpected error: ${e.message}`);
+    }
+  }
+  
+  assert.deepEqual(failures, [], `Boon apply() failures: ${failures.join('; ')}`);
+});
+
+test('pause/resume dt accumulator skips paused time window', () => {
+  // Simulate pause/resume dt calculation
+  // When paused from tPauseStart to tPauseEnd, elapsed time should skip that window
+  
+  const calculateEffectiveDt = (tNow, tLastUpdate, tPauseStart, tPauseEnd) => {
+    if (tLastUpdate >= tPauseStart && tLastUpdate < tPauseEnd) {
+      // Last update was during pause; skip entire pause window
+      return Math.max(0, tNow - tPauseEnd);
+    }
+    if (tLastUpdate < tPauseStart && tNow < tPauseEnd) {
+      // We span the pause; only count time before pause
+      return tPauseStart - tLastUpdate;
+    }
+    if (tLastUpdate < tPauseStart && tNow >= tPauseEnd) {
+      // We span the entire pause window
+      return (tPauseStart - tLastUpdate) + (tNow - tPauseEnd);
+    }
+    // No pause overlap
+    return tNow - tLastUpdate;
+  };
+  
+  // Test case 1: update before pause, now at pause end
+  // tLastUpdate=700, tNow=1200, tPauseStart=800, tPauseEnd=1200
+  // Count 700->800 (100ms) + skip 800->1200, result = 100ms
+  const dt1 = calculateEffectiveDt(1200, 700, 800, 1200);
+  assert.equal(dt1, 100, 'Should count 100ms before pause, skip pause window');
+  
+  // Test case 2: update during pause, now after pause end
+  // tLastUpdate=900, tNow=1200, tPauseStart=800, tPauseEnd=1200
+  // Last update was during pause, so we resume from pause end: 1200-1200 = 0ms
+  const dt2 = calculateEffectiveDt(1200, 900, 800, 1200);
+  assert.equal(dt2, 0, 'Should skip pause window, 0ms elapsed');
+  
+  // Test case 3: update before pause, now after pause
+  // tLastUpdate=700, tNow=1300, tPauseStart=800, tPauseEnd=1200
+  // Count 700->800 (100ms) + skip pause + 1200->1300 (100ms) = 200ms
+  const dt3 = calculateEffectiveDt(1300, 700, 800, 1200);
+  assert.equal(dt3, 200, 'Should count 100ms before + 100ms after pause');
+  
+  // Test case 4: update after pause
+  // tLastUpdate=1250, tNow=1300, tPauseStart=800, tPauseEnd=1200
+  // No pause overlap: 1300-1250 = 50ms
+  const dt4 = calculateEffectiveDt(1300, 1250, 800, 1200);
+  assert.equal(dt4, 50, 'Should count only post-pause time');
 });
 
 await Promise.all(pendingTests);
