@@ -1,5 +1,16 @@
 const PATCH_NOTES = [
   {
+      version: '1.19.13',
+      label: 'ANDROID WEBAPK FIX',
+      summary: ['Fix Android "Unsafe app blocked" warning for installed web app users.'],
+      highlights: [
+        'Android install fix: updated the web app manifest (id, scope, orientation, maskable icons, categories) so Chrome re-mints the WebAPK against a current Android SDK. This clears the "Unsafe app blocked — built for an older version of Android" popup.',
+        'If you still see the warning: reopen the game in Chrome once and give it ~24h, or uninstall + reinstall from the home screen for an immediate refresh.',
+        'Bonus: maskable icon support means Android now draws the app icon edge-to-edge instead of inside a white rounded box.',
+        'iPhone, desktop, and in-browser play are unchanged.',
+      ]
+    },
+    {
       version: '1.19.12',
       label: 'REFACTOR + SCROLLBAR TAKE 3',
       summary: ['More code tidy-up, patch notes now load on demand, another shot at the desktop scrollbar.'],
