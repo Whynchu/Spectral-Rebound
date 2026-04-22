@@ -1106,7 +1106,7 @@ test('showGameOverScreen populates score/note and opens panel', () => {
     note: 'Room 10',
     renderBoons: () => { rendered = true; },
   });
-  assert.equal(scoreEl.textContent, 1234);
+  assert.equal(scoreEl.textContent, '1,234');
   assert.equal(noteEl.textContent, 'Room 10');
   assert.equal(panelClasses.has('off'), false);
   assert.equal(boonsClasses.has('off'), true);

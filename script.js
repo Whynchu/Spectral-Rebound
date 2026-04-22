@@ -304,6 +304,7 @@ const goBoonsList = document.getElementById('go-boons-list');
 const goBoonsCloseBtn = document.getElementById('btn-go-boons-close');
 const goScoreEl = document.getElementById('go-score');
 const goNoteEl = document.getElementById('go-note');
+const goBreakdownEl = document.getElementById('go-breakdown');
 const mainMenuBtn = document.getElementById('btn-main-menu');
 const wrap = document.getElementById('wrap');
 const topHud = document.getElementById('top-hud');
@@ -630,6 +631,25 @@ let pauseStartedAt = 0;
 let player = {};
 let bullets = [], enemies = [], shockwaves = [];
 let score=0, kills=0;
+let scoreBreakdown = makeScoreBreakdown();
+function makeScoreBreakdown() {
+  return { kills: 0, crits: 0, orbits: 0, roomBonus: 0 };
+}
+function awardKillPoints(pts, isCrit) {
+  const base = Number(pts) || 0;
+  const total = base * (isCrit ? 2 : 1);
+  score += total;
+  scoreBreakdown.kills += base;
+  if (isCrit) scoreBreakdown.crits += base;
+  return total;
+}
+function awardScore(amount, category) {
+  const n = Number(amount) || 0;
+  if (!n) return 0;
+  score += n;
+  if (category && scoreBreakdown[category] != null) scoreBreakdown[category] += n;
+  return n;
+}
 let charge=0, fireT=0, stillTimer=0, prevStill=false;
 let hp=BASE_PLAYER_HP, maxHp=BASE_PLAYER_HP;
 let playerAimAngle = -Math.PI * 0.5;
@@ -765,7 +785,7 @@ function applyKillSustainHeal(amount, source) {
 
 function awardFiveRoomScoreBonus() {
   if(!runTelemetry) return;
-  score += computeFiveRoomCheckpointBonus(runTelemetry.rooms);
+  awardScore(computeFiveRoomCheckpointBonus(runTelemetry.rooms), 'roomBonus');
 }
 
 function applyRoomClearProgression() {
@@ -1212,7 +1232,7 @@ function triggerPayloadBlast(bullet, enemies, ts) {
       hitCount++;
       spawnDmgNumber(e.x, e.y - e.r, impactDamage, getPlayerColorScheme().hex);
       if(e.hp <= 0){
-        score += computeKillScore(e.pts, false);
+        awardKillPoints(e.pts, false);
         kills++;
         recordKill('payload');
         sparks(e.x, e.y, e.col, e.isBoss ? 30 : 14, e.isBoss ? 160 : 95);
@@ -1859,8 +1879,11 @@ function handleGameLoopCrash(error) {
     boonsPanelEl: goBoonsPanel,
     scoreEl: goScoreEl,
     noteEl: goNoteEl,
+    breakdownEl: goBreakdownEl,
     score,
     note: `Crash captured at Room ${roomIndex+1} · diagnostic saved, score not submitted`,
+    breakdown: { ...scoreBreakdown },
+    stats: { kills, rooms: roomIndex + 1, elapsedMs: runElapsedMs, damagelessRooms },
     renderBoons: renderGameOverBoons,
   });
 }
@@ -2092,6 +2115,7 @@ function init() {
   clearSavedRun();
   if (continueRunBtn) continueRunBtn.classList.add('off');
   score = runMetrics.score; kills = runMetrics.kills;
+  scoreBreakdown = makeScoreBreakdown();
   charge = runMetrics.charge; fireT = runMetrics.fireT; stillTimer = runMetrics.stillTimer; prevStill = runMetrics.prevStill;
   hp = runMetrics.hp; maxHp = runMetrics.maxHp;
   runElapsedMs = runMetrics.runElapsedMs;
@@ -2166,8 +2190,11 @@ function update(dt,ts){
         boonsPanelEl: goBoonsPanel,
         scoreEl: goScoreEl,
         noteEl: goNoteEl,
+        breakdownEl: goBreakdownEl,
         score,
         note: `Room ${roomIndex+1} · ${kills} enemies eliminated`,
+        breakdown: { ...scoreBreakdown },
+        stats: { kills, rooms: roomIndex + 1, elapsedMs: runElapsedMs, damagelessRooms },
         renderBoons: renderGameOverBoons,
       });
     }
@@ -2572,6 +2599,7 @@ function update(dt,ts){
             finalFormChargeGain: 0.5,
           });
           score += orbitKillEffects.scoreDelta;
+          scoreBreakdown.orbits += orbitKillEffects.scoreDelta;
           kills += orbitKillEffects.killsDelta;
           recordKill('orbit');
           sparks(e.x,e.y,e.col,14,95);
@@ -3161,7 +3189,7 @@ function update(dt,ts){
             b.bloodPactHeals = hitResolution.nextBloodPactHeals;
           }
           if(e.hp<=0){
-            score += computeKillScore(e.pts, b.crit);
+            awardKillPoints(e.pts, b.crit);
             kills++;
             recordKill('output');
             sparks(e.x,e.y,e.col, e.isBoss ? 30 : 14, e.isBoss ? 160 : 95);

@@ -1,5 +1,15 @@
 const PATCH_NOTES = [
   {
+      version: '1.19.15',
+      label: 'RUN SCORE BREAKDOWN',
+      summary: ['End-of-run screen now shows where your score came from.'],
+      highlights: [
+        'Game Over: the final score panel now lists a breakdown — kill points, critical bonus, orbit strikes, room bonuses — plus a quick stats line with kills, rooms cleared, run time, and clean rooms.',
+        'Scoring is tracked per-category at the source, so the breakdown is exact, not estimated.',
+        'No balance changes.',
+      ]
+    },
+    {
       version: '1.19.14',
       label: 'LEADERBOARD BUTTON FIX',
       summary: ['Desktop main menu now expands to fit content — no more clipped Leaderboard button, no scrollbar.'],

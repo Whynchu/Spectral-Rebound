@@ -950,6 +950,36 @@ body.menu-chrome-visible:not(.compact-viewport) #hats-panel .settings-copy {
 #go-score { font-family:'Syne',sans-serif; font-weight:800; font-size:54px; color:var(--accent); line-height:1; }
 #go-sub   { font-size:9px; letter-spacing:.18em; color:var(--dim); text-transform:uppercase; }
 #go-note  { font-size:11px; color:var(--muted); text-align:center; max-width:250px; line-height:1.7; }
+.go-breakdown {
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  width:100%;
+  max-width:260px;
+  margin:2px auto 0;
+  font-size:11px;
+  color:var(--muted);
+  letter-spacing:.02em;
+}
+.go-breakdown:empty { display:none; }
+.go-breakdown-row {
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  gap:12px;
+  padding:2px 4px;
+  border-bottom:1px dashed rgba(255,255,255,0.06);
+}
+.go-breakdown-label { color:var(--dim); text-transform:uppercase; font-size:9px; letter-spacing:.16em; }
+.go-breakdown-value { color:#fff; font-family:'Syne',sans-serif; font-weight:700; font-size:12px; }
+.go-breakdown-stats {
+  margin-top:4px;
+  text-align:center;
+  font-size:9px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--dim);
+}
 #go-boons-panel {
   position:absolute;
   inset:20px;
