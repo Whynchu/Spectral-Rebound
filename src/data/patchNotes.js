@@ -1,5 +1,16 @@
 const PATCH_NOTES = [
   {
+      version: '1.19.12',
+      label: 'REFACTOR + SCROLLBAR TAKE 3',
+      summary: ['More code tidy-up, patch notes now load on demand, another shot at the desktop scrollbar.'],
+      highlights: [
+        'Desktop scrollbar: targeted fix — hide the main-menu start panel scrollbar on ≥1024px viewports (it was the #s-start panel overflowing, not the page). If it still shows up, it is a browser extension or genuine content overflow, not layout.',
+        'Perf: patch notes (73KB) now load only when the panel is opened instead of at startup. Faster first paint, same content.',
+        'Refactor (invisible): canvas drawing for the ghost and bullets moved to dedicated renderer modules (src/ui/drawing/). Boon tunables split out to src/data/boonConstants.js. Fixed a stale unit test.',
+        'New: docs/ARCHITECTURE.md added for contributors.',
+      ]
+    },
+    {
       version: '1.19.11',
       label: 'REVERT SCROLLBAR FIX',
       summary: ['Hotfix: revert 1.19.10 scrollbar change — it collapsed the desktop canvas.'],

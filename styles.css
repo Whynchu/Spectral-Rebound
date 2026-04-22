@@ -1137,6 +1137,21 @@ body.menu-chrome-visible:not(.compact-viewport) #hats-panel .settings-copy {
   text-shadow:0 0 22px rgba(var(--accent-rgb),0.35);
 }
 
+/* Desktop: kill the main-menu scrollbar. #s-start gets overflow:auto via
+ * .menu-chrome-visible rule at line 603 for mobile where content may exceed
+ * the allotted flex space, but on desktop there's plenty of vertical room
+ * and the scrollbar is cosmetic noise. Belt-and-braces: also enforce hidden
+ * on html/body in case any browser extension or Edge quirk overrides the
+ * global rule at line 39. */
+@media screen and (min-width: 1024px) {
+  html, body {
+    overflow: hidden !important;
+  }
+  body.menu-chrome-visible:not(.compact-viewport) #s-start {
+    overflow: hidden;
+  }
+}
+
 /* Mobile Safari centering fix */
 @media screen and (max-width: 768px) {
   :root {
