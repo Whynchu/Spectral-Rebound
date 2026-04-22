@@ -2123,6 +2123,7 @@ test('orbit contact helper applies cooldown-gated damage and kill state determin
     originY: 0,
     orbitalFocus: false,
     chargeRatio: 0,
+    baseDamage: 2,
   });
   assert.equal(result1.hit, true);
   assert.equal(result1.killed, false);
@@ -2139,6 +2140,7 @@ test('orbit contact helper applies cooldown-gated damage and kill state determin
     originY: 0,
     orbitalFocus: false,
     chargeRatio: 0,
+    baseDamage: 2,
   });
   assert.equal(result2.hit, false);
 
