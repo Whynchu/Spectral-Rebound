@@ -111,6 +111,7 @@ import { renderGameOverBoonsList, showLeaderboardBoonsPopup } from './src/ui/boo
 import { iconHTML } from './src/ui/iconRenderer.js';
 import { renderPatchNotesPanel } from './src/ui/patchNotes.js';
 import { createPanelManager } from './src/ui/panelManager.js';
+import { createPauseController } from './src/ui/pauseController.js';
 import { showGameOverScreen } from './src/ui/gameOver.js';
 import { bullets, enemies, shockwaves, spawnQueue, scoreBreakdown, resetScoreBreakdown } from './src/core/gameState.js';
 import { runBoonHook } from './src/systems/boonHooks.js';
@@ -663,7 +664,6 @@ async function refreshVersionStatus() {
 // ── STATE ─────────────────────────────────────────────────────────────────────
 const BASE_PLAYER_HP = 200;
 let gstate = 'start';
-let pauseStartedAt = 0;
 let player = {};
 let score=0, kills=0;
 function awardKillPoints(pts) {
@@ -1830,138 +1830,25 @@ function handleGameLoopCrash(error) {
 }
 
 // ── PAUSE / RESUME ────────────────────────────────────────────────────────────
-const pausePanel = document.getElementById('pause-panel');
-const btnPause = document.getElementById('btn-pause');
-const btnPatchNotes = document.getElementById('btn-patch-notes');
-const pauseBoonsPanel = document.getElementById('pause-boons-panel');
-
-function offsetAbsoluteTimestamps(pauseDuration) {
-  for (const b of bullets) {
-    if (b.expireAt) b.expireAt += pauseDuration;
-    if (b.decayStart) b.decayStart += pauseDuration;
-  }
-  runBoonHook('onPauseAdjust', { UPG, pauseDuration });
-}
-
-let prePauseState = null;
-
-function pauseGame() {
-  if (gstate !== 'playing' && gstate !== 'upgrade') return;
-  prePauseState = gstate;
-  gstate = 'paused';
-  pauseStartedAt = performance.now();
-  cancelAnimationFrame(raf);
-  pausePanel.classList.remove('off');
-  pausePanel.setAttribute('aria-hidden', 'false');
-  btnPause.style.display = 'none';
-}
-
-function resumeGame() {
-  if (gstate !== 'paused') return;
-  const pauseDuration = performance.now() - pauseStartedAt;
-  offsetAbsoluteTimestamps(pauseDuration);
-  gstate = prePauseState || 'playing';
-  pausePanel.classList.add('off');
-  pausePanel.setAttribute('aria-hidden', 'true');
-  pauseBoonsPanel.classList.add('off');
-  document.getElementById('pause-confirm-panel')?.classList.add('off');
-  btnPause.style.display = 'inline-flex';
-  if (gstate === 'playing') {
+// Controller owns the overlay state, DOM wiring, Escape toggle, and confirm dialog.
+// See src/ui/pauseController.js for the implementation.
+const pauseControls = createPauseController({
+  getGameState: () => gstate,
+  setGameState: (next) => { gstate = next; },
+  getUpg: () => UPG,
+  cancelLoop: () => cancelAnimationFrame(raf),
+  restartLoop: () => {
     lastT = performance.now();
     raf = requestAnimationFrame(loop);
-  }
-}
-
-function renderPauseBoons() {
-  const list = document.getElementById('pause-boons-list');
-  if (!list) return;
-  const entries = getActiveBoonEntries(UPG);
-  list.innerHTML = entries.map(e =>
-    `<div class="up-active-row">${iconHTML(e.icon, 'up-active-icon')} ${e.label}</div>`
-  ).join('');
-}
-
-btnPause.addEventListener('click', pauseGame);
-document.getElementById('btn-pause-continue').addEventListener('click', resumeGame);
-document.getElementById('btn-pause-boons').addEventListener('click', () => {
-  renderPauseBoons();
-  pauseBoonsPanel.classList.remove('off');
+  },
+  clearSavedRun: () => clearSavedRun(),
+  setMenuChromeVisible: (v) => setMenuChromeVisible(v),
+  openLeaderboard: () => openLeaderboardScreen(),
+  openPatchNotes: () => setPatchNotesOpen(true),
 });
-
-// In-game confirmation dialog (replaces OS confirm())
-const pauseConfirmPanel = document.getElementById('pause-confirm-panel');
-const pauseConfirmMsg = document.getElementById('pause-confirm-msg');
-const btnConfirmYes = document.getElementById('btn-pause-confirm-yes');
-const btnConfirmNo = document.getElementById('btn-pause-confirm-no');
-let pendingConfirmAction = null;
-
-function showPauseConfirm(message, onConfirm) {
-  pauseConfirmMsg.textContent = message;
-  pendingConfirmAction = onConfirm;
-  pauseBoonsPanel.classList.add('off');
-  pauseConfirmPanel.classList.remove('off');
-}
-
-btnConfirmYes.addEventListener('click', () => {
-  pauseConfirmPanel.classList.add('off');
-  if (pendingConfirmAction) pendingConfirmAction();
-  pendingConfirmAction = null;
-});
-btnConfirmNo.addEventListener('click', () => {
-  pauseConfirmPanel.classList.add('off');
-  pendingConfirmAction = null;
-});
-
-document.getElementById('btn-pause-restart').addEventListener('click', () => {
-  showPauseConfirm('Restart this run?', () => {
-    clearSavedRun();
-    resumeGame();
-    gstate = 'start';
-    cancelAnimationFrame(raf);
-    pausePanel.classList.add('off');
-    setMenuChromeVisible(true);
-    document.getElementById('s-start').classList.remove('off');
-    btnPatchNotes.style.display = 'inline-flex';
-    btnPause.style.display = 'none';
-  });
-});
-document.getElementById('btn-pause-main-menu').addEventListener('click', () => {
-  showPauseConfirm('Return to main menu?', () => {
-    clearSavedRun();
-    resumeGame();
-    gstate = 'start';
-    cancelAnimationFrame(raf);
-    pausePanel.classList.add('off');
-    setMenuChromeVisible(true);
-    document.getElementById('s-start').classList.remove('off');
-    btnPatchNotes.style.display = 'inline-flex';
-    btnPause.style.display = 'none';
-  });
-});
-document.getElementById('btn-pause-lb').addEventListener('click', () => {
-  // Show leaderboard overlay; when closed it reveals the still-paused game
-  // so re-show pause panel on close via a one-time listener
-  pausePanel.classList.add('off');
-  openLeaderboardScreen();
-  const lbClose = document.getElementById('btn-lb-close');
-  const restore = () => {
-    if (gstate === 'paused') pausePanel.classList.remove('off');
-    lbClose.removeEventListener('click', restore);
-  };
-  if (lbClose) lbClose.addEventListener('click', restore);
-});
-document.getElementById('btn-pause-patch-notes').addEventListener('click', () => {
-  pausePanel.classList.add('off');
-  setPatchNotesOpen(true);
-});
-
-// Keyboard shortcut: Escape to toggle pause
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    if (gstate === 'playing' || gstate === 'upgrade') pauseGame();
-    else if (gstate === 'paused') resumeGame();
-  }
-});
+const pauseGame = pauseControls.pauseGame;
+const resumeGame = pauseControls.resumeGame;
+const showPauseConfirm = pauseControls.showPauseConfirm;
 
 // ── RUN PERSISTENCE ────────────────────────────────────────────────────────────
 const SAVED_RUN_KEY = STORAGE_KEYS.savedRun;

@@ -2,6 +2,14 @@ import { PATCH_NOTES_ARCHIVE } from './patchNotesArchive.js';
 
 const PATCH_NOTES_RECENT = [
   {
+      version: '1.19.29',
+      label: 'EXTRACT PAUSE',
+      summary: ['Decomposition: pause overlay + Escape toggle + confirm dialog now live in src/ui/pauseController.js.'],
+      highlights: [
+        'script.js trimmed another 113 lines (3868 → 3755).',
+      ]
+    },
+  {
       version: '1.19.28',
       label: 'EXTRACT OBSTACLES',
       summary: ['Refactor — no gameplay changes.'],
