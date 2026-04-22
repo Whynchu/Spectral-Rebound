@@ -30,3 +30,7 @@ export const SHIELD_HALF_H = 4.5;
 // ── Enemy tell timing ────────────────────────────────────────────────────────
 // How long (ms) before an enemy's shot is telegraphed visually.
 export const WINDUP_MS_DRAW = 520;
+
+// ── Player baselines ─────────────────────────────────────────────────────────
+export const BASE_PLAYER_HP = 200;
+export const GAME_OVER_ANIM_MS = 850;

@@ -99,18 +99,6 @@ body.compact-viewport #wrap {
   justify-content: space-between;
   gap: 4px;
 }
-/* Constrain the canvas/screen container to prevent overflow */
-#wrap > div[style*="position:relative"] {
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-}
-/* Ensure legend doesn't break flex layout on desktop menu view */
-#legend {
-  flex-shrink: 0;
-  padding: 4px 0;
-  min-height: fit-content;
-}
 #btn-patch-notes {
   position: static;
   padding: 6px 12px;
@@ -510,18 +498,7 @@ body.compact-viewport #wrap {
   border-top: 1px solid var(--border);
 }
 /* CANVAS */
-#cv { 
-  display:block;
-  position: absolute;
-  inset: 0;
-  border-radius:5px;
-  border:1px solid var(--border2);
-  cursor:none;
-  touch-action:none;
-  user-select:none;
-  -webkit-user-select:none;
-  -webkit-touch-callout:none;
-}
+#cv { display:block; border-radius:5px; border:1px solid var(--border2); cursor:none; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
 /* BOTTOM HUD */
 #bot-hud {
   display: none;

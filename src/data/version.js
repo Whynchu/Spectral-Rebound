@@ -1,4 +1,4 @@
-const VERSION = { num: '1.19.10', label: 'PARTICLES & NUMBERS REFACTOR' };
+const VERSION = { num: '1.19.11', label: 'REVERT SCROLLBAR FIX' };
 
 function formatVersionTag(version = VERSION) {
   return `// prototype v${version.num} - ${version.label}`;

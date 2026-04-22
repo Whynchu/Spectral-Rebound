@@ -1,5 +1,14 @@
 const PATCH_NOTES = [
   {
+      version: '1.19.11',
+      label: 'REVERT SCROLLBAR FIX',
+      summary: ['Hotfix: revert 1.19.10 scrollbar change — it collapsed the desktop canvas.'],
+      highlights: [
+        'Revert: the scrollbar "fix" in 1.19.10 made the game invisible on desktop by shrinking the canvas to zero height. Back to 1.19.9 layout for now.',
+        'The original scrollbar issue is back; we will take another run at it properly.',
+      ]
+    },
+    {
       version: '1.19.10',
       label: 'PARTICLES & NUMBERS REFACTOR',
       summary: ['Desktop scrollbar squashed. Damage number spacing tightened. More code cleanup.'],
