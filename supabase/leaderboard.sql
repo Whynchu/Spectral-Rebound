@@ -292,6 +292,6 @@ as $$
   limit greatest(1, least(coalesce(p_limit, 10), 25));
 $$;
 
-grant execute on function public.submit_score(text, integer, integer, text, jsonb, text) to anon, authenticated;
+grant execute on function public.submit_score(text, integer, integer, text, jsonb, text, integer) to anon, authenticated;
 grant execute on function public.submit_run_diagnostic(text, integer, integer, text, jsonb, text) to anon, authenticated;
 grant execute on function public.get_leaderboard(text, text, text, text, integer) to anon, authenticated;
