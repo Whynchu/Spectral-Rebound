@@ -1711,6 +1711,10 @@ function handleGameLoopCrash(error) {
 // ── PAUSE / RESUME ────────────────────────────────────────────────────────────
 // Controller owns the overlay state, DOM wiring, Escape toggle, and confirm dialog.
 // See src/ui/pauseController.js for the implementation.
+// Module-level refs kept here so game-state paths (game over, win, restart, etc.)
+// can still toggle the pause button visibility without routing through the controller.
+const btnPause = document.getElementById('btn-pause');
+const btnPatchNotes = document.getElementById('btn-patch-notes');
 const pauseControls = createPauseController({
   getGameState: () => gstate,
   setGameState: (next) => { gstate = next; },

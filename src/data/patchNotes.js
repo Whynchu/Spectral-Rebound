@@ -2,6 +2,14 @@ import { PATCH_NOTES_ARCHIVE } from './patchNotesArchive.js';
 
 const PATCH_NOTES_RECENT = [
   {
+      version: '1.19.31',
+      label: 'PAUSE BTN HOTFIX',
+      summary: ['Hotfix: re-declare module-level btnPause/btnPatchNotes refs in script.js.'],
+      highlights: [
+        'p4-pause extraction removed them from script.js scope but legacy game-state paths (boon apply, legendary, init) still referenced them directly, crashing the run start with ReferenceError.',
+      ]
+    },
+  {
       version: '1.19.30',
       label: 'EXTRACT TELEMETRY',
       summary: ['Decomposition: run telemetry + per-room recorders now live in src/systems/runTelemetryController.js.'],
