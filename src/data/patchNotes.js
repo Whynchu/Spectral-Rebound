@@ -2,6 +2,14 @@ import { PATCH_NOTES_ARCHIVE } from './patchNotesArchive.js';
 
 const PATCH_NOTES_RECENT = [
   {
+      version: '1.19.32',
+      label: 'PATCH NOTES HOTFIX',
+      summary: ['Hotfix: re-declare module-level pausePanel/pauseBoonsPanel refs in script.js.'],
+      highlights: [
+        'The panelManager patchNotes beforeOpen/beforeClose callbacks referenced these refs, but p4-pause extraction moved them into pauseController\'s closure, so clicking the Patch Notes button threw ReferenceError and the panel never opened.',
+      ]
+    },
+  {
       version: '1.19.31',
       label: 'PAUSE BTN HOTFIX',
       summary: ['Hotfix: re-declare module-level btnPause/btnPatchNotes refs in script.js.'],

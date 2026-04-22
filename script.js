@@ -1715,6 +1715,8 @@ function handleGameLoopCrash(error) {
 // can still toggle the pause button visibility without routing through the controller.
 const btnPause = document.getElementById('btn-pause');
 const btnPatchNotes = document.getElementById('btn-patch-notes');
+const pausePanel = document.getElementById('pause-panel');
+const pauseBoonsPanel = document.getElementById('pause-boons-panel');
 const pauseControls = createPauseController({
   getGameState: () => gstate,
   setGameState: (next) => { gstate = next; },
