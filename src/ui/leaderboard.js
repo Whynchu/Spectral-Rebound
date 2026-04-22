@@ -16,6 +16,7 @@ function getVisibleLeaderboardRows(leaderboard, lbPeriod, lbScope, playerName) {
 
 function getLeaderboardRowRunTimeMs(row) {
   if(Number.isFinite(row.runTimeMs)) return row.runTimeMs;
+  if(Number.isFinite(row.durationSeconds)) return row.durationSeconds * 1000;
   const telemetry = row.boons?.telemetry;
   if(!telemetry) return null;
   const rooms = Array.isArray(telemetry.rooms) ? telemetry.rooms : [];

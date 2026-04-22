@@ -1,5 +1,13 @@
 const PATCH_NOTES = [
   {
+      version: '1.19.22',
+      label: 'LEADERBOARD TIME DISPLAY',
+      summary: ['Remote leaderboard rows now show run time.'],
+      highlights: [
+        'Once 1.19.20\'s duration_seconds column is flowing, leaderboard rows will display each run\'s duration alongside the score — even if the row has no telemetry attached.',
+      ]
+    },
+    {
       version: '1.19.21',
       label: 'SCORE BREAKDOWN ENCAPSULATION',
       summary: ['Internal refactor — no gameplay changes.'],
